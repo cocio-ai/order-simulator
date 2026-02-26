@@ -22,7 +22,7 @@
             <h3 class="section-title">システム設定</h3>
             <div class="form-group">
                 <label>店舗名</label>
-                <input type="text" id="storeName" list="storeList" placeholder="店舗名を入力">
+                <input type="text" id="storeName" list="storeList" placeholder="店舗名を入力 (履歴から選択可能)">
                 <datalist id="storeList"></datalist>
             </div>
             
@@ -187,9 +187,10 @@
                 <div class="flex-col">
                     <label>天候補正</label>
                     <select id="weather">
-                        <option value="1.0">晴れ/曇 (1.0x)</option>
-                        <option value="0.8">雨 (0.8x)</option>
                         <option value="1.2">イベント等 (1.2x)</option>
+                        <option value="1.0">晴れ/曇/影響小 (1.0x)</option>
+                        <option value="0.9">一時雨/小雨 (0.9x)</option>
+                        <option value="0.8">本降りの雨/雪 (0.8x)</option>
                     </select>
                 </div>
             </div>
