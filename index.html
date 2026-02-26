@@ -2,17 +2,19 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ORDER MANAGEMENT SIMULATOR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#F2F2F7">
+    <title>ORDER SIMULATOR</title>
     <link rel="stylesheet" href="style.css">
     <script src="main.js" defer></script>
 </head>
 <body>
 
 <div class="app-wrapper">
-    <h2 class="main-title">ORDER MANAGEMENT SIMULATOR</h2>
+    <h2 class="main-title">ORDER SIMULATOR</h2>
 
-    <div class="tab-container">
+    <div class="tab-container" id="tabContainer" data-active-tab="simulator">
+        <div class="tab-active-bg"></div>
         <button id="tabBtn-simulator" class="tab-button active" data-tab="simulator">シミュレーター</button>
         <button id="tabBtn-backup" class="tab-button" data-tab="backup">データ引継ぎ</button>
     </div>
@@ -21,13 +23,13 @@
         <div class="card">
             <h3 class="section-title">システム設定</h3>
             <div class="form-group">
-                <label>店舗名</label>
+                <label><span>店舗名</span> <span id="saveIndicator" style="color: var(--success); font-size: 0.8rem;"></span></label>
                 <input type="text" id="storeName" list="storeList" placeholder="店舗名を入力 (履歴から選択可能)">
                 <datalist id="storeList"></datalist>
             </div>
             
             <div class="form-group" style="margin-bottom: 0;">
-                <label>対象分類 <span id="saveIndicator" style="font-size: 0.75rem; color: var(--success); font-weight: bold; float: right;"></span></label>
+                <label>対象分類</label>
                 <select id="categoryName">
                     <option value="" disabled selected>分類を選択してください</option>
                     <option value="おにぎり">おにぎり</option>
@@ -47,9 +49,8 @@
                 </select>
             </div>
             
-            <div class="form-group" style="margin-top: 18px; margin-bottom: 0;">
-                <label>適用ロジック</label>
-                <input type="text" id="freshnessDisplay" value="上の分類を選択してください" readonly>
+            <div class="form-group" style="margin-top: 16px; margin-bottom: 0;">
+                <input type="text" id="freshnessDisplay" value="上の分類を選択してください" readonly tabindex="-1">
                 <input type="hidden" id="freshnessTime" value="0">
             </div>
         </div>
@@ -62,27 +63,29 @@
                     <input type="number" inputmode="numeric" id="avgSales" value="50" min="0">
                 </div>
                 <div class="flex-col">
-                    <label>在庫数 (8-10時台)</label>
+                    <label>現在庫 (8-10時)</label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
                 </div>
             </div>
 
             <div class="flex-row" style="align-items: center;">
                 <div class="flex-col">
-                    <label style="color: var(--primary-dark);">最大販売数</label>
+                    <label style="color: var(--primary);">最大販売数</label>
                     <input type="number" inputmode="numeric" id="maxSales" value="65" min="0">
                 </div>
-                <div style="font-weight: 800; color: #cbd5e1; margin-top: 15px;">ー</div>
+                <div style="font-weight: 800; color: #C7C7CC; margin-top: 15px;">ー</div>
                 <div class="flex-col">
-                    <label style="color: var(--primary-dark);">最小販売数</label>
+                    <label style="color: var(--primary);">最小販売数</label>
                     <input type="number" inputmode="numeric" id="minSales" value="35" min="0">
                 </div>
             </div>
             
             <div class="info-box">
-                💡 <strong>システムの自動計算:</strong><br>
-                最大 <span id="dispMax">65</span> − 最小 <span id="dispMin">35</span> ＝ ブレ幅 <span id="dispDiff">30</span><br>
-                <span style="font-size: 0.85em; opacity: 0.8;">(標準偏差 <span id="dispStdDev">7.5</span> として安全在庫を自動計算)</span>
+                <span style="font-size: 1.2rem;">💡</span>
+                <div>
+                    最大 <strong id="dispMax">65</strong> − 最小 <strong id="dispMin">35</strong> ＝ ブレ幅 <strong id="dispDiff">30</strong><br>
+                    <span style="font-size: 0.85em; opacity: 0.8;">(標準偏差 <span id="dispStdDev">7.5</span> で安全在庫を自動最適化)</span>
+                </div>
             </div>
 
             <div class="flex-row" style="margin-bottom: 0;">
@@ -91,7 +94,7 @@
                     <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
                 </div>
                 <div class="flex-col display-input-box" id="displayInputArea">
-                    <label style="color: var(--primary-dark);">最低陳列量</label>
+                    <label style="color: var(--primary);">最低陳列量</label>
                     <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0">
                 </div>
             </div>
@@ -113,7 +116,7 @@
             </div>
 
             <div class="form-group">
-                <label>曜日比率設定</label>
+                <label>曜日ごとの売上比率</label>
                 <div class="day-ratio-container">
                     <div class="day-ratio-box"><label>月</label><select id="ratio_mon"></select></div>
                     <div class="day-ratio-box"><label>火</label><select id="ratio_tue"></select></div>
@@ -125,17 +128,17 @@
                 </div>
             </div>
 
-            <hr style="border: none; border-top: 1.5px dashed var(--border); margin: 30px 0;">
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 32px 0;">
 
             <div class="form-group weather-auto-area">
                 <label class="weather-header">
-                    <span>📍 天気予報自動取得</span>
-                    <span id="weatherStatus"></span>
+                    <span>📍 気象庁データ 自動取得</span>
+                    <span id="weatherStatus" style="font-size: 0.8rem; font-weight: normal; float: right;"></span>
                 </label>
                 
                 <div class="flex-row" style="margin-bottom: 12px;">
                     <div class="flex-col">
-                        <select id="prefecture">
+                        <select id="prefecture" style="background-color: #fff;">
                             <option value="">-- 都道府県 --</option>
                             <option value="016000">北海道</option><option value="020000">青森県</option>
                             <option value="030000">岩手県</option><option value="040000">宮城県</option>
@@ -164,22 +167,22 @@
                         </select>
                     </div>
                     <div class="flex-col">
-                        <select id="cityArea">
+                        <select id="cityArea" style="background-color: #fff;">
                             <option value="">-- エリア --</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 5px;">
-                    <select id="targetDateOffset" class="date-offset-select">
-                        <option value="1" id="opt-tomorrow">明日 の予報を取得 (前日発注用)</option>
-                        <option value="2" id="opt-dayafter">明後日 の予報を取得 (前々日発注用)</option>
+                    <select id="targetDateOffset" style="background-color: #fff; color: #0369A1;">
+                        <option value="1" id="opt-tomorrow">明日の予報を取得 (前日発注用)</option>
+                        <option value="2" id="opt-dayafter">明後日の予報を取得 (前々日発注用)</option>
                     </select>
                 </div>
 
                 <div id="acquiredDateDisplay" class="acquired-weather-display">
-                    <div class="awd-date">📅 対象日：<span id="acquiredDateText"></span></div>
-                    <div class="awd-weather">⛅ 予報：<span id="actualWeatherText"></span></div>
+                    <div class="awd-date">📅 対象日：<span id="acquiredDateText" style="color: #007AFF;"></span></div>
+                    <div class="awd-weather">⛅ <span id="actualWeatherText"></span></div>
                 </div>
             </div>
 
@@ -197,38 +200,41 @@
             
             <div class="flex-row">
                 <div class="flex-col">
-                    <label style="color: #ea580c;">予想最高気温 (℃)</label>
+                    <label style="color: var(--danger);">予想最高気温 (℃)</label>
                     <input type="number" inputmode="numeric" id="maxTemp" value="25">
                 </div>
                 <div class="flex-col">
-                    <label style="color: var(--primary-dark);">予想最低気温 (℃)</label>
+                    <label style="color: var(--primary);">予想最低気温 (℃)</label>
                     <input type="number" inputmode="numeric" id="minTemp" value="15">
                 </div>
             </div>
         </div>
 
-        <button id="btn-calculate" class="calc-button">⚡ 再計算して結果を見る</button>
+        <button id="btn-calculate" class="calc-button">
+            <span class="spinner"></span>
+            <span id="btn-calc-text">⚡ AI 発注シミュレーション実行</span>
+        </button>
 
         <div id="resultArea" class="result-card" style="display: none;">
-            <h3 class="section-title">発注推奨数（シミュレーション結果）</h3>
+            <h3 class="section-title">算出結果</h3>
             <div class="result-header">
-                <strong id="resCategory"></strong> <span id="resFreshnessText"></span>
+                <strong id="resCategory"></strong> <span id="resFreshnessText" style="font-size:0.85rem; color:#8E8E93; font-weight:normal; margin-left:10px;"></span>
             </div>
             
-            <div class="result-item result-breakdown">
+            <div class="result-item" style="font-size: 0.85rem; margin-bottom: 10px;">
                 (内訳: 基本 <span id="resBaseSales"></span> × 曜日 <span id="resDayRatio"></span> × 天候 <span id="resWeatherRatio"></span> × 気温 <span id="resTempRatio"></span>)
             </div>
-            <div class="result-item" id="resTempMessage" style="color: #fbbf24; font-size: 0.9rem; margin-bottom: 20px; font-weight: 700;"></div>
+            <div class="result-item" id="resTempMessage" style="color: #FFD60A; font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
             
-            <div id="targetStockArea" style="display: none; margin-bottom: 20px;">
-                <div class="result-item highlight" style="font-size: 1.05rem;">売場目標在庫数: <strong id="resTargetStock" style="font-size: 1.3rem;"></strong> 個</div>
+            <div id="targetStockArea" style="display: none; margin-bottom: 24px;">
+                <div class="result-item" style="color: #34C759; font-weight: 600; font-size: 1.05rem;">売場目標在庫数: <strong id="resTargetStock" style="font-size: 1.4rem;"></strong> 個</div>
                 <div class="result-item" style="font-size: 0.85rem;" id="targetStockLabel"></div>
             </div>
-            <div class="result-item warning" style="font-size: 0.95rem;"><span id="resMaxStockLabel"></span>: <strong id="resMaxStock"></strong></div>
+            <div class="result-item" style="font-size: 0.95rem; color: #FF453A;"><span id="resMaxStockLabel"></span>: <strong id="resMaxStock"></strong></div>
             
             <div class="forecast-panel">
-                <div class="f-label">📊 1日あたりの販売予測</div>
-                <div><span class="f-value" id="resAdjSales"></span> <span class="unit-text">個</span></div>
+                <div style="font-size: 0.95rem; font-weight: bold; color: #5AC8FA;">📊 1日あたりの販売予測</div>
+                <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; color: #5AC8FA;">個</span></div>
             </div>
 
             <div class="order-panel">
@@ -237,8 +243,8 @@
             </div>
             
             <div id="boostBreakdown" class="boost-breakdown">
-                <div class="boost-row" style="color: #cbd5e1; font-size: 0.95rem;">
-                    <span>通常算出:</span><span><strong id="resNormalQty" style="font-size: 1.3rem; color: #fff;"></strong> 個</span>
+                <div class="boost-row" style="color: #AEAEB2; font-size: 0.95rem;">
+                    <span>通常算出:</span><span><strong id="resNormalQty" style="font-size: 1.2rem;"></strong> 個</span>
                 </div>
                 <div class="boost-row boost-highlight">
                     <span id="boostLabelText">🔥 気温ブースト:</span><span>+ <strong id="resBoostQty" style="font-size: 1.4rem;"></strong> 個</span>
@@ -251,13 +257,13 @@
     </div>
 
     <div id="tab-backup" class="tab-content">
-        <div class="card backup-card">
-            <h3 class="section-title" style="color: #334155;">💾 セーブデータ・引継ぎ</h3>
-            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 14px; line-height: 1.5;">
+        <div class="card" style="border: 2px dashed #C7C7CC; background: #fff;">
+            <h3 class="section-title">💾 セーブデータ・引継ぎ</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6;">
                 入力したデータは自動保存されますが、端末を変更する際はこちらのコードを使用してください。
             </p>
-            <textarea id="backupCode" class="backup-textarea" rows="4" placeholder="ここにバックアップコードが表示されます"></textarea>
-            <div class="flex-row" style="margin-bottom: 0; gap: 16px;">
+            <textarea id="backupCode" class="backup-textarea" rows="5" placeholder="ここにバックアップコードが表示されます"></textarea>
+            <div class="flex-row" style="margin-bottom: 0;">
                 <button id="btn-export" class="backup-btn btn-create">コードを作成</button>
                 <button id="btn-import" class="backup-btn btn-restore">貼付して復元</button>
             </div>
