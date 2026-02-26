@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const State = {
         data: {
             version: 1, 
-            currentStore: "", // 初期値を空に変更
+            currentStore: "", 
             currentCategory: "",
             targetDateOffset: "1",
             stores: {} 
@@ -178,7 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
         renderStoreDatalist() {
             const dataList = document.getElementById('storeList');
             dataList.innerHTML = '';
-            // 保存されている店舗履歴のみを抽出（空文字は除外）
             const stores = Object.keys(State.data.stores).filter(s => s.trim() !== "");
             stores.forEach(store => {
                 let option = document.createElement('option');
@@ -378,6 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 let minT = "", maxT = "", weatherText = "予報データなし", wDate = targetDate;
                 
+                // 1. 週間予報（data[1]）からの取得
                 if (data[1] && data[1].timeSeries) {
                     let wSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     if (wSeries) {
@@ -398,6 +398,42 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
+                // 2. 短期予報（data[0]）からの取得（オリジナル版のロジックを復元）
+                if (data[0] && data[0].timeSeries) {
+                    let shortWeatherSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].weathers);
+                    if (shortWeatherSeries) {
+                        let wIndex = shortWeatherSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
+                        if (wIndex !== -1) {
+                            let areaData = shortWeatherSeries.areas.find(a => a.area.code === areaCode) || shortWeatherSeries.areas[0];
+                            weatherText = areaData.weathers[wIndex] || weatherText;
+                            wDate = new Date(shortWeatherSeries.timeDefines[wIndex]);
+                        }
+                    }
+                    
+                    let shortTempSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].temps);
+                    if (shortTempSeries) {
+                        let areaData = shortTempSeries.areas.find(a => a.area.code === areaCode) || shortTempSeries.areas[0];
+                        if (areaData && areaData.temps) {
+                            let minCandidates = [];
+                            let maxCandidates = [];
+                            shortTempSeries.timeDefines.forEach((t, idx) => {
+                                if (t.startsWith(targetDateStr)) {
+                                    let hr = new Date(t).getHours();
+                                    if (hr === 0 || hr === 6) minCandidates.push(areaData.temps[idx]);
+                                    if (hr === 9 || hr === 12 || hr === 15) maxCandidates.push(areaData.temps[idx]);
+                                }
+                            });
+                            if (offset === 1 && minCandidates.length === 0 && maxCandidates.length === 0) {
+                                let len = areaData.temps.length;
+                                if (len >= 2) { minT = areaData.temps[len - 2]; maxT = areaData.temps[len - 1]; }
+                            } else {
+                                if (minCandidates.length > 0) minT = minCandidates[0];
+                                if (maxCandidates.length > 0) maxT = maxCandidates[maxCandidates.length - 1];
+                            }
+                        }
+                    }
+                }
+
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
@@ -405,13 +441,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 let wRatio = 1.0;
                 if (weatherText.includes("雨") || weatherText.includes("雪")) {
                     if (weatherText.includes("一時") || weatherText.includes("時々") || weatherText.includes("小雨")) {
-                        wRatio = 0.9; // 一時的・降水量が少ない
+                        wRatio = 0.9; 
                     } else if (weatherText.includes("夜遅く") || weatherText.includes("夕方から") || weatherText.includes("明け方")) {
-                        wRatio = 1.0; // 影響の少ない時間帯の雨
+                        wRatio = 1.0; 
                     } else if (weatherText.includes("のち")) {
-                        wRatio = 0.9; // 途中で天気が変わるため1日雨より緩和
+                        wRatio = 0.9; 
                     } else {
-                        wRatio = 0.8; // 本降り・終日雨
+                        wRatio = 0.8; 
                     }
                 }
                 document.getElementById('weather').value = wRatio.toFixed(1);
