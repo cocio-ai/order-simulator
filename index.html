@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ORDER MANAGEMENT SIMULATOR</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="main.js" defer></script>
+</head>
+<body>
+
+<div class="app-wrapper">
+    <h2 class="main-title">ORDER MANAGEMENT SIMULATOR</h2>
+
+    <div class="tab-container">
+        <button id="tabBtn-simulator" class="tab-button active" data-tab="simulator">シミュレーター</button>
+        <button id="tabBtn-backup" class="tab-button" data-tab="backup">データ引継ぎ</button>
+    </div>
+    
+    <div id="tab-simulator" class="tab-content active">
+        <div class="card">
+            <h3 class="section-title">システム設定</h3>
+            <div class="form-group">
+                <label>店舗名</label>
+                <input type="text" id="storeName" list="storeList" placeholder="店舗名を入力">
+                <datalist id="storeList"></datalist>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>対象分類 <span id="saveIndicator" style="font-size: 0.75rem; color: var(--success); font-weight: bold; float: right;"></span></label>
+                <select id="categoryName">
+                    <option value="" disabled selected>分類を選択してください</option>
+                    <option value="おにぎり">おにぎり</option>
+                    <option value="こだわりおにぎり">こだわりおにぎり</option>
+                    <option value="弁当">弁当（常温・短鮮度）</option>
+                    <option value="寿司">寿司</option>
+                    <option value="チルド弁当">チルド弁当</option>
+                    <option value="サンドイッチ">サンドイッチ</option>
+                    <option value="ロール">ロール</option>
+                    <option value="スパゲティパスタ">スパゲティパスタ</option>
+                    <option value="グラタンドリア">グラタンドリア</option>
+                    <option value="カップ麺">カップ麺</option>
+                    <option value="調理麺">調理麺（冷たい麺）</option>
+                    <option value="惣菜">惣菜</option>
+                    <option value="カップデリ">カップデリ</option>
+                    <option value="サラダ">サラダ</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-top: 18px; margin-bottom: 0;">
+                <label>適用ロジック</label>
+                <input type="text" id="freshnessDisplay" value="上の分類を選択してください" readonly>
+                <input type="hidden" id="freshnessTime" value="0">
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">販売・在庫データ</h3>
+            <div class="flex-row">
+                <div class="flex-col">
+                    <label>平均販売数</label>
+                    <input type="number" inputmode="numeric" id="avgSales" value="50" min="0">
+                </div>
+                <div class="flex-col">
+                    <label>在庫数 (8-10時台)</label>
+                    <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
+                </div>
+            </div>
+
+            <div class="flex-row" style="align-items: center;">
+                <div class="flex-col">
+                    <label style="color: var(--primary-dark);">最大販売数</label>
+                    <input type="number" inputmode="numeric" id="maxSales" value="65" min="0">
+                </div>
+                <div style="font-weight: 800; color: #cbd5e1; margin-top: 15px;">ー</div>
+                <div class="flex-col">
+                    <label style="color: var(--primary-dark);">最小販売数</label>
+                    <input type="number" inputmode="numeric" id="minSales" value="35" min="0">
+                </div>
+            </div>
+            
+            <div class="info-box">
+                💡 <strong>システムの自動計算:</strong><br>
+                最大 <span id="dispMax">65</span> − 最小 <span id="dispMin">35</span> ＝ ブレ幅 <span id="dispDiff">30</span><br>
+                <span style="font-size: 0.85em; opacity: 0.8;">(標準偏差 <span id="dispStdDev">7.5</span> として安全在庫を自動計算)</span>
+            </div>
+
+            <div class="flex-row" style="margin-bottom: 0;">
+                <div class="flex-col waste-input-box">
+                    <label style="color: var(--danger);">平均廃棄数</label>
+                    <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
+                </div>
+                <div class="flex-col display-input-box" id="displayInputArea">
+                    <label style="color: var(--primary-dark);">最低陳列量</label>
+                    <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">外部変動要因</h3>
+            <div class="form-group">
+                <label>対象曜日</label>
+                <select id="targetDay">
+                    <option value="mon">月曜日</option>
+                    <option value="tue">火曜日</option>
+                    <option value="wed">水曜日</option>
+                    <option value="thu">木曜日</option>
+                    <option value="fri">金曜日</option>
+                    <option value="sat">土曜日</option>
+                    <option value="sun">日曜日</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>曜日比率設定</label>
+                <div class="day-ratio-container">
+                    <div class="day-ratio-box"><label>月</label><select id="ratio_mon"></select></div>
+                    <div class="day-ratio-box"><label>火</label><select id="ratio_tue"></select></div>
+                    <div class="day-ratio-box"><label>水</label><select id="ratio_wed"></select></div>
+                    <div class="day-ratio-box"><label>木</label><select id="ratio_thu"></select></div>
+                    <div class="day-ratio-box"><label>金</label><select id="ratio_fri"></select></div>
+                    <div class="day-ratio-box day-sat"><label>土</label><select id="ratio_sat"></select></div>
+                    <div class="day-ratio-box day-sun"><label>日</label><select id="ratio_sun"></select></div>
+                </div>
+            </div>
+
+            <hr style="border: none; border-top: 1.5px dashed var(--border); margin: 30px 0;">
+
+            <div class="form-group weather-auto-area">
+                <label class="weather-header">
+                    <span>📍 天気予報自動取得</span>
+                    <span id="weatherStatus"></span>
+                </label>
+                
+                <div class="flex-row" style="margin-bottom: 12px;">
+                    <div class="flex-col">
+                        <select id="prefecture">
+                            <option value="">-- 都道府県 --</option>
+                            <option value="016000">北海道</option><option value="020000">青森県</option>
+                            <option value="030000">岩手県</option><option value="040000">宮城県</option>
+                            <option value="050000">秋田県</option><option value="060000">山形県</option>
+                            <option value="070000">福島県</option><option value="080000">茨城県</option>
+                            <option value="090000">栃木県</option><option value="100000">群馬県</option>
+                            <option value="110000">埼玉県</option><option value="120000">千葉県</option>
+                            <option value="130000">東京都</option><option value="140000">神奈川県</option>
+                            <option value="150000">新潟県</option><option value="160000">富山県</option>
+                            <option value="170000">石川県</option><option value="180000">福井県</option>
+                            <option value="190000">山梨県</option><option value="200000">長野県</option>
+                            <option value="210000">岐阜県</option><option value="220000">静岡県</option>
+                            <option value="230000">愛知県</option><option value="240000">三重県</option>
+                            <option value="250000">滋賀県</option><option value="260000">京都府</option>
+                            <option value="270000">大阪府</option><option value="280000">兵庫県</option>
+                            <option value="290000">奈良県</option><option value="300000">和歌山県</option>
+                            <option value="310000">鳥取県</option><option value="320000">島根県</option>
+                            <option value="330000">岡山県</option><option value="340000">広島県</option>
+                            <option value="350000">山口県</option><option value="360000">徳島県</option>
+                            <option value="370000">香川県</option><option value="380000">愛媛県</option>
+                            <option value="390000">高知県</option><option value="400000">福岡県</option>
+                            <option value="410000">佐賀県</option><option value="420000">長崎県</option>
+                            <option value="430000">熊本県</option><option value="440000">大分県</option>
+                            <option value="450000">宮崎県</option><option value="460100">鹿児島県</option>
+                            <option value="471000">沖縄県</option>
+                        </select>
+                    </div>
+                    <div class="flex-col">
+                        <select id="cityArea">
+                            <option value="">-- エリア --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 5px;">
+                    <select id="targetDateOffset" class="date-offset-select">
+                        <option value="1" id="opt-tomorrow">明日 の予報を取得 (前日発注用)</option>
+                        <option value="2" id="opt-dayafter">明後日 の予報を取得 (前々日発注用)</option>
+                    </select>
+                </div>
+
+                <div id="acquiredDateDisplay" class="acquired-weather-display">
+                    <div class="awd-date">📅 対象日：<span id="acquiredDateText"></span></div>
+                    <div class="awd-weather">⛅ 予報：<span id="actualWeatherText"></span></div>
+                </div>
+            </div>
+
+            <div class="flex-row">
+                <div class="flex-col">
+                    <label>天候補正</label>
+                    <select id="weather">
+                        <option value="1.0">晴れ/曇 (1.0x)</option>
+                        <option value="0.8">雨 (0.8x)</option>
+                        <option value="1.2">イベント等 (1.2x)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex-row">
+                <div class="flex-col">
+                    <label style="color: #ea580c;">予想最高気温 (℃)</label>
+                    <input type="number" inputmode="numeric" id="maxTemp" value="25">
+                </div>
+                <div class="flex-col">
+                    <label style="color: var(--primary-dark);">予想最低気温 (℃)</label>
+                    <input type="number" inputmode="numeric" id="minTemp" value="15">
+                </div>
+            </div>
+        </div>
+
+        <button id="btn-calculate" class="calc-button">⚡ 再計算して結果を見る</button>
+
+        <div id="resultArea" class="result-card" style="display: none;">
+            <h3 class="section-title">発注推奨数（シミュレーション結果）</h3>
+            <div class="result-header">
+                <strong id="resCategory"></strong> <span id="resFreshnessText"></span>
+            </div>
+            
+            <div class="result-item result-breakdown">
+                (内訳: 基本 <span id="resBaseSales"></span> × 曜日 <span id="resDayRatio"></span> × 天候 <span id="resWeatherRatio"></span> × 気温 <span id="resTempRatio"></span>)
+            </div>
+            <div class="result-item" id="resTempMessage" style="color: #fbbf24; font-size: 0.9rem; margin-bottom: 20px; font-weight: 700;"></div>
+            
+            <div id="targetStockArea" style="display: none; margin-bottom: 20px;">
+                <div class="result-item highlight" style="font-size: 1.05rem;">売場目標在庫数: <strong id="resTargetStock" style="font-size: 1.3rem;"></strong> 個</div>
+                <div class="result-item" style="font-size: 0.85rem;" id="targetStockLabel"></div>
+            </div>
+            <div class="result-item warning" style="font-size: 0.95rem;"><span id="resMaxStockLabel"></span>: <strong id="resMaxStock"></strong></div>
+            
+            <div class="forecast-panel">
+                <div class="f-label">📊 1日あたりの販売予測</div>
+                <div><span class="f-value" id="resAdjSales"></span> <span class="unit-text">個</span></div>
+            </div>
+
+            <div class="order-panel">
+                <div class="o-label">✅ 最終 発注目安数</div>
+                <div><span class="o-value" id="resOrderQty"></span><span class="o-unit">個</span></div>
+            </div>
+            
+            <div id="boostBreakdown" class="boost-breakdown">
+                <div class="boost-row" style="color: #cbd5e1; font-size: 0.95rem;">
+                    <span>通常算出:</span><span><strong id="resNormalQty" style="font-size: 1.3rem; color: #fff;"></strong> 個</span>
+                </div>
+                <div class="boost-row boost-highlight">
+                    <span id="boostLabelText">🔥 気温ブースト:</span><span>+ <strong id="resBoostQty" style="font-size: 1.4rem;"></strong> 個</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="warningArea" class="alert-box"><span id="warningMessageText"></span></div>
+
+    </div>
+
+    <div id="tab-backup" class="tab-content">
+        <div class="card backup-card">
+            <h3 class="section-title" style="color: #334155;">💾 セーブデータ・引継ぎ</h3>
+            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 14px; line-height: 1.5;">
+                入力したデータは自動保存されますが、端末を変更する際はこちらのコードを使用してください。
+            </p>
+            <textarea id="backupCode" class="backup-textarea" rows="4" placeholder="ここにバックアップコードが表示されます"></textarea>
+            <div class="flex-row" style="margin-bottom: 0; gap: 16px;">
+                <button id="btn-export" class="backup-btn btn-create">コードを作成</button>
+                <button id="btn-import" class="backup-btn btn-restore">貼付して復元</button>
+            </div>
+        </div>
+    </div> 
+</div>
+</body>
+</html>
