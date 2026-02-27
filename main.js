@@ -527,7 +527,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- 計算ロジック ---
     const Logic = {
-        // 分類名から鮮度時間を取得
         getFreshnessHours(category) {
             switch(category) {
                 case "おにぎり": case "こだわりおにぎり": case "弁当": return 14;
@@ -538,7 +537,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // 気温と分類に応じた補正倍率を取得
         getTempCoeff(catVal, maxTemp, minTemp) {
             let tempCoeff = 1.0; let tempMessage = "";
             if (catVal === "調理麺") {
@@ -581,7 +579,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer };
         },
 
-        // 一括計算ロジック
         calculateAll() {
             const storeName = State.data.currentStore;
             const container = document.getElementById('allResultsContainer');
@@ -636,7 +633,6 @@ document.addEventListener("DOMContentLoaded", () => {
             container.innerHTML = html || '<div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">有効なカテゴリデータがありません。</div>';
         },
 
-        // 個別計算
         calculate(silent = false) {
             const storeName = document.getElementById('storeName').value.trim();
             const catSelect = document.getElementById('categoryName');
