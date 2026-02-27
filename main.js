@@ -88,7 +88,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             Weather.restoreStoreWeather();
-            // 初期表示用のサイレント計算
             Logic.calculate(true);
             this.setupEventListeners();
         },
@@ -124,7 +123,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('cityArea').addEventListener('change', () => Weather.onCityAreaChange());
             document.getElementById('targetDateOffset').addEventListener('change', () => Weather.onDateOffsetChange());
 
-            // アニメーション付き計算ボタン
             const calcBtn = document.getElementById('btn-calculate');
             const calcText = document.getElementById('btn-calc-text');
             calcBtn.addEventListener('click', () => {
@@ -304,7 +302,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- 気象情報連携 ---
+    // --- 気象情報連携（ガチガチの安全装置付き） ---
     const Weather = {
         restoreStoreWeather() {
             const store = State.data.currentStore;
@@ -386,80 +384,113 @@ document.addEventListener("DOMContentLoaded", () => {
             const areaCode = document.getElementById('cityArea').value;
             if (!areaCode) return;
             
-            const offset = parseInt(State.data.targetDateOffset);
+            // 安全装置1: offsetが万が一取れなかった場合は1(明日)にする
+            const offset = parseInt(State.data.targetDateOffset) || 1;
+            
             try {
                 const targetDate = new Date();
                 targetDate.setDate(targetDate.getDate() + offset);
+                // 比較用日付文字列 (YYYY-MM-DD)
                 const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`; 
 
                 let minT = "", maxT = "", weatherText = "予報データなし", wDate = targetDate;
                 
-                // 【修正箇所】データ取得時の安全装置（&&）を完全復旧
+                // エリアデータを安全に抜き出すヘルパー関数
+                const getArea = (series) => {
+                    if (!series || !series.areas) return null;
+                    return series.areas.find(a => a.area && a.area.code === areaCode) || series.areas[0];
+                };
+
+                // 【ステップ1】週間予報(data[1])からベースを取得
                 if (data[1] && data[1].timeSeries) {
-                    let wSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].weathers);
+                    let wSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     if (wSeries) {
                         let idx = wSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
                         if (idx !== -1) {
-                            let aData = wSeries.areas.find(a => a.area.code === areaCode) || wSeries.areas[0];
-                            weatherText = aData.weathers[idx] || weatherText;
-                            wDate = new Date(wSeries.timeDefines[idx]);
+                            let aData = getArea(wSeries);
+                            if (aData && aData.weathers && aData.weathers[idx]) {
+                                weatherText = aData.weathers[idx];
+                                wDate = new Date(wSeries.timeDefines[idx]);
+                            }
                         }
                     }
-                    let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].tempsMax);
+                    let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax);
                     if (tSeries) {
                         let idx = tSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
                         if (idx !== -1) {
-                            let aData = tSeries.areas.find(a => a.area.code === areaCode) || tSeries.areas[0];
-                            minT = aData.tempsMin[idx] || minT; maxT = aData.tempsMax[idx] || maxT;
-                        }
-                    }
-                }
-
-                if (data[0] && data[0].timeSeries) {
-                    let shortWeatherSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].weathers);
-                    if (shortWeatherSeries) {
-                        let wIndex = shortWeatherSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        if (wIndex !== -1) {
-                            let areaData = shortWeatherSeries.areas.find(a => a.area.code === areaCode) || shortWeatherSeries.areas[0];
-                            weatherText = areaData.weathers[wIndex] || weatherText;
-                            wDate = new Date(shortWeatherSeries.timeDefines[wIndex]);
-                        }
-                    }
-                    
-                    let shortTempSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].temps);
-                    if (shortTempSeries) {
-                        let areaData = shortTempSeries.areas.find(a => a.area.code === areaCode) || shortTempSeries.areas[0];
-                        if (areaData && areaData.temps) {
-                            let minCandidates = [];
-                            let maxCandidates = [];
-                            shortTempSeries.timeDefines.forEach((t, idx) => {
-                                if (t.startsWith(targetDateStr)) {
-                                    let hr = new Date(t).getHours();
-                                    if (hr === 0 || hr === 6) minCandidates.push(areaData.temps[idx]);
-                                    if (hr === 9 || hr === 12 || hr === 15) maxCandidates.push(areaData.temps[idx]);
-                                }
-                            });
-                            if (offset === 1 && minCandidates.length === 0 && maxCandidates.length === 0) {
-                                let len = areaData.temps.length;
-                                if (len >= 2) { minT = areaData.temps[len - 2]; maxT = areaData.temps[len - 1]; }
-                            } else {
-                                if (minCandidates.length > 0) minT = minCandidates[0];
-                                if (maxCandidates.length > 0) maxT = maxCandidates[maxCandidates.length - 1];
+                            let aData = getArea(tSeries);
+                            if (aData) {
+                                if (aData.tempsMin && aData.tempsMin[idx]) minT = aData.tempsMin[idx];
+                                if (aData.tempsMax && aData.tempsMax[idx]) maxT = aData.tempsMax[idx];
                             }
                         }
                     }
                 }
 
+                // 【ステップ2】短期予報(data[0])で上書き（直近の精度が高いため）
+                if (data[0] && data[0].timeSeries) {
+                    let shortW = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
+                    if (shortW) {
+                        let idx = shortW.timeDefines.findIndex(t => t.startsWith(targetDateStr));
+                        if (idx !== -1) {
+                            let aData = getArea(shortW);
+                            if (aData && aData.weathers && aData.weathers[idx]) {
+                                weatherText = aData.weathers[idx];
+                                wDate = new Date(shortW.timeDefines[idx]);
+                            }
+                        }
+                    }
+                    
+                    let shortT = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].temps);
+                    if (shortT) {
+                        let aData = getArea(shortT);
+                        if (aData && aData.temps) {
+                            let mins = [], maxs = [];
+                            shortT.timeDefines.forEach((t, i) => {
+                                if (t.startsWith(targetDateStr)) {
+                                    let hr = new Date(t).getHours();
+                                    if (hr === 0 || hr === 6) mins.push(aData.temps[i]);
+                                    if (hr === 9 || hr === 12 || hr === 15) maxs.push(aData.temps[i]);
+                                }
+                            });
+                            if (mins.length > 0) minT = mins[0];
+                            if (maxs.length > 0) maxT = maxs[maxs.length - 1];
+                            
+                            // 安全装置2: 時間帯で引っかからなかった場合、配列の最後の方を仮採用
+                            if (minT === "" && maxT === "" && offset === 1 && aData.temps.length >= 2) {
+                                minT = aData.temps[aData.temps.length - 2];
+                                maxT = aData.temps[aData.temps.length - 1];
+                            }
+                        }
+                    }
+                }
+
+                // 【ステップ3】超・安全装置（日付ズレで全滅した場合、強制的に順番で取る）
+                if (weatherText === "予報データなし" && data[0] && data[0].timeSeries) {
+                    let shortW = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
+                    // offset(1なら明日)が配列に存在すれば強制取得
+                    if (shortW && shortW.timeDefines.length > offset) {
+                        let aData = getArea(shortW);
+                        if (aData && aData.weathers && aData.weathers[offset]) {
+                            weatherText = aData.weathers[offset];
+                            wDate = new Date(shortW.timeDefines[offset]);
+                        }
+                    }
+                }
+
+                // 値の反映
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
+                // 天候倍率の自動判定
                 let wRatio = 1.0;
-                if (weatherText.includes("雨") || weatherText.includes("雪")) {
-                    if (weatherText.includes("一時") || weatherText.includes("時々") || weatherText.includes("小雨")) {
+                let textForRatio = weatherText || ""; // エラー回避
+                if (textForRatio.includes("雨") || textForRatio.includes("雪")) {
+                    if (textForRatio.includes("一時") || textForRatio.includes("時々") || textForRatio.includes("小雨")) {
                         wRatio = 0.9; 
-                    } else if (weatherText.includes("夜遅く") || weatherText.includes("夕方から") || weatherText.includes("明け方")) {
+                    } else if (textForRatio.includes("夜遅く") || textForRatio.includes("夕方から") || textForRatio.includes("明け方")) {
                         wRatio = 1.0; 
-                    } else if (weatherText.includes("のち")) {
+                    } else if (textForRatio.includes("のち")) {
                         wRatio = 0.9; 
                     } else {
                         wRatio = 0.8; 
@@ -467,14 +498,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 document.getElementById('weather').value = wRatio.toFixed(1);
                 
-                document.getElementById('actualWeatherText').innerText = weatherText.replace(/　/g, ' ');
+                // UIへの表示（undefinedの場合は空文字にしてreplaceエラーを防ぐ）
+                document.getElementById('actualWeatherText').innerText = (weatherText || "取得できませんでした").replace(/　/g, ' ');
                 document.getElementById('acquiredDateDisplay').style.display = 'block';
-                document.getElementById('acquiredDateText').innerText = `${wDate.getMonth() + 1}月${wDate.getDate()}日 (${['日', '月', '火', '水', '木', '金', '土'][wDate.getDay()]})`;
+                
+                const days = ['日', '月', '火', '水', '木', '金', '土'];
+                document.getElementById('acquiredDateText').innerText = `${wDate.getMonth() + 1}月${wDate.getDate()}日 (${days[wDate.getDay()]})`;
                 document.getElementById('targetDay').value = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
 
-                // 天気取得後、UIに即座に反映させるため silent = false に変更
+                // 天気情報が更新されたら即座に結果も計算する
                 Logic.calculate(false);
-            } catch (e) { console.error("天気データ反映エラー:", e); }
+                
+            } catch (e) { 
+                console.error("天気データ解析エラー:", e);
+                document.getElementById('actualWeatherText').innerText = "取得エラーが発生しました";
+            }
         }
     };
 
