@@ -44,18 +44,22 @@ body { background-color: var(--bg-body); color: var(--text-main); line-height: 1
 .section-title { font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 24px; display: flex; align-items: center; gap: 8px; letter-spacing: -0.02em; }
 .section-title::before { content: ''; display: inline-block; width: 6px; height: 18px; background: linear-gradient(180deg, var(--primary) 0%, #34C759 100%); border-radius: 4px; }
 
-/* 🌟【NEW】レクチャー（アコーディオン） */
+/* 🌟【NEW】レクチャー（フローチャート風） */
 .lecture-box { background: rgba(0, 122, 255, 0.04); border-radius: 16px; margin-bottom: 24px; border: 1px solid rgba(0, 122, 255, 0.15); overflow: hidden; transition: all 0.3s ease; }
 .lecture-box summary { padding: 16px 20px; font-weight: 700; color: var(--primary); font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
 .lecture-box summary::-webkit-details-marker { display: none; }
 .lecture-box summary::after { content: '+'; font-size: 1.4rem; font-weight: 400; transition: transform 0.3s ease; }
 .lecture-box[open] summary::after { transform: rotate(45deg); }
-.lecture-content { padding: 0 20px 20px 20px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
-.lecture-content ul { list-style: none; padding-left: 0; }
-.lecture-content li { margin-bottom: 12px; padding-left: 16px; position: relative; }
-.lecture-content li:last-child { margin-bottom: 0; }
-.lecture-content li::before { content: '・'; position: absolute; left: 0; color: var(--primary); font-weight: bold; }
-.lecture-content strong { color: var(--text-main); font-weight: 700; }
+.lecture-content { padding: 0 20px 20px 20px; }
+
+.lecture-section { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px dashed rgba(0, 122, 255, 0.2); }
+.lecture-title { font-size: 0.9rem; color: var(--primary-dark); margin-bottom: 10px; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+.step-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 0.75rem; font-weight: 700; color: var(--text-main); background: #FFFFFF; padding: 12px; border-radius: 12px; margin-bottom: 10px; border: 1px solid rgba(0,0,0,0.05); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+.step-flow span:not(.arrow) { background: #F2F2F7; padding: 6px 10px; border-radius: 6px; border: 1px solid #E5E5EA; }
+.step-flow .arrow { color: #C7C7CC; font-size: 0.6rem; }
+.lecture-text { font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; }
+.lecture-text strong { color: var(--text-main); }
+.lecture-text small { color: var(--danger); font-weight: 600; display: block; margin-top: 4px; }
 
 .form-group { margin-bottom: 20px; }
 .flex-row { display: flex; gap: 16px; margin-bottom: 20px; }
