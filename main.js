@@ -1,10 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // --- 状態管理 ---
+    // --- 状態管理 (State Management) ---
     const State = {
         data: {
             version: 1, 
-            currentStore: "", 
+            currentStore: "尾張旭晴丘町池上店",
             currentCategory: "",
             targetDateOffset: "1",
             stores: {} 
@@ -31,7 +31,6 @@ document.addEventListener("DOMContentLoaded", () => {
         },
 
         ensureStore(storeName) {
-            if (!storeName) return;
             if (!this.data.stores[storeName]) {
                 this.data.stores[storeName] = { prefecture: "", cityArea: "", categories: {} };
             }
@@ -40,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateInputData() {
             const store = this.data.currentStore;
             const cat = this.data.currentCategory;
-            if (!store || !cat) return;
+            if (!cat) return;
             
             this.ensureStore(store);
             if (!this.data.stores[store].categories) this.data.stores[store].categories = {};
@@ -66,18 +65,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- UI制御 ---
+    // --- UI制御 (UI Manager) ---
     const UI = {
         init() {
             this.updateDateOptions();
             this.setupRatios();
             
-            if (State.data.currentStore) {
-                document.getElementById('storeName').value = State.data.currentStore;
-            }
-            if (State.data.targetDateOffset) {
-                document.getElementById('targetDateOffset').value = State.data.targetDateOffset;
-            }
+            if (State.data.currentStore) document.getElementById('storeName').value = State.data.currentStore;
+            if (State.data.targetDateOffset) document.getElementById('targetDateOffset').value = State.data.targetDateOffset;
             
             this.renderStoreDatalist();
 
@@ -88,16 +83,17 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             Weather.restoreStoreWeather();
-            // 初期表示用のサイレント計算
-            Logic.calculate(true);
+            Logic.calculate();
             this.setupEventListeners();
         },
 
         setupEventListeners() {
+            // タブ切り替え
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
             });
 
+            // システム設定変更
             const storeInput = document.getElementById('storeName');
             storeInput.addEventListener('change', () => this.onStoreChange());
             storeInput.addEventListener('blur', () => this.onStoreChange());
@@ -105,47 +101,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
+            // データ入力（自動保存＆再計算）
             const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'minDisplayQty',
                             'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) {
-                    el.addEventListener('input', () => { State.updateInputData(); Logic.calculate(true); });
+                    el.addEventListener('input', () => { State.updateInputData(); Logic.calculate(); });
                     if(el.type === 'number') el.addEventListener('focus', function() { this.select(); });
                 }
             });
 
-            document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(true));
-            document.getElementById('weather').addEventListener('change', () => Logic.calculate(true));
-            document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(true));
-            document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(true));
+            // 天気・外部要因
+            document.getElementById('targetDay').addEventListener('change', () => Logic.calculate());
+            document.getElementById('weather').addEventListener('change', () => Logic.calculate());
+            document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate());
+            document.getElementById('minTemp').addEventListener('input', () => Logic.calculate());
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
             document.getElementById('cityArea').addEventListener('change', () => Weather.onCityAreaChange());
             document.getElementById('targetDateOffset').addEventListener('change', () => Weather.onDateOffsetChange());
 
-            // 🔥 リッチな計算ボタンのアニメーション処理
-            const calcBtn = document.getElementById('btn-calculate');
-            const calcText = document.getElementById('btn-calc-text');
-            calcBtn.addEventListener('click', () => {
+            // ボタン
+            document.getElementById('btn-calculate').addEventListener('click', () => {
                 if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-                
-                // 計算中アニメーションを開始
-                calcBtn.classList.add('loading');
-                calcText.innerText = "データ解析中...";
-                
-                setTimeout(() => {
-                    const success = Logic.calculate(false);
-                    calcBtn.classList.remove('loading');
-                    calcText.innerText = "⚡ 再計算して結果を見る";
-                    
-                    if (success) {
-                        setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-                    } else {
-                        alert("店舗名と対象分類を選択してください。");
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                }, 400); // 0.4秒の心地よいディレイ
+                if (Logic.calculate()) {
+                    setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+                } else {
+                    alert("「対象分類」を選択してください。");
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             });
 
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
@@ -154,10 +139,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         switchTab(tabId) {
             if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-            
-            // セグメントコントロールの背景移動
-            document.getElementById('tabContainer').setAttribute('data-active-tab', tabId);
-            
             document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
@@ -173,7 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.renderStoreDatalist();
             this.restoreCategoryInputs();
             Weather.restoreStoreWeather();
-            Logic.calculate(true);
+            Logic.calculate();
         },
 
         onCategoryChange() {
@@ -182,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
             State.save();
             this.updateFreshnessDisplay(cat);
             this.restoreCategoryInputs(); 
-            Logic.calculate(true);
+            Logic.calculate();
         },
 
         updateDateOptions() {
@@ -197,7 +178,8 @@ document.addEventListener("DOMContentLoaded", () => {
         renderStoreDatalist() {
             const dataList = document.getElementById('storeList');
             dataList.innerHTML = '';
-            const stores = Object.keys(State.data.stores).filter(s => s.trim() !== "");
+            const stores = Object.keys(State.data.stores);
+            if (stores.length === 0) stores.push("尾張旭晴丘町池上店");
             stores.forEach(store => {
                 let option = document.createElement('option');
                 option.value = store;
@@ -240,7 +222,6 @@ document.addEventListener("DOMContentLoaded", () => {
         restoreCategoryInputs() {
             const store = State.data.currentStore;
             const cat = State.data.currentCategory;
-            if (!store || !cat) return;
             
             const defaults = {
                 avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", minDisplayQty: "0",
@@ -248,7 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
             };
 
             let data = defaults;
-            if (State.data.stores[store] && State.data.stores[store].categories && State.data.stores[store].categories[cat]) {
+            if (cat && State.data.stores[store] && State.data.stores[store].categories && State.data.stores[store].categories[cat]) {
                 const saved = State.data.stores[store].categories[cat];
                 data = { ...defaults, ...saved, ratios: { ...defaults.ratios, ...(saved.ratios || {}) } };
             }
@@ -268,14 +249,14 @@ document.addEventListener("DOMContentLoaded", () => {
         showSaveIndicator() {
             const ind = document.getElementById('saveIndicator');
             if(ind) {
-                ind.innerText = "✓ 保存済"; 
+                ind.innerText = "✓"; ind.style.color = "var(--success)";
                 setTimeout(() => { ind.innerText = ""; }, 2000);
             }
         },
 
         showSaveError() {
             const ind = document.getElementById('saveIndicator');
-            if(ind) { ind.innerText = "⚠️ エラー"; }
+            if(ind) { ind.innerText = "⚠️"; ind.style.color = "var(--danger)"; }
         },
 
         exportBackup() {
@@ -307,11 +288,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- 気象情報連携 ---
+    // --- 気象情報連携 (Weather Service) ---
     const Weather = {
         restoreStoreWeather() {
             const store = State.data.currentStore;
-            if (!store) return;
             State.ensureStore(store);
             const pref = State.data.stores[store].prefecture;
             const city = State.data.stores[store].cityArea;
@@ -329,21 +309,18 @@ document.addEventListener("DOMContentLoaded", () => {
         onPrefectureChange() {
             const pref = document.getElementById('prefecture').value;
             const store = State.data.currentStore;
-            if (!store) return;
             State.ensureStore(store);
             State.data.stores[store].prefecture = pref;
             State.data.stores[store].cityArea = ""; 
             State.save();
             
             if (pref) this.fetchWeather(pref, null);
-            else { this.restoreStoreWeather(); Logic.calculate(true); }
+            else { this.restoreStoreWeather(); Logic.calculate(); }
         },
 
         onCityAreaChange() {
-            const store = State.data.currentStore;
-            if(!store) return;
-            State.ensureStore(store);
-            State.data.stores[store].cityArea = document.getElementById('cityArea').value;
+            State.ensureStore(State.data.currentStore);
+            State.data.stores[State.data.currentStore].cityArea = document.getElementById('cityArea').value;
             State.save();
             this.applyWeatherData();
         },
@@ -357,7 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
         async fetchWeather(prefCode, targetCityCode) {
             const statusText = document.getElementById('weatherStatus');
             const areaSelect = document.getElementById('cityArea');
-            statusText.innerText = "取得中...";
+            statusText.innerText = "データ取得中...";
             try {
                 const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
                 const data = await response.json();
@@ -374,12 +351,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (targetCityCode && Array.from(areaSelect.options).some(o => o.value === targetCityCode)) {
                     areaSelect.value = targetCityCode;
                 }
-                statusText.innerText = "✓ 取得済";
-                statusText.style.color = "var(--success)";
+                statusText.innerText = "✓ 取得完了";
                 setTimeout(() => { statusText.innerText = ""; }, 3000);
                 this.applyWeatherData();
             } catch(e) {
-                statusText.innerText = "取得失敗"; statusText.style.color = "var(--danger)";
+                statusText.innerText = "取得失敗"; statusText.style.color = "red";
             }
         },
 
@@ -397,6 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 let minT = "", maxT = "", weatherText = "予報データなし", wDate = targetDate;
                 
+                // 天気情報抽出ロジック（オリジナル維持）
                 if (data[1] && data[1].timeSeries) {
                     let wSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     if (wSeries) {
@@ -417,69 +394,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                if (data[0] && data[0].timeSeries) {
-                    let shortWeatherSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].weathers);
-                    if (shortWeatherSeries) {
-                        let wIndex = shortWeatherSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        if (wIndex !== -1) {
-                            let areaData = shortWeatherSeries.areas.find(a => a.area.code === areaCode) || shortWeatherSeries.areas[0];
-                            weatherText = areaData.weathers[wIndex] || weatherText;
-                            wDate = new Date(shortWeatherSeries.timeDefines[wIndex]);
-                        }
-                    }
-                    
-                    let shortTempSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].temps);
-                    if (shortTempSeries) {
-                        let areaData = shortTempSeries.areas.find(a => a.area.code === areaCode) || shortTempSeries.areas[0];
-                        if (areaData && areaData.temps) {
-                            let minCandidates = [];
-                            let maxCandidates = [];
-                            shortTempSeries.timeDefines.forEach((t, idx) => {
-                                if (t.startsWith(targetDateStr)) {
-                                    let hr = new Date(t).getHours();
-                                    if (hr === 0 || hr === 6) minCandidates.push(areaData.temps[idx]);
-                                    if (hr === 9 || hr === 12 || hr === 15) maxCandidates.push(areaData.temps[idx]);
-                                }
-                            });
-                            if (offset === 1 && minCandidates.length === 0 && maxCandidates.length === 0) {
-                                let len = areaData.temps.length;
-                                if (len >= 2) { minT = areaData.temps[len - 2]; maxT = areaData.temps[len - 1]; }
-                            } else {
-                                if (minCandidates.length > 0) minT = minCandidates[0];
-                                if (maxCandidates.length > 0) maxT = maxCandidates[maxCandidates.length - 1];
-                            }
-                        }
-                    }
-                }
-
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
-                let wRatio = 1.0;
-                if (weatherText.includes("雨") || weatherText.includes("雪")) {
-                    if (weatherText.includes("一時") || weatherText.includes("時々") || weatherText.includes("小雨")) {
-                        wRatio = 0.9; 
-                    } else if (weatherText.includes("夜遅く") || weatherText.includes("夕方から") || weatherText.includes("明け方")) {
-                        wRatio = 1.0; 
-                    } else if (weatherText.includes("のち")) {
-                        wRatio = 0.9; 
-                    } else {
-                        wRatio = 0.8; 
-                    }
-                }
-                document.getElementById('weather').value = wRatio.toFixed(1);
-                
+                document.getElementById('weather').value = (weatherText.includes("雨") || weatherText.includes("雪")) ? "0.8" : "1.0";
                 document.getElementById('actualWeatherText').innerText = weatherText.replace(/　/g, ' ');
+                
                 document.getElementById('acquiredDateDisplay').style.display = 'block';
                 document.getElementById('acquiredDateText').innerText = `${wDate.getMonth() + 1}月${wDate.getDate()}日 (${['日', '月', '火', '水', '木', '金', '土'][wDate.getDay()]})`;
                 document.getElementById('targetDay').value = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
 
-                Logic.calculate(true);
+                Logic.calculate();
             } catch (e) { console.error("天気データ反映エラー:", e); }
         }
     };
 
-    // --- 計算ロジック ---
+    // --- 計算ロジック (Order Logic) ---
     const Logic = {
         calculateCoreOrderQty(baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours) {
             const safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
@@ -498,8 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return { finalOrderQty, baseDemand, appliedBuffer, systemBuffer };
         },
 
-        calculate(silent = false) {
-            const storeName = document.getElementById('storeName').value.trim();
+        calculate() {
             const catSelect = document.getElementById('categoryName');
             const catVal = catSelect.value;
             const freshnessHours = parseFloat(document.getElementById('freshnessTime').value);
@@ -514,11 +443,9 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('dispDiff').innerText = diff;
             document.getElementById('dispStdDev').innerText = stdDev.toFixed(1);
 
-            if (!storeName || !catVal || freshnessHours === 0) {
-                if(!silent) {
-                    document.getElementById('resultArea').style.display = 'none';
-                    document.getElementById('warningArea').style.display = 'none';
-                }
+            if (!catVal || freshnessHours === 0) {
+                document.getElementById('resultArea').style.display = 'none';
+                document.getElementById('warningArea').style.display = 'none';
                 return false; 
             }
 
@@ -533,6 +460,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
+            // 気温補正ロジック
             let tempCoeff = 1.0; let tempMessage = "";
             if (catVal === "調理麺") {
                 if (maxTemp >= 35) { tempCoeff = 1.0 + 0.10 + 0.30 + 0.50 + ((maxTemp - 35) * 0.15); tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
@@ -559,9 +487,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours);
             const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours);
 
-            if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste);
-            }
+            // 結果をUIに反映
+            this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste);
             return true;
         },
 
@@ -576,6 +503,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('resAdjSales').innerText = adjustedSales.toFixed(1);
             document.getElementById('resOrderQty').innerText = result.finalOrderQty;
 
+            // ブースト表示
             let boostQty = result.finalOrderQty - normalResult.finalOrderQty;
             const boostDiv = document.getElementById('boostBreakdown');
             if (boostQty > 0 && tempCoeff > 1.0) {
@@ -583,10 +511,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById('resBoostQty').innerText = boostQty;
                 const label = document.getElementById('boostLabelText');
                 label.innerText = tempCoeff >= 1.4 ? "🌋 超絶気温ブースト:" : "🔥 気温ブースト:";
-                label.style.color = tempCoeff >= 1.4 ? "#FF453A" : "#FF9500";
+                label.style.color = tempCoeff >= 1.4 ? "#f43f5e" : "#f59e0b";
                 boostDiv.style.display = 'block';
             } else { boostDiv.style.display = 'none'; }
 
+            // 在庫目標表示
             const targetStockArea = document.getElementById('targetStockArea');
             if (minDisplayQty > result.systemBuffer || extraStockDays > 0 || (result.systemBuffer > 0 && minDisplayQty > 0)) {
                 document.getElementById('resTargetStock').innerText = Math.ceil(result.baseDemand);
@@ -594,6 +523,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 targetStockArea.style.display = 'block';
             } else { targetStockArea.style.display = 'none'; }
 
+            // 警告と上限チェック表示
             let warningTriggered = false, warningMsg = "", stockLabel = "", stockValue = "";
             let rawOrderQty = Math.ceil(result.baseDemand - currentStock);
             
@@ -617,6 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
+    // 初期化実行
     State.load();
     UI.init();
 });
