@@ -570,7 +570,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const baseDemand = (baseAdjustedSales * leadTime) + appliedBuffer;
             
-            // 🌟 発注目安数を切り上げ (Math.ceil)
             let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
             let finalOrderQty = Math.max(0, rawOrderQty - avgWaste);
 
@@ -582,13 +581,12 @@ document.addEventListener("DOMContentLoaded", () => {
             return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer };
         },
 
-        // --- 🌟【NEW】一括計算ロジック ---
+        // 一括計算ロジック
         calculateAll() {
             const storeName = State.data.currentStore;
             const container = document.getElementById('allResultsContainer');
             document.getElementById('allTabStoreName').innerText = storeName || "未選択";
             
-            // 保存データがない場合
             if (!storeName || !State.data.stores[storeName] || !State.data.stores[storeName].categories || Object.keys(State.data.stores[storeName].categories).length === 0) {
                 container.innerHTML = '<div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">データがありません。<br><br>「個別計算」タブで分類を選択し、数値を入力してください。</div>';
                 return;
@@ -601,7 +599,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
             
             let html = '';
-            // 表示させたい順番を定義
             const order = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール", "スパゲティパスタ", "グラタンドリア", "カップ麺", "調理麺", "惣菜", "カップデリ", "サラダ"];
             
             order.forEach(catName => {
@@ -698,7 +695,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('resTempRatio').innerText = tempCoeff.toFixed(2);
             document.getElementById('resTempMessage').innerText = tempMessage;
             
-            // 🌟 販売予測数も切り上げ (Math.ceil) して表示
             document.getElementById('resAdjSales').innerText = Math.ceil(adjustedSales);
             document.getElementById('resOrderQty').innerText = result.finalOrderQty;
 
