@@ -1,5 +1,4 @@
 :root {
-    /* iOSネイティブを意識した洗練されたカラーパレット */
     --primary: #007AFF;       
     --primary-dark: #0056b3;  
     --success: #34C759;       
@@ -26,7 +25,7 @@ body { background-color: var(--bg-body); color: var(--text-main); line-height: 1
 
 .main-title { text-align: center; font-size: 1.6rem; font-weight: 800; letter-spacing: 0.03em; color: var(--text-main); margin-bottom: 28px; background: linear-gradient(135deg, #1C1C1E 0%, #3A3A3C 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
-/* 🍎 iOS風セグメントコントロール（3等分） */
+/* 🍎 iOS風セグメントコントロール */
 .tab-container { display: flex; background: #E5E5EA; padding: 4px; border-radius: 12px; margin-bottom: 24px; position: relative; }
 .tab-button { flex: 1; padding: 10px 0; text-align: center; font-weight: 600; font-size: 0.9rem; color: var(--text-muted); background: transparent; border: none; border-radius: 10px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1; position: relative; }
 .tab-button.active { color: var(--text-main); }
@@ -44,6 +43,19 @@ body { background-color: var(--bg-body); color: var(--text-main); line-height: 1
 
 .section-title { font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 24px; display: flex; align-items: center; gap: 8px; letter-spacing: -0.02em; }
 .section-title::before { content: ''; display: inline-block; width: 6px; height: 18px; background: linear-gradient(180deg, var(--primary) 0%, #34C759 100%); border-radius: 4px; }
+
+/* 🌟【NEW】レクチャー（アコーディオン） */
+.lecture-box { background: rgba(0, 122, 255, 0.04); border-radius: 16px; margin-bottom: 24px; border: 1px solid rgba(0, 122, 255, 0.15); overflow: hidden; transition: all 0.3s ease; }
+.lecture-box summary { padding: 16px 20px; font-weight: 700; color: var(--primary); font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+.lecture-box summary::-webkit-details-marker { display: none; }
+.lecture-box summary::after { content: '+'; font-size: 1.4rem; font-weight: 400; transition: transform 0.3s ease; }
+.lecture-box[open] summary::after { transform: rotate(45deg); }
+.lecture-content { padding: 0 20px 20px 20px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+.lecture-content ul { list-style: none; padding-left: 0; }
+.lecture-content li { margin-bottom: 12px; padding-left: 16px; position: relative; }
+.lecture-content li:last-child { margin-bottom: 0; }
+.lecture-content li::before { content: '・'; position: absolute; left: 0; color: var(--primary); font-weight: bold; }
+.lecture-content strong { color: var(--text-main); font-weight: 700; }
 
 .form-group { margin-bottom: 20px; }
 .flex-row { display: flex; gap: 16px; margin-bottom: 20px; }
