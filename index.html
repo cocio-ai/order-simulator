@@ -60,15 +60,33 @@
             <h3 class="section-title">販売・在庫データ</h3>
 
             <details class="lecture-box">
-                <summary>💡 入力項目の見方・レクチャー</summary>
+                <summary>💡 システム端末からのデータ抽出手順</summary>
                 <div class="lecture-content">
-                    <ul>
-                        <li><strong>平均販売数:</strong> 何もない平常時の「1日あたりの平均売上数」を入力します。</li>
-                        <li><strong>現在庫 (8-10時):</strong> 発注作業を行うタイミングでの、売場とバックヤードの合計在庫数です。</li>
-                        <li><strong>最大/最小販売数:</strong> 過去のデータから一番売れた数と売れなかった数を入力します。この「ブレ幅」をもとにシステムが安全在庫を自動計算します。</li>
-                        <li><strong>平均廃棄数:</strong> 普段発生している平均廃棄数です。システムがこの数値を加味して、無駄な発注を自動でカットします。</li>
-                        <li><strong>最低陳列量:</strong> 売場のボリューム感を保つために、最低限維持したい個数を指定します（おにぎり・弁当等で有効です）。</li>
-                    </ul>
+                    
+                    <div class="lecture-section">
+                        <h4 class="lecture-title">📊 販売データ（平均・最大・最小）</h4>
+                        <div class="step-flow">
+                            <span>情報分析</span><span class="arrow">▶︎</span><span>機会損失状況</span><span class="arrow">▶︎</span><span>4週間一覧表（情報分類）</span>
+                        </div>
+                        <p class="lecture-text">上記画面から<strong>「4週間平均の販売数」</strong>と<strong>「最高販売数・最小販売数」</strong>を抽出します。<br><small>※精度の維持のため、毎月曜日にデータを更新（見直し）することを推奨します。</small></p>
+                    </div>
+
+                    <div class="lecture-section">
+                        <h4 class="lecture-title">📦 在庫データ</h4>
+                        <div class="step-flow">
+                            <span>情報分析</span><span class="arrow">▶︎</span><span>期間損失状況</span><span class="arrow">▶︎</span><span>在庫推移表</span><span class="arrow">▶︎</span><span>PMA選択</span><span class="arrow">▶︎</span><span>情報分類選択</span><span class="arrow">▶︎</span><span>在庫推移表（単品）</span>
+                        </div>
+                        <p class="lecture-text">上記画面を開き、<strong>発注作業を行う時点での在庫数</strong>を入力してください。</p>
+                    </div>
+
+                    <div class="lecture-section" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                        <h4 class="lecture-title">📅 曜日ごとの売上比率設定</h4>
+                        <div class="step-flow">
+                            <span>4週間一覧表（情報分類）</span>
+                        </div>
+                        <p class="lecture-text">4週間の平均販売データから、曜日ごとの販売数の波（比率）を算出して設定してください。</p>
+                    </div>
+
                 </div>
             </details>
 
@@ -78,7 +96,7 @@
                     <input type="number" inputmode="numeric" id="avgSales" value="50" min="0">
                 </div>
                 <div class="flex-col">
-                    <label>現在庫 (8-10時)</label>
+                    <label>現在庫 (発注時)</label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
                 </div>
             </div>
