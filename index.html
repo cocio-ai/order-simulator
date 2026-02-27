@@ -60,31 +60,34 @@
             <h3 class="section-title">販売・在庫データ</h3>
 
             <details class="lecture-box">
-                <summary>💡 システム端末からのデータ抽出手順</summary>
+                <summary>💡 ストアパソコン データ抽出手順</summary>
                 <div class="lecture-content">
                     
-                    <div class="lecture-section">
-                        <h4 class="lecture-title">📊 販売データ（平均・最大・最小）</h4>
-                        <div class="step-flow">
-                            <span>情報分析</span><span class="arrow">▶︎</span><span>機会損失状況</span><span class="arrow">▶︎</span><span>4週間一覧表（情報分類）</span>
+                    <div class="step-group">
+                        <div class="step-title">
+                            <span>📊 販売データ</span>
+                            <span class="step-note">※毎月曜日にデータ更新推奨</span>
                         </div>
-                        <p class="lecture-text">上記画面から<strong>「4週間平均の販売数」</strong>と<strong>「最高販売数・最小販売数」</strong>を抽出します。<br><small>※精度の維持のため、毎月曜日にデータを更新（見直し）することを推奨します。</small></p>
+                        <div class="step-flow">
+                            <span>情報分析</span><div class="arrow">➔</div><span>機会損失状況</span><div class="arrow">➔</div><span>4週間一覧表(情報分類)</span>
+                        </div>
+                        <div class="step-desc">4週間平均の販売数、及び最高販売数と最小販売数を抽出して入力します。</div>
                     </div>
 
-                    <div class="lecture-section">
-                        <h4 class="lecture-title">📦 在庫データ</h4>
+                    <div class="step-group">
+                        <div class="step-title"><span>📦 在庫データ</span></div>
                         <div class="step-flow">
-                            <span>情報分析</span><span class="arrow">▶︎</span><span>期間損失状況</span><span class="arrow">▶︎</span><span>在庫推移表</span><span class="arrow">▶︎</span><span>PMA選択</span><span class="arrow">▶︎</span><span>情報分類選択</span><span class="arrow">▶︎</span><span>在庫推移表（単品）</span>
+                            <span>情報分析</span><div class="arrow">➔</div><span>期間損失状況</span><div class="arrow">➔</div><span>在庫推移表</span><div class="arrow">➔</div><span>PMA選択</span><div class="arrow">➔</div><span>情報分類選択</span><div class="arrow">➔</div><span>在庫推移表(単品)</span>
                         </div>
-                        <p class="lecture-text">上記画面を開き、<strong>発注作業を行う時点での在庫数</strong>を入力してください。</p>
+                        <div class="step-desc">発注時の在庫数を確認して入力します。</div>
                     </div>
 
-                    <div class="lecture-section" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
-                        <h4 class="lecture-title">📅 曜日ごとの売上比率設定</h4>
+                    <div class="step-group" style="margin-bottom: 0;">
+                        <div class="step-title"><span>📅 曜日ごとの売上比率設定</span></div>
                         <div class="step-flow">
-                            <span>4週間一覧表（情報分類）</span>
+                            <span>4週間一覧表(情報分類)</span>
                         </div>
-                        <p class="lecture-text">4週間の平均販売データから、曜日ごとの販売数の波（比率）を算出して設定してください。</p>
+                        <div class="step-desc">4週間の平均販売の「曜日毎の販売数」から比率を算出して設定します。</div>
                     </div>
 
                 </div>
@@ -103,7 +106,7 @@
 
             <div class="flex-row" style="align-items: center;">
                 <div class="flex-col">
-                    <label style="color: var(--primary);">最大販売数</label>
+                    <label style="color: var(--primary);">最高販売数</label>
                     <input type="number" inputmode="numeric" id="maxSales" value="65" min="0">
                 </div>
                 <div style="font-weight: 800; color: #C7C7CC; margin-top: 15px;">ー</div>
@@ -177,7 +180,7 @@
                             <option value="030000">岩手県</option><option value="040000">宮城県</option>
                             <option value="050000">秋田県</option><option value="060000">山形県</option>
                             <option value="070000">福島県</option><option value="080000">茨城県</option>
-                            <option value="090000">栃木県</option><option value="100000">群馬県</option>
+                            <option value="090000">栃木県</option><option value="100000">群形県</option>
                             <option value="110000">埼玉県</option><option value="120000">千葉県</option>
                             <option value="130000">東京都</option><option value="140000">神奈川県</option>
                             <option value="150000">新潟県</option><option value="160000">富山県</option>
