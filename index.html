@@ -15,9 +15,9 @@
 
     <div class="tab-container" id="tabContainer" data-active-tab="simulator">
         <div class="tab-active-bg"></div>
-        <button id="tabBtn-simulator" class="tab-button active" data-tab="simulator">個別</button>
-        <button id="tabBtn-overview" class="tab-button" data-tab="overview">一括</button>
-        <button id="tabBtn-backup" class="tab-button" data-tab="backup">引継ぎ</button>
+        <button id="tabBtn-simulator" class="tab-button active" data-tab="simulator">個別計算</button>
+        <button id="tabBtn-all" class="tab-button" data-tab="all">一括確認</button>
+        <button id="tabBtn-backup" class="tab-button" data-tab="backup">データ引継ぎ</button>
     </div>
     
     <div id="tab-simulator" class="tab-content active">
@@ -234,7 +234,7 @@
             <div class="result-item" style="font-size: 0.95rem; color: #FF453A;"><span id="resMaxStockLabel"></span>: <strong id="resMaxStock"></strong></div>
             
             <div class="forecast-panel">
-                <div style="font-size: 0.95rem; font-weight: bold; color: #5AC8FA;">📊 1日あたりの販売予測</div>
+                <div style="font-size: 0.95rem; font-weight: bold; color: #5AC8FA;">📊 1日の販売予測</div>
                 <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; color: #5AC8FA;">個</span></div>
             </div>
 
@@ -256,21 +256,21 @@
         <div id="warningArea" class="alert-box"><span id="warningMessageText"></span></div>
     </div>
 
-    <div id="tab-overview" class="tab-content">
-        <div class="card" style="padding: 24px 20px;">
-            <h3 class="section-title">全分類 発注目安（一括確認）</h3>
-            <div class="info-box" style="margin-bottom: 24px; display: block;">
-                <div style="font-weight: bold; margin-bottom: 8px;">適用中の外部環境</div>
-                <div style="font-size: 0.85rem; color: #1C1C1E;">
-                    📍 天候: <strong id="overview-weather-text">未取得</strong><br>
-                    🌡️ 予想気温: 最高 <strong id="overview-max-temp">--</strong>℃ / 最低 <strong id="overview-min-temp">--</strong>℃
-                </div>
-            </div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; text-align: right;">
-                ※設定済みの分類のみ計算されます
+    <div id="tab-all" class="tab-content">
+        <div class="card">
+            <h3 class="section-title">全分類 一括発注目安</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
+                ※現在選択中の店舗（<strong id="allTabStoreName" style="color: var(--primary);">未選択</strong>）に保存されたデータと、現在の天候・曜日条件で一括計算しています。<br>
+                <span style="font-size: 0.8rem; color: #8E8E93;">（項目をタップすると個別計算画面に移動します）</span>
             </p>
-            <div id="overviewList" class="overview-list">
+            
+            <div id="allResultsContainer">
                 </div>
+            
+            <button id="btn-refresh-all" class="calc-button" style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #34C759 0%, #28a745 100%);">
+                <span class="spinner" id="allSpinner"></span>
+                <span id="allBtnText">🔄 最新情報で一括更新</span>
+            </button>
         </div>
     </div>
 
