@@ -51,6 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 maxSales: document.getElementById('maxSales').value,
                 minSales: document.getElementById('minSales').value,
                 avgWaste: document.getElementById('avgWaste').value,
+                avgShortageRate: document.getElementById('avgShortageRate').value, // 🌟 追加
                 minDisplayQty: document.getElementById('minDisplayQty').value,
                 ratios: {
                     mon: document.getElementById('ratio_mon').value,
@@ -104,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
-            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'minDisplayQty',
+            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
                             'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
@@ -123,7 +124,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('cityArea').addEventListener('change', () => Weather.onCityAreaChange());
             document.getElementById('targetDateOffset').addEventListener('change', () => Weather.onDateOffsetChange());
 
-            // ⚡ 個別計算ボタン
             const calcBtn = document.getElementById('btn-calculate');
             const calcText = document.getElementById('btn-calc-text');
             calcBtn.addEventListener('click', () => {
@@ -145,7 +145,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }, 400); 
             });
 
-            // 🔄 一括計算の更新ボタン
             const refreshAllBtn = document.getElementById('btn-refresh-all');
             const allBtnText = document.getElementById('allBtnText');
             refreshAllBtn.addEventListener('click', () => {
@@ -170,7 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
 
-            // 一括確認タブを開いた瞬間に自動計算
             if (tabId === 'all') {
                 Logic.calculateAll();
             }
@@ -256,7 +254,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!store || !cat) return;
             
             const defaults = {
-                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", minDisplayQty: "0",
+                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
                 ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.2", sun:"1.3"}
             };
 
@@ -271,6 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('maxSales').value = data.maxSales;
             document.getElementById('minSales').value = data.minSales;
             document.getElementById('avgWaste').value = data.avgWaste;
+            document.getElementById('avgShortageRate').value = data.avgShortageRate; // 🌟 復元
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
 
             Object.keys(data.ratios).forEach(d => {
@@ -605,6 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if(freshnessHours === 0) return;
                     
                     const avgSales = parseFloat(data.avgSales) || 0;
+                    const avgShortageRate = parseFloat(data.avgShortageRate) || 0; // 🌟 欠品率を取得
                     const currentStock = parseInt(data.currentStock) || 0;
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
@@ -618,7 +618,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tempInfo = this.getTempCoeff(catName, maxTemp, minTemp);
                     const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
                     
-                    const adjustedSales = avgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+                    // 🌟 欠品率を加味した「潜在需要」を算出してベースにする
+                    const shortageCoeff = 1 + (avgShortageRate / 100);
+                    const trueAvgSales = avgSales * shortageCoeff;
+                    const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours);
                     
                     html += `
@@ -658,6 +662,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
+            const avgShortageRate = parseFloat(document.getElementById('avgShortageRate').value) || 0; // 🌟 欠品率の取得
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
@@ -669,23 +674,37 @@ document.addEventListener("DOMContentLoaded", () => {
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
             const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
-
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
-            const adjustedSales = avgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+            
+            // 🌟 欠品率を加味して「本来の平均販売数（潜在需要）」を割り出す
+            const shortageCoeff = 1 + (avgShortageRate / 100);
+            const trueAvgSales = avgSales * shortageCoeff;
+            
+            // 補正後の数値をベースに当日の予測を立てる
+            const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours);
-            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours);
+            const normalResult = this.calculateCoreOrderQty(trueAvgSales * dayRatio * weatherCoeff, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             document.getElementById('resBaseSales').innerText = avgSales;
+            
+            // 🌟 結果表示の内訳に欠品補正を表示
+            const shortageBoostDisplay = document.getElementById('resShortageBoost');
+            if (shortageCoeff > 1) {
+                shortageBoostDisplay.innerText = `(×欠品補正 ${shortageCoeff.toFixed(2)})`;
+            } else {
+                shortageBoostDisplay.innerText = "";
+            }
+
             document.getElementById('resDayRatio').innerText = dayRatio.toFixed(1);
             document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(1);
             document.getElementById('resTempRatio').innerText = tempCoeff.toFixed(2);
