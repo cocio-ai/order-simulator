@@ -65,13 +65,13 @@
                     
                     <div class="step-group">
                         <div class="step-title">
-                            <span>📊 販売データ</span>
-                            <span class="step-note">※毎月曜日にデータ更新推奨</span>
+                            <span>📊 販売データ・欠品率</span>
+                            <span class="step-note">※毎月曜日に更新推奨</span>
                         </div>
                         <div class="step-flow">
                             <span>情報分析</span><div class="arrow">➔</div><span>機会損失状況</span><div class="arrow">➔</div><span>4週間一覧表(情報分類)</span>
                         </div>
-                        <div class="step-desc">4週間平均の販売数、及び最高販売数と最小販売数を抽出して入力します。</div>
+                        <div class="step-desc">4週間平均の「販売数」「最高/最小販売数」、及びピーク時の「平均欠品率(%)」を抽出して入力します。</div>
                     </div>
 
                     <div class="step-group">
@@ -129,10 +129,18 @@
                     <label style="color: var(--danger);">平均廃棄数</label>
                     <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
                 </div>
-                <div class="flex-col display-input-box" id="displayInputArea">
+                <div class="flex-col shortage-input-box">
+                    <label style="color: #FF9500;">平均欠品率 (%)</label>
+                    <input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100">
+                </div>
+            </div>
+
+            <div class="flex-row display-input-box" id="displayInputArea" style="margin-top: 20px; margin-bottom: 0;">
+                <div class="flex-col">
                     <label style="color: var(--primary);">最低陳列量</label>
                     <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0">
                 </div>
+                <div class="flex-col"></div>
             </div>
         </div>
 
@@ -180,7 +188,7 @@
                             <option value="030000">岩手県</option><option value="040000">宮城県</option>
                             <option value="050000">秋田県</option><option value="060000">山形県</option>
                             <option value="070000">福島県</option><option value="080000">茨城県</option>
-                            <option value="090000">栃木県</option><option value="100000">群形県</option>
+                            <option value="090000">栃木県</option><option value="100000">群馬県</option>
                             <option value="110000">埼玉県</option><option value="120000">千葉県</option>
                             <option value="130000">東京都</option><option value="140000">神奈川県</option>
                             <option value="150000">新潟県</option><option value="160000">富山県</option>
@@ -258,7 +266,7 @@
             </div>
             
             <div class="result-item" style="font-size: 0.85rem; margin-bottom: 10px;">
-                (内訳: 基本 <span id="resBaseSales"></span> × 曜日 <span id="resDayRatio"></span> × 天候 <span id="resWeatherRatio"></span> × 気温 <span id="resTempRatio"></span>)
+                (内訳: 基本 <span id="resBaseSales"></span> <span id="resShortageBoost" style="color:#FF9500; font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 天候 <span id="resWeatherRatio"></span> × 気温 <span id="resTempRatio"></span>)
             </div>
             <div class="result-item" id="resTempMessage" style="color: #FFD60A; font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
             
@@ -299,8 +307,7 @@
                 <span style="font-size: 0.8rem; color: #8E8E93;">（項目をタップすると個別計算画面に移動します）</span>
             </p>
             
-            <div id="allResultsContainer">
-                </div>
+            <div id="allResultsContainer"></div>
             
             <button id="btn-refresh-all" class="calc-button" style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #34C759 0%, #28a745 100%);">
                 <span class="spinner" id="allSpinner"></span>
