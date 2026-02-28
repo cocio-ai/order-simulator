@@ -44,7 +44,7 @@ body { background-color: var(--bg-body); color: var(--text-main); line-height: 1
 .section-title { font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 24px; display: flex; align-items: center; gap: 8px; letter-spacing: -0.02em; }
 .section-title::before { content: ''; display: inline-block; width: 6px; height: 18px; background: linear-gradient(180deg, var(--primary) 0%, #34C759 100%); border-radius: 4px; }
 
-/* 🌟【NEW】データ抽出手順（フローデザイン） */
+/* データ抽出手順（フローデザイン） */
 .lecture-box { background: #FFFFFF; border-radius: 16px; margin-bottom: 24px; border: 2px solid var(--border); overflow: hidden; transition: all 0.3s ease; }
 .lecture-box summary { padding: 16px 20px; font-weight: 700; color: var(--text-main); font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; background: var(--bg-body); }
 .lecture-box summary::-webkit-details-marker { display: none; }
@@ -74,8 +74,13 @@ input[readonly] { background-color: transparent; color: var(--primary); border: 
 
 /* インフォメーションBOX */
 .info-box { background: rgba(52, 199, 89, 0.1); border-radius: 16px; padding: 16px; font-size: 0.85rem; color: #1E8236; margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; }
+
+/* 🌟【NEW】ロスと欠品率の入力ボックス */
 .waste-input-box input { background-color: rgba(255, 59, 48, 0.08); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.2); }
 .waste-input-box input:focus { border-color: var(--danger); box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.15); background-color: #fff;}
+.shortage-input-box input { background-color: rgba(255, 149, 0, 0.08); color: var(--warning); border: 1px solid rgba(255, 149, 0, 0.3); }
+.shortage-input-box input:focus { border-color: var(--warning); box-shadow: 0 0 0 4px rgba(255, 149, 0, 0.15); background-color: #fff;}
+
 .display-input-box { display: none; }
 
 .day-ratio-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: transparent; }
