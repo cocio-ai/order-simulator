@@ -63,14 +63,14 @@
                 <summary>💡 ストアパソコン データ抽出手順</summary>
                 <div class="lecture-content">
                     <div class="step-group">
-                        <div class="step-title"><span>📊 販売データ・欠品率</span><span class="step-note">※毎週月曜更新</span></div>
+                        <div class="step-title"><span>📊 販売データの確認</span><span class="step-note">※毎週月曜日に更新推奨</span></div>
                         <div class="step-flow"><span>情報分析</span><div class="arrow">➔</div><span>機会損失状況</span><div class="arrow">➔</div><span>4週間一覧表(情報分類)</span></div>
-                        <div class="step-desc">4週間平均の販売数、最高/最小販売数、平均欠品率(%)を抽出。</div>
+                        <div class="step-desc">4週間平均の「販売数」「最高/最小販売数」「曜日ごとの販売数」、および「平均欠品率」をそのまま入力します。</div>
                     </div>
-                    <div class="step-group">
-                        <div class="step-title"><span>📦 在庫データ</span></div>
+                    <div class="step-group" style="margin-bottom: 0;">
+                        <div class="step-title"><span>📦 現在庫の確認</span></div>
                         <div class="step-flow"><span>情報分析</span><div class="arrow">➔</div><span>期間損失状況</span><div class="arrow">➔</div><span>在庫推移表</span><div class="arrow">➔</div><span>PMA選択</span><div class="arrow">➔</div><span>情報分類選択</span><div class="arrow">➔</div><span>在庫推移表(単品)</span></div>
-                        <div class="step-desc">発注時の在庫数を確認。</div>
+                        <div class="step-desc">発注する時点の在庫数を確認して入力します。</div>
                     </div>
                 </div>
             </details>
@@ -79,14 +79,14 @@
                 <div class="flex-col">
                     <label>
                         平均販売数
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の平均販売数を入力してください。</div></div>
+                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の「平均販売数」を入力します。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="avgSales" value="50" min="0">
                 </div>
                 <div class="flex-col">
                     <label>
                         現在庫 (発注時)
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">在庫推移表(単品)で発注時点の在庫数を確認して入力します。</div></div>
+                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">発注時点の在庫数を入力します。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
                 </div>
@@ -108,7 +108,7 @@
                 <span style="font-size: 1.2rem;">💡</span>
                 <div>
                     最大 <strong id="dispMax">65</strong> − 最小 <strong id="dispMin">35</strong> ＝ ブレ幅 <strong id="dispDiff">30</strong><br>
-                    <span style="font-size: 0.85em; opacity: 0.8;">(標準偏差 <span id="dispStdDev">7.5</span> で安全在庫を自動最適化)</span>
+                    <span style="font-size: 0.85em; opacity: 0.8;">(売上の波に合わせて安全在庫を自動で調整します)</span>
                 </div>
             </div>
 
@@ -116,14 +116,14 @@
                 <div class="flex-col waste-input-box">
                     <label style="color: var(--danger);">
                         平均廃棄数
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">ロスが多い場合は無駄な発注を削る方向に自動補正します。</div></div>
+                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">ロスが多い場合、無駄な発注を削るように自動補正します。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
                 </div>
                 <div class="flex-col shortage-input-box">
                     <label style="color: #FF9500;">
                         平均欠品率 (%)
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">欠品率が高いと実際の需要が過小評価されます。入力値から潜在需要を逆算して底上げします。</div></div>
+                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">欠品による売り逃しを防ぐため、入力値から本来の需要を算出して底上げします。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100">
                 </div>
@@ -133,7 +133,7 @@
                 <div class="flex-col">
                     <label style="color: var(--primary);">
                         最低陳列量
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">売場を維持するために、最低限確保したい陳列数です。</div></div>
+                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">売場のボリュームを維持するために、最低限確保したい陳列数です。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0">
                 </div>
@@ -158,19 +158,18 @@
 
             <div class="form-group">
                 <label>
-                    曜日ごとの売上比率 (合計100%)
-                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の「曜日毎の販売数」から各曜日の割合を入力してください。</div></div>
+                    曜日ごとの平均販売数 (個)
+                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の「曜日毎の販売数」をそのまま入力するだけで、AIが自動で曜日の強弱を計算します。</div></div>
                 </label>
                 <div class="day-ratio-container">
-                    <div class="day-ratio-box"><label>月</label><input type="number" id="ratio_mon" value="14"></div>
-                    <div class="day-ratio-box"><label>火</label><input type="number" id="ratio_tue" value="14"></div>
-                    <div class="day-ratio-box"><label>水</label><input type="number" id="ratio_wed" value="14"></div>
-                    <div class="day-ratio-box"><label>木</label><input type="number" id="ratio_thu" value="14"></div>
-                    <div class="day-ratio-box"><label>金</label><input type="number" id="ratio_fri" value="15"></div>
-                    <div class="day-ratio-box day-sat"><label>土</label><input type="number" id="ratio_sat" value="15"></div>
-                    <div class="day-ratio-box day-sun"><label>日</label><input type="number" id="ratio_sun" value="14"></div>
+                    <div class="day-ratio-box"><label>月</label><input type="number" id="ratio_mon" value="50"></div>
+                    <div class="day-ratio-box"><label>火</label><input type="number" id="ratio_tue" value="50"></div>
+                    <div class="day-ratio-box"><label>水</label><input type="number" id="ratio_wed" value="50"></div>
+                    <div class="day-ratio-box"><label>木</label><input type="number" id="ratio_thu" value="50"></div>
+                    <div class="day-ratio-box"><label>金</label><input type="number" id="ratio_fri" value="55"></div>
+                    <div class="day-ratio-box day-sat"><label>土</label><input type="number" id="ratio_sat" value="60"></div>
+                    <div class="day-ratio-box day-sun"><label>日</label><input type="number" id="ratio_sun" value="55"></div>
                 </div>
-                <div id="ratioValidation" style="text-align: right; font-size: 0.85rem; font-weight: 700; margin-top: 8px;">合計: 100%</div>
             </div>
 
             <hr style="border: none; border-top: 1px solid var(--border); margin: 32px 0;">
@@ -190,7 +189,7 @@
                             <option value="130000">東京都</option><option value="140000">神奈川県</option>
                             <option value="230000">愛知県</option><option value="270000">大阪府</option>
                             <option value="400000">福岡県</option><option value="471000">沖縄県</option>
-                            </select>
+                        </select>
                     </div>
                     <div class="flex-col">
                         <select id="cityArea" style="background-color: #fff;">
