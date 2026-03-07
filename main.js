@@ -71,7 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const UI = {
         init() {
             this.updateDateOptions();
-            this.setupRatios();
             
             if (State.data.currentStore) {
                 document.getElementById('storeName').value = State.data.currentStore;
@@ -86,10 +85,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById('categoryName').value = State.data.currentCategory;
                 this.updateFreshnessDisplay(State.data.currentCategory);
                 this.restoreCategoryInputs(); 
+            } else {
+                this.checkRatioTotal(); // 初回チェック
             }
             
             Weather.restoreStoreWeather();
-            Logic.calculate(true);
             this.setupEventListeners();
         },
 
@@ -105,12 +105,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
+            // 🌟 自動保存とリアルタイム計算のフック
             const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
                             'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) {
-                    el.addEventListener('input', () => { State.updateInputData(); Logic.calculate(false); });
+                    el.addEventListener('input', () => { 
+                        State.updateInputData(); 
+                        if(id.startsWith('ratio_')) this.checkRatioTotal();
+                        Logic.calculate(false); 
+                    });
                     if(el.type === 'number') el.addEventListener('focus', function() { this.select(); });
                 }
             });
@@ -158,6 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
+            document.getElementById('btn-copy').addEventListener('click', () => this.copyBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
         },
 
@@ -235,17 +241,19 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        setupRatios() {
+        // 🌟 100%チェッカー
+        checkRatioTotal() {
             const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-            days.forEach(d => {
-                const select = document.getElementById('ratio_' + d);
-                for (let i = 0.5; i <= 3.01; i += 0.1) {
-                    let valStr = i.toFixed(1);
-                    let option = document.createElement('option');
-                    option.value = valStr; option.text = valStr;
-                    select.appendChild(option);
-                }
-            });
+            let sum = 0;
+            days.forEach(d => { sum += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
+            const valEl = document.getElementById('ratioValidation');
+            if(Math.abs(sum - 100) < 0.1) {
+                valEl.innerHTML = `✓ 合計: 100%`;
+                valEl.style.color = "var(--success)";
+            } else {
+                valEl.innerHTML = `⚠️ 合計: ${sum}% (100%になるよう調整してください)`;
+                valEl.style.color = "var(--danger)";
+            }
         },
 
         restoreCategoryInputs() {
@@ -253,9 +261,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const cat = State.data.currentCategory;
             if (!store || !cat) return;
             
+            // 🌟 曜日比率のデフォルトをパーセンテージに
             const defaults = {
                 avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
-                ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.2", sun:"1.3"}
+                ratios: {mon:"14", tue:"14", wed:"14", thu:"14", fri:"15", sat:"15", sun:"14"}
             };
 
             let data = defaults;
@@ -273,8 +282,9 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
 
             Object.keys(data.ratios).forEach(d => {
-                document.getElementById('ratio_' + d).value = Number(data.ratios[d]).toFixed(1);
+                document.getElementById('ratio_' + d).value = data.ratios[d];
             });
+            this.checkRatioTotal();
         },
 
         showSaveIndicator() {
@@ -296,7 +306,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const textArea = document.getElementById('backupCode');
             textArea.value = encoded;
             textArea.select();
-            alert("コードを作成しました！コピーして保存してください。");
+            alert("コードを作成しました！");
+        },
+
+        // 🌟 コピーボタン用関数
+        copyBackup() {
+            const textArea = document.getElementById('backupCode');
+            if (!textArea.value) return alert("先にコードを作成してください。");
+            textArea.select();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(textArea.value).then(() => alert("✅ コピーしました！"));
+            } else {
+                document.execCommand('copy');
+                alert("✅ コピーしました！");
+            }
         },
 
         importBackup() {
@@ -560,7 +583,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: tempCoeff, message: tempMessage };
         },
 
-        // 🌟 修正版：目標との差分（diffShortageRate）を受け取り、廃棄の引き算を調整する
         calculateCoreOrderQty(baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
             const safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
             const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
@@ -569,7 +591,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const baseDemand = (baseAdjustedSales * leadTime) + appliedBuffer;
             let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
 
-            // 目標との乖離（差分）が大きいほど、廃棄マイナスを弱める（最大10%の差で廃棄を全く引かない）
             const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
             const effectiveWaste = avgWaste * wasteReductionRatio;
 
@@ -612,7 +633,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     const avgShortageRate = parseFloat(data.avgShortageRate) || 0; 
                     const safeShortageRate = Math.min(avgShortageRate, 90);
                     
-                    // 🌟 段階的な目標設定ロジック（一括確認用）
                     let targetShortageRate = safeShortageRate;
                     if (safeShortageRate >= 20) targetShortageRate = 20;
                     else if (safeShortageRate >= 10) targetShortageRate = 10;
@@ -621,9 +641,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     const currentStock = parseInt(data.currentStock) || 0;
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
-                    const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
                     
-                    // 🌟 目標欠品率からの逆算
+                    // 🌟 一括計算時のパーセント比率変換
+                    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                    let ratioSum = 0;
+                    days.forEach(d => { ratioSum += (parseFloat(data.ratios[d]) || 0); });
+                    const targetRatioVal = parseFloat(data.ratios[targetDay]) || 14;
+                    const dayRatio = ratioSum > 0 ? (targetRatioVal / (ratioSum / 7)) : 1.0;
+                    
                     let shortageCoeff = 1.0;
                     if (safeShortageRate > targetShortageRate) {
                         shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
@@ -685,7 +710,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const avgShortageRate = parseFloat(document.getElementById('avgShortageRate').value) || 0; 
             const safeShortageRate = Math.min(avgShortageRate, 90); 
             
-            // 🌟 段階的な目標設定ロジック
             let targetShortageRate = safeShortageRate;
             let shortageMsg = "";
 
@@ -707,15 +731,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             
             const targetDay = document.getElementById('targetDay').value;
-            const dayRatio = parseFloat(document.getElementById('ratio_' + targetDay).value) || 1.0;
             const weatherCoeff = parseFloat(document.getElementById('weather').value);
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
+            // 🌟 曜日比率パーセンテージからの倍率計算
+            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            let ratioSum = 0;
+            days.forEach(d => { ratioSum += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
+            const targetRatioVal = parseFloat(document.getElementById('ratio_' + targetDay).value) || 14;
+            const dayRatio = ratioSum > 0 ? (targetRatioVal / (ratioSum / 7)) : 1.0;
+
             const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
             
-            // 🌟 目標からの逆算係数と、廃棄軽減のための差分計算
             let shortageCoeff = 1.0;
             if (safeShortageRate > targetShortageRate) {
                 shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
@@ -748,7 +777,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 shortageBoostDisplay.innerText = "";
             }
 
-            document.getElementById('resDayRatio').innerText = dayRatio.toFixed(1);
+            document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
             document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(1);
             document.getElementById('resTempRatio').innerText = tempCoeff.toFixed(2);
             document.getElementById('resTempMessage').innerText = tempMessage;
