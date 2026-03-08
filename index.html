@@ -65,7 +65,11 @@
                     <div class="step-group">
                         <div class="step-title"><span>📊 販売データの確認</span><span class="step-note">※毎週月曜日に更新推奨</span></div>
                         <div class="step-flow"><span>情報分析</span><div class="arrow">➔</div><span>機会損失状況</span><div class="arrow">➔</div><span>4週間一覧表(情報分類)</span></div>
-                        <div class="step-desc">4週間平均の「販売数」「最高/最小販売数」「曜日ごとの販売数」、および「平均欠品率」をそのまま入力します。</div>
+                        <div class="step-desc">
+                            表示された「4週間一覧表」から以下の数値をアプリに入力します。<br>
+                            ① 中央にある<strong>「販売数」「最高/最小販売数」「平均欠品率(%)」</strong><br>
+                            ② 右下にある<strong>「曜日毎の販売数（月〜日）」</strong>の個数
+                        </div>
                     </div>
                     <div class="step-group" style="margin-bottom: 0;">
                         <div class="step-title"><span>📦 現在庫の確認</span></div>
@@ -123,7 +127,7 @@
                 <div class="flex-col shortage-input-box">
                     <label style="color: #FF9500;">
                         平均欠品率 (%)
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">欠品による売り逃しを防ぐため、入力値から本来の需要を算出して底上げします。</div></div>
+                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">欠品による売り逃しを防ぐため、入力値から潜在需要を算出して底上げします。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100">
                 </div>
@@ -159,7 +163,7 @@
             <div class="form-group">
                 <label>
                     曜日ごとの平均販売数 (個)
-                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の「曜日毎の販売数」をそのまま入力するだけで、AIが自動で曜日の強弱を計算します。</div></div>
+                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の右下にある「曜日毎の販売数」をそのまま入力してください。AIが自動で曜日の強弱を判定します。</div></div>
                 </label>
                 <div class="day-ratio-container">
                     <div class="day-ratio-box"><label>月</label><input type="number" id="ratio_mon" value="50"></div>
@@ -198,29 +202,24 @@
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-bottom: 5px;">
-                    <select id="targetDateOffset" style="background-color: #fff; color: #0369A1;">
-                        <option value="1" id="opt-tomorrow">明日の予報を取得 (前日発注用)</option>
-                        <option value="2" id="opt-dayafter">明後日の予報を取得 (前々日発注用)</option>
-                    </select>
+                <div class="weather-btn-group">
+                    <button id="btn-weather-tmw" class="btn-weather" onclick="Weather.fetchWeather(1)">明日の予報を取得（前日発注用）</button>
+                    <button id="btn-weather-dat" class="btn-weather" onclick="Weather.fetchWeather(2)">明後日の予報を取得（前々日発注用）</button>
                 </div>
 
-                <div id="acquiredDateDisplay" class="acquired-weather-display">
-                    <div class="awd-date">📅 対象日：<span id="acquiredDateText" style="color: #007AFF;"></span></div>
-                    <div class="awd-weather">⛅ <span id="actualWeatherText"></span></div>
-                </div>
+                <div id="weather-date" style="font-size:12px; color:var(--text-muted); margin-top:8px; font-weight:600;"></div>
+                <div id="weather-display" class="weather-badge" style="display:none"></div>
             </div>
 
-            <div class="flex-row">
-                <div class="flex-col">
-                    <label>天候補正</label>
-                    <select id="weather">
-                        <option value="1.2">イベント等 (1.2x)</option>
-                        <option value="1.0">晴れ/曇/影響小 (1.0x)</option>
-                        <option value="0.9">一時雨/小雨 (0.9x)</option>
-                        <option value="0.8">本降りの雨/雪 (0.8x)</option>
-                    </select>
+            <div class="form-group">
+                <label>天候補正</label>
+                <div class="correction-btns" id="corr-btns">
+                    <button class="corr-btn" data-val="1.2" onclick="UI.setCorr(this)">🎉 イベント等 (×1.2)</button>
+                    <button class="corr-btn active" data-val="1.0" onclick="UI.setCorr(this)">☀️ 晴れ/曇/影響小 (×1.0)</button>
+                    <button class="corr-btn" data-val="0.9" onclick="UI.setCorr(this)">🌦️ 一時雨/小雨 (×0.9)</button>
+                    <button class="corr-btn" data-val="0.8" onclick="UI.setCorr(this)">🌧️ 本降りの雨/雪 (×0.8)</button>
                 </div>
+                <input type="hidden" id="weatherCoeff" value="1.0">
             </div>
             
             <div class="flex-row">
