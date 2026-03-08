@@ -62,36 +62,44 @@
             <details class="lecture-box">
                 <summary>💡 ストアパソコン データ抽出手順</summary>
                 <div class="lecture-content">
+                    
                     <div class="step-group">
-                        <div class="step-title"><span>📊 販売データの確認</span><span class="step-note">※毎週月曜日に更新推奨</span></div>
-                        <div class="step-flow"><span>情報分析</span><div class="arrow">➔</div><span>機会損失状況</span><div class="arrow">➔</div><span>4週間一覧表(情報分類)</span></div>
-                        <div class="step-desc">
-                            表示された「4週間一覧表」から以下の数値をアプリに入力します。<br>
-                            ① 中央にある<strong>「販売数」「最高/最小販売数」「平均欠品率(%)」</strong><br>
-                            ② 右下にある<strong>「曜日毎の販売数（月〜日）」</strong>の個数
+                        <div class="step-title">
+                            <span>📊 販売データ・欠品率</span>
+                            <span class="step-note">※毎月曜日に更新推奨</span>
                         </div>
+                        <div class="step-flow">
+                            <span>情報分析</span><div class="arrow">➔</div><span>機会損失状況</span><div class="arrow">➔</div><span>4週間一覧表(情報分類)</span>
+                        </div>
+                        <div class="step-desc">4週間平均の「販売数」「最高/最小販売数」、及びピーク時の「平均欠品率(%)」を抽出して入力します。</div>
                     </div>
+
+                    <div class="step-group">
+                        <div class="step-title"><span>📦 在庫データ</span></div>
+                        <div class="step-flow">
+                            <span>情報分析</span><div class="arrow">➔</div><span>期間損失状況</span><div class="arrow">➔</div><span>在庫推移表</span><div class="arrow">➔</div><span>PMA選択</span><div class="arrow">➔</div><span>情報分類選択</span><div class="arrow">➔</div><span>在庫推移表(単品)</span>
+                        </div>
+                        <div class="step-desc">発注時の在庫数を確認して入力します。</div>
+                    </div>
+
                     <div class="step-group" style="margin-bottom: 0;">
-                        <div class="step-title"><span>📦 現在庫の確認</span></div>
-                        <div class="step-flow"><span>情報分析</span><div class="arrow">➔</div><span>期間損失状況</span><div class="arrow">➔</div><span>在庫推移表</span><div class="arrow">➔</div><span>PMA選択</span><div class="arrow">➔</div><span>情報分類選択</span><div class="arrow">➔</div><span>在庫推移表(単品)</span></div>
-                        <div class="step-desc">発注する時点の在庫数を確認して入力します。</div>
+                        <div class="step-title"><span>📅 曜日ごとの売上比率設定</span></div>
+                        <div class="step-flow">
+                            <span>4週間一覧表(情報分類)</span>
+                        </div>
+                        <div class="step-desc">4週間の平均販売の「曜日毎の販売数」から比率を算出して設定します。</div>
                     </div>
+
                 </div>
             </details>
 
             <div class="flex-row">
                 <div class="flex-col">
-                    <label>
-                        平均販売数
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の「平均販売数」を入力します。</div></div>
-                    </label>
+                    <label>平均販売数</label>
                     <input type="number" inputmode="numeric" id="avgSales" value="50" min="0">
                 </div>
                 <div class="flex-col">
-                    <label>
-                        現在庫 (発注時)
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">発注時点の在庫数を入力します。</div></div>
-                    </label>
+                    <label>現在庫 (発注時)</label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
                 </div>
             </div>
@@ -112,33 +120,24 @@
                 <span style="font-size: 1.2rem;">💡</span>
                 <div>
                     最大 <strong id="dispMax">65</strong> − 最小 <strong id="dispMin">35</strong> ＝ ブレ幅 <strong id="dispDiff">30</strong><br>
-                    <span style="font-size: 0.85em; opacity: 0.8;">(売上の波に合わせて安全在庫を自動で調整します)</span>
+                    <span style="font-size: 0.85em; opacity: 0.8;">(標準偏差 <span id="dispStdDev">7.5</span> で安全在庫を自動最適化)</span>
                 </div>
             </div>
 
             <div class="flex-row" style="margin-bottom: 0;">
                 <div class="flex-col waste-input-box">
-                    <label style="color: var(--danger);">
-                        平均廃棄数
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">ロスが多い場合、無駄な発注を削るように自動補正します。</div></div>
-                    </label>
+                    <label style="color: var(--danger);">平均廃棄数</label>
                     <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
                 </div>
                 <div class="flex-col shortage-input-box">
-                    <label style="color: #FF9500;">
-                        平均欠品率 (%)
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">欠品による売り逃しを防ぐため、入力値から潜在需要を算出して底上げします。</div></div>
-                    </label>
+                    <label style="color: #FF9500;">平均欠品率 (%)</label>
                     <input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100">
                 </div>
             </div>
 
             <div class="flex-row display-input-box" id="displayInputArea" style="margin-top: 20px; margin-bottom: 0;">
                 <div class="flex-col">
-                    <label style="color: var(--primary);">
-                        最低陳列量
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">売場のボリュームを維持するために、最低限確保したい陳列数です。</div></div>
-                    </label>
+                    <label style="color: var(--primary);">最低陳列量</label>
                     <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0">
                 </div>
                 <div class="flex-col"></div>
@@ -161,18 +160,15 @@
             </div>
 
             <div class="form-group">
-                <label>
-                    曜日ごとの平均販売数 (個)
-                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の右下にある「曜日毎の販売数」をそのまま入力してください。AIが自動で曜日の強弱を判定します。</div></div>
-                </label>
+                <label>曜日ごとの売上比率</label>
                 <div class="day-ratio-container">
-                    <div class="day-ratio-box"><label>月</label><input type="number" id="ratio_mon" value="50"></div>
-                    <div class="day-ratio-box"><label>火</label><input type="number" id="ratio_tue" value="50"></div>
-                    <div class="day-ratio-box"><label>水</label><input type="number" id="ratio_wed" value="50"></div>
-                    <div class="day-ratio-box"><label>木</label><input type="number" id="ratio_thu" value="50"></div>
-                    <div class="day-ratio-box"><label>金</label><input type="number" id="ratio_fri" value="55"></div>
-                    <div class="day-ratio-box day-sat"><label>土</label><input type="number" id="ratio_sat" value="60"></div>
-                    <div class="day-ratio-box day-sun"><label>日</label><input type="number" id="ratio_sun" value="55"></div>
+                    <div class="day-ratio-box"><label>月</label><select id="ratio_mon"></select></div>
+                    <div class="day-ratio-box"><label>火</label><select id="ratio_tue"></select></div>
+                    <div class="day-ratio-box"><label>水</label><select id="ratio_wed"></select></div>
+                    <div class="day-ratio-box"><label>木</label><select id="ratio_thu"></select></div>
+                    <div class="day-ratio-box"><label>金</label><select id="ratio_fri"></select></div>
+                    <div class="day-ratio-box day-sat"><label>土</label><select id="ratio_sat"></select></div>
+                    <div class="day-ratio-box day-sun"><label>日</label><select id="ratio_sun"></select></div>
                 </div>
             </div>
 
@@ -190,9 +186,28 @@
                             <option value="">-- 都道府県 --</option>
                             <option value="016000">北海道</option><option value="020000">青森県</option>
                             <option value="030000">岩手県</option><option value="040000">宮城県</option>
+                            <option value="050000">秋田県</option><option value="060000">山形県</option>
+                            <option value="070000">福島県</option><option value="080000">茨城県</option>
+                            <option value="090000">栃木県</option><option value="100000">群馬県</option>
+                            <option value="110000">埼玉県</option><option value="120000">千葉県</option>
                             <option value="130000">東京都</option><option value="140000">神奈川県</option>
-                            <option value="230000">愛知県</option><option value="270000">大阪府</option>
-                            <option value="400000">福岡県</option><option value="471000">沖縄県</option>
+                            <option value="150000">新潟県</option><option value="160000">富山県</option>
+                            <option value="170000">石川県</option><option value="180000">福井県</option>
+                            <option value="190000">山梨県</option><option value="200000">長野県</option>
+                            <option value="210000">岐阜県</option><option value="220000">静岡県</option>
+                            <option value="230000">愛知県</option><option value="240000">三重県</option>
+                            <option value="250000">滋賀県</option><option value="260000">京都府</option>
+                            <option value="270000">大阪府</option><option value="280000">兵庫県</option>
+                            <option value="290000">奈良県</option><option value="300000">和歌山県</option>
+                            <option value="310000">鳥取県</option><option value="320000">島根県</option>
+                            <option value="330000">岡山県</option><option value="340000">広島県</option>
+                            <option value="350000">山口県</option><option value="360000">徳島県</option>
+                            <option value="370000">香川県</option><option value="380000">愛媛県</option>
+                            <option value="390000">高知県</option><option value="400000">福岡県</option>
+                            <option value="410000">佐賀県</option><option value="420000">長崎県</option>
+                            <option value="430000">熊本県</option><option value="440000">大分県</option>
+                            <option value="450000">宮崎県</option><option value="460100">鹿児島県</option>
+                            <option value="471000">沖縄県</option>
                         </select>
                     </div>
                     <div class="flex-col">
@@ -202,24 +217,29 @@
                     </div>
                 </div>
 
-                <div class="weather-btn-group">
-                    <button id="btn-weather-tmw" class="btn-weather" onclick="Weather.fetchWeather(1)">明日の予報を取得（前日発注用）</button>
-                    <button id="btn-weather-dat" class="btn-weather" onclick="Weather.fetchWeather(2)">明後日の予報を取得（前々日発注用）</button>
+                <div class="form-group" style="margin-bottom: 5px;">
+                    <select id="targetDateOffset" style="background-color: #fff; color: #0369A1;">
+                        <option value="1" id="opt-tomorrow">明日の予報を取得 (前日発注用)</option>
+                        <option value="2" id="opt-dayafter">明後日の予報を取得 (前々日発注用)</option>
+                    </select>
                 </div>
 
-                <div id="weather-date" style="font-size:12px; color:var(--text-muted); margin-top:8px; font-weight:600;"></div>
-                <div id="weather-display" class="weather-badge" style="display:none"></div>
+                <div id="acquiredDateDisplay" class="acquired-weather-display">
+                    <div class="awd-date">📅 対象日：<span id="acquiredDateText" style="color: #007AFF;"></span></div>
+                    <div class="awd-weather">⛅ <span id="actualWeatherText"></span></div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>天候補正</label>
-                <div class="correction-btns" id="corr-btns">
-                    <button class="corr-btn" data-val="1.2" onclick="UI.setCorr(this)">🎉 イベント等 (×1.2)</button>
-                    <button class="corr-btn active" data-val="1.0" onclick="UI.setCorr(this)">☀️ 晴れ/曇/影響小 (×1.0)</button>
-                    <button class="corr-btn" data-val="0.9" onclick="UI.setCorr(this)">🌦️ 一時雨/小雨 (×0.9)</button>
-                    <button class="corr-btn" data-val="0.8" onclick="UI.setCorr(this)">🌧️ 本降りの雨/雪 (×0.8)</button>
+            <div class="flex-row">
+                <div class="flex-col">
+                    <label>天候補正</label>
+                    <select id="weather">
+                        <option value="1.2">イベント等 (1.2x)</option>
+                        <option value="1.0">晴れ/曇/影響小 (1.0x)</option>
+                        <option value="0.9">一時雨/小雨 (0.9x)</option>
+                        <option value="0.8">本降りの雨/雪 (0.8x)</option>
+                    </select>
                 </div>
-                <input type="hidden" id="weatherCoeff" value="1.0">
             </div>
             
             <div class="flex-row">
@@ -283,11 +303,15 @@
         <div class="card">
             <h3 class="section-title">全分類 一括発注目安</h3>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
-                ※現在選択中の店舗（<strong id="allTabStoreName" style="color: var(--primary);">未選択</strong>）に保存されたデータで一括計算しています。<br>
+                ※現在選択中の店舗（<strong id="allTabStoreName" style="color: var(--primary);">未選択</strong>）に保存されたデータと、現在の天候・曜日条件で一括計算しています。<br>
+                <span style="font-size: 0.8rem; color: #8E8E93;">（項目をタップすると個別計算画面に移動します）</span>
             </p>
+            
             <div id="allResultsContainer"></div>
+            
             <button id="btn-refresh-all" class="calc-button" style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #34C759 0%, #28a745 100%);">
-                <span class="spinner" id="allSpinner"></span><span id="allBtnText">🔄 最新情報で一括更新</span>
+                <span class="spinner" id="allSpinner"></span>
+                <span id="allBtnText">🔄 最新情報で一括更新</span>
             </button>
         </div>
     </div>
@@ -295,17 +319,13 @@
     <div id="tab-backup" class="tab-content">
         <div class="card" style="border: 2px dashed #C7C7CC; background: #fff;">
             <h3 class="section-title">💾 セーブデータ・引継ぎ</h3>
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px;">
-                入力したデータは自動保存されます。端末を変更する際はこちらのコードを使用してください。
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6;">
+                入力したデータは自動保存されますが、端末を変更する際はこちらのコードを使用してください。
             </p>
             <textarea id="backupCode" class="backup-textarea" rows="5" placeholder="ここにバックアップコードが表示されます"></textarea>
-            <div class="flex-row" style="margin-bottom: 16px;">
-                <button id="btn-export" class="backup-btn btn-create">コードを作成</button>
-                <button id="btn-copy" class="backup-btn" style="background:#007AFF;">⧉ コピー</button>
-            </div>
-            <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
             <div class="flex-row" style="margin-bottom: 0;">
-                <button id="btn-import" class="backup-btn btn-restore" style="width: 100%;">↩ 貼付して復元</button>
+                <button id="btn-export" class="backup-btn btn-create">コードを作成</button>
+                <button id="btn-import" class="backup-btn btn-restore">貼付して復元</button>
             </div>
         </div>
     </div> 
