@@ -6,10 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
             version: 1, 
             currentStore: "", 
             currentCategory: "",
-            targetDateOffset: "1",
             stores: {} 
         },
-        weatherCache: null,
 
         load() {
             try {
@@ -70,15 +68,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- UI制御 ---
     const UI = {
         init() {
-            this.updateDateOptions();
-            
             if (State.data.currentStore) {
                 document.getElementById('storeName').value = State.data.currentStore;
             }
-            if (State.data.targetDateOffset) {
-                document.getElementById('targetDateOffset').value = State.data.targetDateOffset;
-            }
-            
             this.renderStoreDatalist();
 
             if (State.data.currentCategory) {
@@ -117,13 +109,11 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false));
-            document.getElementById('weather').addEventListener('change', () => Logic.calculate(false));
             document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false));
             document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false));
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
-            document.getElementById('cityArea').addEventListener('change', () => Weather.onCityAreaChange());
-            document.getElementById('targetDateOffset').addEventListener('change', () => Weather.onDateOffsetChange());
+            document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(1); });
 
             const calcBtn = document.getElementById('btn-calculate');
             const calcText = document.getElementById('btn-calc-text');
@@ -146,18 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }, 400); 
             });
 
-            const refreshAllBtn = document.getElementById('btn-refresh-all');
-            const allBtnText = document.getElementById('allBtnText');
-            refreshAllBtn.addEventListener('click', () => {
-                refreshAllBtn.classList.add('loading');
-                allBtnText.innerText = "一括解析中...";
-                setTimeout(() => {
-                    Logic.calculateAll();
-                    refreshAllBtn.classList.remove('loading');
-                    allBtnText.innerText = "🔄 最新情報で一括更新";
-                }, 400);
-            });
-
+            document.getElementById('btn-refresh-all').addEventListener('click', () => { Logic.calculateAll(); });
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-copy').addEventListener('click', () => this.copyBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
@@ -165,15 +144,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         switchTab(tabId) {
             if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-            
             document.getElementById('tabContainer').setAttribute('data-active-tab', tabId);
             document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-
-            if (tabId === 'all') {
-                Logic.calculateAll();
-            }
+            if (tabId === 'all') Logic.calculateAll();
         },
 
         onStoreChange() {
@@ -182,7 +157,6 @@ document.addEventListener("DOMContentLoaded", () => {
             State.data.currentStore = s;
             State.ensureStore(s);
             State.save();
-            
             this.renderStoreDatalist();
             this.restoreCategoryInputs();
             Weather.restoreStoreWeather();
@@ -196,15 +170,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.updateFreshnessDisplay(cat);
             this.restoreCategoryInputs(); 
             Logic.calculate(true);
-        },
-
-        updateDateOptions() {
-            const today = new Date();
-            const tmw = new Date(today); tmw.setDate(today.getDate() + 1);
-            const dat = new Date(today); dat.setDate(today.getDate() + 2);
-            const days = ['日', '月', '火', '水', '木', '金', '土'];
-            document.getElementById('opt-tomorrow').innerText = `${tmw.getMonth() + 1}/${tmw.getDate()}(${days[tmw.getDay()]}) [明日] の予報を取得`;
-            document.getElementById('opt-dayafter').innerText = `${dat.getMonth() + 1}/${dat.getDate()}(${days[dat.getDay()]}) [明後日] の予報を取得`;
         },
 
         renderStoreDatalist() {
@@ -242,7 +207,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const cat = State.data.currentCategory;
             if (!store || !cat) return;
             
-            // 🌟 デフォルト値を「50個」の実数入力に
             const defaults = {
                 avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
                 ratios: {mon:"50", tue:"50", wed:"50", thu:"50", fri:"55", sat:"60", sun:"55"}
@@ -267,19 +231,22 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         },
 
-        showSaveIndicator() {
-            const ind = document.getElementById('saveIndicator');
-            if(ind) {
-                ind.innerText = "✓ 保存済"; 
-                setTimeout(() => { ind.innerText = ""; }, 2000);
-            }
+        // 🌟 天候補正ボタンが押された時の処理（UI更新と隠し値のセット）
+        setCorr(btn) {
+            document.querySelectorAll('.corr-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('weatherCoeff').value = btn.dataset.val;
+            Logic.calculate(false);
         },
 
+        showSaveIndicator() {
+            const ind = document.getElementById('saveIndicator');
+            if(ind) { ind.innerText = "✓ 保存済"; setTimeout(() => { ind.innerText = ""; }, 2000); }
+        },
         showSaveError() {
             const ind = document.getElementById('saveIndicator');
             if(ind) { ind.innerText = "⚠️ エラー"; }
         },
-
         exportBackup() {
             const dataStr = JSON.stringify(State.data);
             const encoded = btoa(unescape(encodeURIComponent(dataStr)));
@@ -288,40 +255,30 @@ document.addEventListener("DOMContentLoaded", () => {
             textArea.select();
             alert("コードを作成しました！");
         },
-
         copyBackup() {
             const textArea = document.getElementById('backupCode');
             if (!textArea.value) return alert("先にコードを作成してください。");
             textArea.select();
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(textArea.value).then(() => alert("✅ コピーしました！"));
-            } else {
-                document.execCommand('copy');
-                alert("✅ コピーしました！");
-            }
+            if (navigator.clipboard) { navigator.clipboard.writeText(textArea.value).then(() => alert("✅ コピーしました！")); } 
+            else { document.execCommand('copy'); alert("✅ コピーしました！"); }
         },
-
         importBackup() {
             const textArea = document.getElementById('backupCode');
             const encoded = textArea.value.trim();
             if (!encoded) return alert("コードが入力されていません。");
-
             try {
                 const parsed = JSON.parse(decodeURIComponent(escape(atob(encoded))));
                 if (parsed && parsed.stores) {
-                    State.data = parsed;
-                    State.save(); 
-                    this.init(); 
-                    alert("復元に成功しました！");
-                    textArea.value = ""; 
-                    this.switchTab('simulator');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    State.data = parsed; State.save(); this.init(); 
+                    alert("復元に成功しました！"); textArea.value = ""; 
+                    this.switchTab('simulator'); window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             } catch(e) { alert("コードの形式が間違っています。"); }
         }
     };
 
-    // --- 気象情報連携 ---
+    // 🌟 気象情報連携（ボタン式API取得と天候判定ロジックの完全復元）
+    window.UI = UI; // onclickから呼ぶためにグローバル化
     const Weather = {
         restoreStoreWeather() {
             const store = State.data.currentStore;
@@ -332,11 +289,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('prefecture').value = pref;
             if (pref) {
-                this.fetchWeather(pref, city);
+                this.fetchAreaList(pref, city);
             } else {
                 document.getElementById('cityArea').innerHTML = '<option value="">-- エリア --</option>';
-                document.getElementById('acquiredDateDisplay').style.display = 'none';
-                State.weatherCache = null;
             }
         },
 
@@ -349,8 +304,7 @@ document.addEventListener("DOMContentLoaded", () => {
             State.data.stores[store].cityArea = ""; 
             State.save();
             
-            if (pref) this.fetchWeather(pref, null);
-            else { this.restoreStoreWeather(); Logic.calculate(false); }
+            if (pref) this.fetchAreaList(pref, null);
         },
 
         onCityAreaChange() {
@@ -359,24 +313,14 @@ document.addEventListener("DOMContentLoaded", () => {
             State.ensureStore(store);
             State.data.stores[store].cityArea = document.getElementById('cityArea').value;
             State.save();
-            this.applyWeatherData();
         },
 
-        onDateOffsetChange() {
-            State.data.targetDateOffset = document.getElementById('targetDateOffset').value;
-            State.save();
-            this.applyWeatherData();
-        },
-
-        async fetchWeather(prefCode, targetCityCode) {
-            const statusText = document.getElementById('weatherStatus');
+        // エリアリストの取得だけを行う
+        async fetchAreaList(prefCode, targetCityCode) {
             const areaSelect = document.getElementById('cityArea');
-            statusText.innerText = "取得中...";
             try {
                 const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
                 const data = await response.json();
-                State.weatherCache = data;
-
                 let series = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].weathers) || data[0].timeSeries[0];
                 areaSelect.innerHTML = '';
                 series.areas.forEach((area) => {
@@ -384,51 +328,53 @@ document.addEventListener("DOMContentLoaded", () => {
                     opt.value = area.area.code; opt.text = area.area.name; 
                     areaSelect.appendChild(opt);
                 });
-
                 if (targetCityCode && Array.from(areaSelect.options).some(o => o.value === targetCityCode)) {
                     areaSelect.value = targetCityCode;
                 }
-                statusText.innerText = "✓ 取得済";
-                statusText.style.color = "var(--success)";
-                setTimeout(() => { statusText.innerText = ""; }, 3000);
-                this.applyWeatherData();
-            } catch(e) {
-                statusText.innerText = "取得失敗"; statusText.style.color = "var(--danger)";
-            }
+            } catch(e) { console.error("エリア取得失敗"); }
         },
 
-        applyWeatherData() {
-            if (!State.weatherCache) return;
-            const data = State.weatherCache;
+        // 天気・気温の取得とUI連動（引数1=明日, 2=明後日）
+        async fetchWeather(offset) {
+            const prefCode = document.getElementById('prefecture').value;
             const areaCode = document.getElementById('cityArea').value;
-            if (!areaCode) return;
+            if (!prefCode || !areaCode) { alert("都道府県とエリアを選択してください"); return; }
             
-            const offset = parseInt(State.data.targetDateOffset) || 1;
-            
+            const btn = offset === 1 ? document.getElementById('btn-weather-tmw') : document.getElementById('btn-weather-dat');
+            const originalText = btn.innerText;
+            btn.innerText = "取得中...";
+            btn.disabled = true;
+
             try {
+                const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
+                const data = await response.json();
+
                 const targetDate = new Date();
                 targetDate.setDate(targetDate.getDate() + offset);
                 const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`; 
 
-                let minT = "", maxT = "", weatherText = "予報データなし", wDate = targetDate;
+                let minT = "", maxT = "", weatherText = "不明", wDate = targetDate;
                 
                 const getArea = (series) => {
                     if (!series || !series.areas) return null;
                     return series.areas.find(a => a.area && a.area.code === areaCode) || series.areas[0];
                 };
 
-                if (data[1] && data[1].timeSeries) {
-                    let wSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
+                // 天気と気温の抽出ロジック
+                if (data[0] && data[0].timeSeries) {
+                    let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     if (wSeries) {
                         let idx = wSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
                         if (idx !== -1) {
                             let aData = getArea(wSeries);
-                            if (aData && aData.weathers && aData.weathers[idx]) {
-                                weatherText = aData.weathers[idx];
-                                wDate = new Date(wSeries.timeDefines[idx]);
-                            }
+                            if (aData && aData.weathers && aData.weathers[idx]) { weatherText = aData.weathers[idx]; wDate = new Date(wSeries.timeDefines[idx]); }
+                        } else if (wSeries.timeDefines.length > offset) {
+                            let aData = getArea(wSeries);
+                            if (aData && aData.weathers && aData.weathers[offset]) { weatherText = aData.weathers[offset]; wDate = new Date(wSeries.timeDefines[offset]); }
                         }
                     }
+                }
+                if (data[1] && data[1].timeSeries) {
                     let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax);
                     if (tSeries) {
                         let idx = tSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
@@ -442,89 +388,42 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                if (data[0] && data[0].timeSeries) {
-                    let shortW = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
-                    if (shortW) {
-                        let idx = shortW.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        if (idx !== -1) {
-                            let aData = getArea(shortW);
-                            if (aData && aData.weathers && aData.weathers[idx]) {
-                                weatherText = aData.weathers[idx];
-                                wDate = new Date(shortW.timeDefines[idx]);
-                            }
-                        }
-                    }
-                    
-                    let shortT = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].temps);
-                    if (shortT) {
-                        let aData = getArea(shortT);
-                        if (aData && aData.temps) {
-                            let mins = [], maxs = [];
-                            shortT.timeDefines.forEach((t, i) => {
-                                if (t.startsWith(targetDateStr)) {
-                                    let hr = new Date(t).getHours();
-                                    if (hr === 0 || hr === 6) mins.push(aData.temps[i]);
-                                    if (hr === 9 || hr === 12 || hr === 15) maxs.push(aData.temps[i]);
-                                }
-                            });
-                            if (mins.length > 0) minT = mins[0];
-                            if (maxs.length > 0) maxT = maxs[maxs.length - 1];
-                            
-                            if (minT === "" && maxT === "" && offset === 1 && aData.temps.length >= 2) {
-                                minT = aData.temps[aData.temps.length - 2];
-                                maxT = aData.temps[aData.temps.length - 1];
-                            }
-                        }
-                    }
-                }
-
-                if (weatherText === "予報データなし" && data[0] && data[0].timeSeries) {
-                    let shortW = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
-                    if (shortW && shortW.timeDefines.length > offset) {
-                        let aData = getArea(shortW);
-                        if (aData && aData.weathers && aData.weathers[offset]) {
-                            weatherText = aData.weathers[offset];
-                            wDate = new Date(shortW.timeDefines[offset]);
-                        }
-                    }
-                }
-
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
-                let wRatio = 1.0;
-                let textForRatio = weatherText || ""; 
-                if (textForRatio.includes("雨") || textForRatio.includes("雪")) {
-                    if (textForRatio.includes("一時") || textForRatio.includes("時々") || textForRatio.includes("小雨")) {
-                        wRatio = 0.9; 
-                    } else if (textForRatio.includes("夜遅く") || textForRatio.includes("夕方から") || textForRatio.includes("明け方")) {
-                        wRatio = 1.0; 
-                    } else if (textForRatio.includes("のち")) {
-                        wRatio = 0.9; 
-                    } else {
-                        wRatio = 0.8; 
-                    }
-                }
-                document.getElementById('weather').value = wRatio.toFixed(1);
-                
-                document.getElementById('actualWeatherText').innerText = (weatherText || "取得できませんでした").replace(/　/g, ' ');
-                document.getElementById('acquiredDateDisplay').style.display = 'block';
+                // 🌟 天気テキストから自動で天候補正ボタンを選択するロジック（復元）
+                let icon = '⛅', corrVal = "1.0";
+                if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.8"; }
+                else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.9"; }
+                else if (/晴|曇/.test(weatherText)) { icon='☀️'; corrVal="1.0"; }
+
+                const disp = document.getElementById('weather-display');
+                disp.style.display = 'inline-flex';
+                disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,20)}`;
                 
                 const days = ['日', '月', '火', '水', '木', '金', '土'];
-                document.getElementById('acquiredDateText').innerText = `${wDate.getMonth() + 1}月${wDate.getDate()}日 (${days[wDate.getDay()]})`;
-                document.getElementById('targetDay').value = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
+                document.getElementById('weather-date').innerText = `📅 対象日：${wDate.getFullYear()}/${wDate.getMonth() + 1}/${wDate.getDate()}(${days[wDate.getDay()]})`;
+                
+                // 曜日も自動変更
+                const dayValue = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
+                document.getElementById('targetDay').value = dayValue;
+
+                // ボタンの自動選択
+                document.querySelectorAll('.corr-btn').forEach(b => {
+                    if (b.dataset.val === corrVal) UI.setCorr(b);
+                });
 
                 Logic.calculate(false);
-                if (document.getElementById('tab-all').classList.contains('active')) {
-                    Logic.calculateAll();
-                }
-                
             } catch (e) { 
-                console.error("天気データ解析エラー:", e);
-                document.getElementById('actualWeatherText').innerText = "取得エラーが発生しました";
+                console.error("天気データ取得エラー:", e);
+                alert("天気データの取得に失敗しました。");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
             }
         }
     };
+    window.Weather = Weather; // onclickから呼ぶためにグローバル化
 
     // --- 計算ロジック ---
     const Logic = {
@@ -595,7 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const categoriesData = State.data.stores[storeName].categories;
             const targetDay = document.getElementById('targetDay').value;
-            const weatherCoeff = parseFloat(document.getElementById('weather').value);
+            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
             
@@ -621,7 +520,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
-                    // 🌟 一括計算：実数入力からAIが自動で曜日係数を算出
+                    // 🌟 曜日係数の自動計算
                     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
                     let totalDaySales = 0;
                     days.forEach(d => { totalDaySales += (parseFloat(data.ratios[d]) || 0); });
@@ -711,7 +610,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             
             const targetDay = document.getElementById('targetDay').value;
-            const weatherCoeff = parseFloat(document.getElementById('weather').value);
+            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; // 🌟 hiddenから取得
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
