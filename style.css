@@ -39,12 +39,11 @@ body { background-color: var(--bg-body); color: var(--text-main); line-height: 1
 .section-title { font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 24px; display: flex; align-items: center; gap: 8px; letter-spacing: -0.02em; }
 .section-title::before { content: ''; display: inline-block; width: 6px; height: 18px; background: linear-gradient(180deg, var(--primary) 0%, #34C759 100%); border-radius: 4px; }
 
-/* 🌟 ツールチップのCSS追加 */
 label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); }
 .tip-wrap { position: relative; display: inline-flex; align-items: center; margin-left: 6px; }
 .tip-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #C7C7CC; color: #FFFFFF; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
 .tip-icon:hover { background: var(--primary); }
-.tip-box { display: none; position: absolute; bottom: 130%; right: 0; background: #1C1C1E; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #FFFFFF; width: 200px; z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 400; line-height: 1.5; pointer-events: none; }
+.tip-box { display: none; position: absolute; bottom: 130%; right: 0; background: #1C1C1E; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #FFFFFF; width: 220px; z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 400; line-height: 1.5; pointer-events: none; }
 .tip-box::after { content: ''; position: absolute; top: 100%; right: 5px; border-width: 6px; border-style: solid; border-color: #1C1C1E transparent transparent transparent; }
 .tip-wrap:hover .tip-box, .tip-wrap:active .tip-box { display: block; }
 
@@ -76,7 +75,6 @@ input[readonly] { background-color: transparent; color: var(--primary); border: 
 .shortage-input-box input { background-color: rgba(255, 149, 0, 0.08); color: var(--warning); border: 1px solid rgba(255, 149, 0, 0.3); }
 .display-input-box { display: none; }
 
-/* 🌟 曜日比率パーセント入力用 */
 .day-ratio-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: transparent; }
 .day-ratio-box input { padding: 12px 4px; font-size: 15px; text-align: center; background-color: var(--input-bg); }
 .day-sat label { color: var(--primary) !important; }
