@@ -539,9 +539,10 @@ document.addEventListener("DOMContentLoaded", () => {
         getTempCoeff(catVal, maxTemp, minTemp) {
             let tempCoeff = 1.0; let tempMessage = "";
             if (catVal === "調理麺") {
-                if (maxTemp >= 35) { tempCoeff = 1.0 + 0.10 + 0.30 + 0.50 + ((maxTemp - 35) * 0.15); tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
-                else if (maxTemp >= 30) { tempCoeff = 1.0 + 0.10 + 0.30 + ((maxTemp - 30) * 0.10); tempMessage = "☀️ 30℃超え！調理麺の飛躍的な売上増を予測"; }
-                else if (maxTemp >= 25) { tempCoeff = 1.0 + 0.10 + ((maxTemp - 25) * 0.06); tempMessage = "🔥 25℃超え。調理麺がよく動く気温です"; }
+                // 🌟 修正①: 調理麺の気温による過剰な係数を現実に即した値に抑制
+                if (maxTemp >= 35) { tempCoeff = 1.40 + ((maxTemp - 35) * 0.05); tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
+                else if (maxTemp >= 30) { tempCoeff = 1.25 + ((maxTemp - 30) * 0.03); tempMessage = "☀️ 30℃超え！調理麺の飛躍的な売上増を予測"; }
+                else if (maxTemp >= 25) { tempCoeff = 1.10 + ((maxTemp - 25) * 0.03); tempMessage = "🔥 25℃超え。調理麺がよく動く気温です"; }
                 else if (maxTemp >= 20) { tempCoeff = 1.0 + ((maxTemp - 20) * 0.02); tempMessage = "🌤 20℃超え。調理麺が少しずつ動き出します"; }
                 else if (maxTemp < 10) { tempCoeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04); tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きはかなり鈍ります"; }
                 else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により調理麺予測をマイナス補正"; }
@@ -560,7 +561,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: tempCoeff, message: tempMessage };
         },
 
-        // 🌟 修正版：目標との差分（diffShortageRate）を受け取り、廃棄の引き算を調整する
         calculateCoreOrderQty(baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
             const safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
             const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
@@ -569,8 +569,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const baseDemand = (baseAdjustedSales * leadTime) + appliedBuffer;
             let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
 
-            // 目標との乖離（差分）が大きいほど、廃棄マイナスを弱める（最大10%の差で廃棄を全く引かない）
-            const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
+            // 🌟 修正②: 目標と乖離していても極端に廃棄引き算をゼロにせず、最低でも半分は差し引いて安全側に倒す
+            const wasteReductionRatio = Math.max(0.5, 1 - (diffShortageRate / 20));
             const effectiveWaste = avgWaste * wasteReductionRatio;
 
             let finalOrderQty = Math.max(0, rawOrderQty - effectiveWaste);
@@ -612,7 +612,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     const avgShortageRate = parseFloat(data.avgShortageRate) || 0; 
                     const safeShortageRate = Math.min(avgShortageRate, 90);
                     
-                    // 🌟 段階的な目標設定ロジック（一括確認用）
                     let targetShortageRate = safeShortageRate;
                     if (safeShortageRate >= 20) targetShortageRate = 20;
                     else if (safeShortageRate >= 10) targetShortageRate = 10;
@@ -623,7 +622,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
                     
-                    // 🌟 目標欠品率からの逆算
                     let shortageCoeff = 1.0;
                     if (safeShortageRate > targetShortageRate) {
                         shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
@@ -639,9 +637,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
                     
                     const trueAvgSales = avgSales * shortageCoeff;
-                    const stdDev = stdDev_raw * shortageCoeff;
+                    // 🌟 修正③: 安全在庫の無駄な膨張を防ぐ
+                    const stdDev = stdDev_raw; 
                     
-                    const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+                    // 🌟 修正③: 曜日×天候×気温 の係数掛け合わせにストッパーを設ける（最大1.6倍）
+                    let combinedCoeff = dayRatio * weatherCoeff * tempInfo.coeff;
+                    combinedCoeff = Math.min(1.6, Math.max(0.5, combinedCoeff));
+                    
+                    const adjustedSales = trueAvgSales * combinedCoeff;
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
@@ -685,7 +688,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const avgShortageRate = parseFloat(document.getElementById('avgShortageRate').value) || 0; 
             const safeShortageRate = Math.min(avgShortageRate, 90); 
             
-            // 🌟 段階的な目標設定ロジック
             let targetShortageRate = safeShortageRate;
             let shortageMsg = "";
 
@@ -715,7 +717,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
             
-            // 🌟 目標からの逆算係数と、廃棄軽減のための差分計算
             let shortageCoeff = 1.0;
             if (safeShortageRate > targetShortageRate) {
                 shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
@@ -723,12 +724,22 @@ document.addEventListener("DOMContentLoaded", () => {
             const diffShortageRate = safeShortageRate - targetShortageRate;
 
             const trueAvgSales = avgSales * shortageCoeff;
-            const stdDev = stdDev_raw * shortageCoeff; 
             
-            const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+            // 🌟 修正③: 安全在庫の無駄な膨張を防ぐ
+            const stdDev = stdDev_raw; 
+            
+            // 🌟 修正③: 曜日×天候×気温 の係数掛け合わせにストッパーを設ける（最大1.6倍）
+            let combinedCoeff = dayRatio * weatherCoeff * tempInfo.coeff;
+            combinedCoeff = Math.min(1.6, Math.max(0.5, combinedCoeff));
+            
+            const adjustedSales = trueAvgSales * combinedCoeff;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
-            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
+            
+            // 通常算出のベースも暴走しないよう上限をつける
+            let normalCombinedCoeff = dayRatio * weatherCoeff;
+            normalCombinedCoeff = Math.min(1.6, Math.max(0.5, normalCombinedCoeff));
+            const normalResult = this.calculateCoreOrderQty(avgSales * normalCombinedCoeff, stdDev_raw, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
                 this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
