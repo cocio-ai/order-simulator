@@ -183,34 +183,40 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         },
 
+        // 🌟 【確実な修正】ここで「現在庫」の表示と非表示をコントロールします
         updateFreshnessDisplay(category) {
             const display = document.getElementById('freshnessDisplay');
             const hiddenVal = document.getElementById('freshnessTime');
             const displayInputArea = document.getElementById('displayInputArea');
-            const stockInputArea = document.getElementById('stockInputArea');
+            
+            const stockInput = document.getElementById('currentStock');
             const stockMessageArea = document.getElementById('stockMessageArea');
-
-            // 安全装置：HTMLが見つからなくてもエラーで止まらないようにする
-            if (stockInputArea) stockInputArea.style.display = "block";
-            if (stockMessageArea) stockMessageArea.style.display = "none";
+            let isShortShelfLife = false;
 
             switch(category) {
                 case "おにぎり": case "こだわりおにぎり": case "弁当":
                     hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; 
-                    if (stockInputArea) stockInputArea.style.display = "none";
-                    if (stockMessageArea) stockMessageArea.style.display = "block";
-                    break;
+                    isShortShelfLife = true; break;
                 case "寿司": case "サンドイッチ": case "ロール":
                     hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; 
-                    if (stockInputArea) stockInputArea.style.display = "none";
-                    if (stockMessageArea) stockMessageArea.style.display = "block";
-                    break;
+                    isShortShelfLife = true; break;
                 case "調理麺": case "カップ麺": case "惣菜": case "サラダ":
                     hiddenVal.value = "38"; display.value = "維持ロジック (38H: +0.2日分)"; displayInputArea.style.display = "none"; break;
                 case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ":
                     hiddenVal.value = "60"; display.value = "維持ロジック (60H: +0.5日分)"; displayInputArea.style.display = "none"; break;
                 default:
                     hiddenVal.value = "0"; display.value = "上の分類を選択してください"; displayInputArea.style.display = "none";
+            }
+
+            // 短鮮度の場合は入力欄を消してメッセージを出す
+            if (stockInput && stockMessageArea) {
+                if (isShortShelfLife) {
+                    stockInput.style.display = "none";
+                    stockMessageArea.style.display = "flex";
+                } else {
+                    stockInput.style.display = "block";
+                    stockMessageArea.style.display = "none";
+                }
             }
         },
 
@@ -388,4 +394,347 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (idx !== -1) {
                             let aData = getArea(tSeries);
                             if (aData) {
-                                if (aData.tempsMin && aData.tempsMin[idx]) min
+                                if (aData.tempsMin && aData.tempsMin[idx]) minT = aData.tempsMin[idx];
+                                if (aData.tempsMax && aData.tempsMax[idx]) maxT = aData.tempsMax[idx];
+                            }
+                        }
+                    }
+                }
+
+                if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
+                if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
+                
+                let icon = '⛅', corrVal = "1.0";
+                if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.8"; }
+                else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.9"; }
+                else if (/晴|曇/.test(weatherText)) { icon='☀️'; corrVal="1.0"; }
+
+                const disp = document.getElementById('weather-display');
+                disp.style.display = 'inline-flex';
+                disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,20)}`;
+                
+                const days = ['日', '月', '火', '水', '木', '金', '土'];
+                document.getElementById('weather-date').innerText = `📅 対象日：${wDate.getFullYear()}/${wDate.getMonth() + 1}/${wDate.getDate()}(${days[wDate.getDay()]})`;
+                
+                const dayValue = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
+                document.getElementById('targetDay').value = dayValue;
+
+                document.querySelectorAll('.corr-btn').forEach(b => {
+                    if (b.dataset.val === corrVal) UI.setCorr(b);
+                });
+
+                Logic.calculate(false);
+            } catch (e) { 
+                console.error("天気データ取得エラー:", e);
+                alert("天気データの取得に失敗しました。");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+    };
+    window.Weather = Weather; 
+
+    // --- 計算ロジック ---
+    const Logic = {
+        getFreshnessHours(category) {
+            switch(category) {
+                case "おにぎり": case "こだわりおにぎり": case "弁当": return 14;
+                case "寿司": case "サンドイッチ": case "ロール": return 23;
+                case "調理麺": case "カップ麺": case "惣菜": case "サラダ": return 38;
+                case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ": return 60;
+                default: return 0;
+            }
+        },
+
+        getTempCoeff(catVal, maxTemp, minTemp) {
+            let tempCoeff = 1.0; let tempMessage = "";
+            if (catVal === "調理麺") {
+                if (maxTemp >= 35) { tempCoeff = 1.0 + 0.10 + 0.30 + 0.50 + ((maxTemp - 35) * 0.15); tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
+                else if (maxTemp >= 30) { tempCoeff = 1.0 + 0.10 + 0.30 + ((maxTemp - 30) * 0.10); tempMessage = "☀️ 30℃超え！調理麺の飛躍的な売上増を予測"; }
+                else if (maxTemp >= 25) { tempCoeff = 1.0 + 0.10 + ((maxTemp - 25) * 0.06); tempMessage = "🔥 25℃超え。調理麺がよく動く気温です"; }
+                else if (maxTemp >= 20) { tempCoeff = 1.0 + ((maxTemp - 20) * 0.02); tempMessage = "🌤 20℃超え。調理麺が少しずつ動き出します"; }
+                else if (maxTemp < 10) { tempCoeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04); tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きはかなり鈍ります"; }
+                else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により調理麺予測をマイナス補正"; }
+                else { tempCoeff = 1.0; tempMessage = "☁️ 過ごしやすい気温。調理麺は通常通りの動きです"; }
+            } else if (catVal === "サラダ" || catVal === "カップデリ") {
+                if (maxTemp > 25) { tempCoeff = 1.0 + ((maxTemp - 25) * 0.03); tempMessage = "↑ 暑さにより予測をプラス補正（夏型商材）"; }
+                else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により予測をマイナス補正"; }
+            } else if (["カップ麺", "グラタンドリア", "スパゲティパスタ", "チルド弁当"].includes(catVal)) {
+                if (minTemp < 10) { tempCoeff = 1.0 + ((10 - minTemp) * 0.03); tempMessage = "↑ 冷え込みにより予測をプラス（冬型商材）"; }
+                if (maxTemp > 25) { tempCoeff = tempCoeff - ((maxTemp - 25) * 0.02); tempMessage = "↓ 暑さにより予測をマイナス補正"; }
+            } else {
+                if (maxTemp > 30) { tempCoeff = 0.95; tempMessage = "↓ 猛暑による食欲減退を考慮して微減"; }
+                else if (maxTemp < 10) { tempCoeff = 0.95; tempMessage = "↓ 極寒による客数減を考慮して微減"; }
+            }
+            tempCoeff = Math.max(0.3, Math.min(2.5, tempCoeff));
+            return { coeff: tempCoeff, message: tempMessage };
+        },
+
+        calculateCoreOrderQty(baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
+            const safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
+            const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
+            let appliedBuffer = (minDisplayQty > systemBuffer) ? minDisplayQty : systemBuffer;
+
+            const baseDemand = (baseAdjustedSales * leadTime) + appliedBuffer;
+            let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
+
+            const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
+            const effectiveWaste = avgWaste * wasteReductionRatio;
+
+            let finalOrderQty = Math.max(0, rawOrderQty - effectiveWaste);
+
+            if (freshnessHours > 24) {
+                let maxOrderableQty = Math.max(0, Math.floor((baseAdjustedSales * (freshnessHours / 24)) - currentStock));
+                if (finalOrderQty > maxOrderableQty) finalOrderQty = maxOrderableQty;
+            }
+
+            return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer, effectiveWaste };
+        },
+
+        calculateAll() {
+            const storeName = State.data.currentStore;
+            const container = document.getElementById('allResultsContainer');
+            document.getElementById('allTabStoreName').innerText = storeName || "未選択";
+            
+            if (!storeName || !State.data.stores[storeName] || !State.data.stores[storeName].categories || Object.keys(State.data.stores[storeName].categories).length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">データがありません。<br><br>「個別計算」タブで分類を選択し、数値を入力してください。</div>';
+                return;
+            }
+            
+            const categoriesData = State.data.stores[storeName].categories;
+            const targetDay = document.getElementById('targetDay').value;
+            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
+            const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
+            const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
+            
+            let html = '';
+            const order = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール", "スパゲティパスタ", "グラタンドリア", "カップ麺", "調理麺", "惣菜", "カップデリ", "サラダ"];
+            
+            order.forEach(catName => {
+                if (categoriesData[catName]) {
+                    const data = categoriesData[catName];
+                    const freshnessHours = this.getFreshnessHours(catName);
+                    if(freshnessHours === 0) return;
+                    
+                    const avgSales = parseFloat(data.avgSales) || 0;
+                    const avgShortageRate = parseFloat(data.avgShortageRate) || 0; 
+                    const safeShortageRate = Math.min(avgShortageRate, 90);
+                    
+                    let targetShortageRate = safeShortageRate;
+                    if (safeShortageRate >= 20) targetShortageRate = 20;
+                    else if (safeShortageRate >= 10) targetShortageRate = 10;
+                    else if (safeShortageRate > 5) targetShortageRate = 5;
+
+                    const currentStock = parseInt(data.currentStock) || 0;
+                    const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
+                    
+                    const avgWaste = parseFloat(data.avgWaste) || 0;
+                    const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
+                    
+                    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                    let totalDaySales = 0;
+                    days.forEach(d => { totalDaySales += (parseFloat(data.ratios[d]) || 0); });
+                    const avgDaySales = totalDaySales / 7;
+                    const targetDaySales = parseFloat(data.ratios[targetDay]) || 0;
+                    const dayRatio = avgDaySales > 0 ? (targetDaySales / avgDaySales) : 1.0;
+                    
+                    let shortageCoeff = 1.0;
+                    if (safeShortageRate > targetShortageRate) {
+                        shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
+                    }
+                    const diffShortageRate = safeShortageRate - targetShortageRate;
+                    
+                    const maxS = parseFloat(data.maxSales) || 0;
+                    const minS = parseFloat(data.minSales) || 0;
+                    const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
+                    const stdDev_raw = diff_raw / 4; 
+                    
+                    const tempInfo = this.getTempCoeff(catName, maxTemp, minTemp);
+                    const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
+                    
+                    const trueAvgSales = avgSales * shortageCoeff;
+                    const stdDev = stdDev_raw * shortageCoeff;
+                    
+                    const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+
+                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
+                    
+                    html += `
+                        <div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
+                            <div class="all-result-cat">${catName}</div>
+                            <div class="all-result-qty">${result.finalOrderQty} <span>個</span></div>
+                        </div>
+                    `;
+                }
+            });
+            
+            container.innerHTML = html || '<div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">有効なカテゴリデータがありません。</div>';
+        },
+
+        calculate(silent = false) {
+            const storeName = document.getElementById('storeName').value.trim();
+            const catSelect = document.getElementById('categoryName');
+            const catVal = catSelect.value;
+            const freshnessHours = parseFloat(document.getElementById('freshnessTime').value);
+            
+            const maxS = parseFloat(document.getElementById('maxSales').value) || 0;
+            const minS = parseFloat(document.getElementById('minSales').value) || 0;
+            const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
+            const stdDev_raw = diff_raw / 4; 
+            
+            document.getElementById('dispMax').innerText = Math.max(maxS, minS);
+            document.getElementById('dispMin').innerText = Math.min(maxS, minS);
+            document.getElementById('dispDiff').innerText = diff_raw;
+            document.getElementById('dispStdDev').innerText = stdDev_raw.toFixed(1);
+
+            if (!storeName || !catVal || freshnessHours === 0) {
+                if(!silent) {
+                    document.getElementById('resultArea').style.display = 'none';
+                    document.getElementById('warningArea').style.display = 'none';
+                }
+                return false; 
+            }
+
+            const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
+            const avgShortageRate = parseFloat(document.getElementById('avgShortageRate').value) || 0; 
+            const safeShortageRate = Math.min(avgShortageRate, 90); 
+            
+            let targetShortageRate = safeShortageRate;
+            let shortageMsg = "";
+
+            if (safeShortageRate >= 20) {
+                targetShortageRate = 20;
+                shortageMsg = "🎯 [機会損失改善] 欠品率20%以下を目指して段階的に発注を底上げしました。";
+            } else if (safeShortageRate >= 10) {
+                targetShortageRate = 10;
+                shortageMsg = "🎯 [機会損失改善] 欠品率10%以下を目指して適正に発注を底上げしました。";
+            } else if (safeShortageRate > 5) {
+                targetShortageRate = 5;
+                shortageMsg = "🎯 [機会損失改善] 欠品率5%以下を目指して微増調整しました。";
+            } else if (safeShortageRate > 0) {
+                shortageMsg = "✨ 欠品率は非常に優秀です。現在のペースを維持します。";
+            }
+
+            const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
+            // 🌟 短鮮度の場合はシステム内部で強制的に在庫0にして計算
+            const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
+
+            const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
+            const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
+            
+            const targetDay = document.getElementById('targetDay').value;
+            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; 
+            const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
+            const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
+
+            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            let totalDaySales = 0;
+            days.forEach(d => { totalDaySales += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
+            const avgDaySales = totalDaySales / 7;
+            const targetDaySales = parseFloat(document.getElementById('ratio_' + targetDay).value) || 0;
+            const dayRatio = avgDaySales > 0 ? (targetDaySales / avgDaySales) : 1.0;
+
+            const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
+            const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
+            
+            let shortageCoeff = 1.0;
+            if (safeShortageRate > targetShortageRate) {
+                shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
+            }
+            const diffShortageRate = safeShortageRate - targetShortageRate;
+
+            const trueAvgSales = avgSales * shortageCoeff;
+            const stdDev = stdDev_raw * shortageCoeff; 
+            
+            const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+            
+            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
+            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
+
+            if(!silent) {
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
+            }
+            return true;
+        },
+
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
+            document.getElementById('resCategory').innerText = catName;
+            document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
+            document.getElementById('resBaseSales').innerText = avgSales;
+            
+            const shortageBoostDisplay = document.getElementById('resShortageBoost');
+            if (shortageCoeff > 1.0) {
+                shortageBoostDisplay.innerText = `(×欠品補正 ${shortageCoeff.toFixed(2)})`;
+            } else {
+                shortageBoostDisplay.innerText = "";
+            }
+
+            document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
+            document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(1);
+            document.getElementById('resTempRatio').innerText = tempCoeff.toFixed(2);
+            document.getElementById('resTempMessage').innerText = tempMessage;
+            
+            document.getElementById('resAdjSales').innerText = Math.ceil(adjustedSales);
+            document.getElementById('resOrderQty').innerText = result.finalOrderQty;
+
+            let boostQty = result.finalOrderQty - normalResult.finalOrderQty;
+            const boostDiv = document.getElementById('boostBreakdown');
+            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0)) {
+                document.getElementById('resNormalQty').innerText = normalResult.finalOrderQty;
+                document.getElementById('resBoostQty').innerText = boostQty;
+                const label = document.getElementById('boostLabelText');
+                if (shortageCoeff > 1.0) {
+                    label.innerText = "🔥 欠品対策＋条件ブースト:";
+                    label.style.color = "#FF9500";
+                } else {
+                    label.innerText = tempCoeff >= 1.4 ? "🌋 超絶気温ブースト等:" : "🔥 気温・曜日ブースト等:";
+                    label.style.color = tempCoeff >= 1.4 ? "#FF453A" : "#FF9500";
+                }
+                boostDiv.style.display = 'block';
+            } else { boostDiv.style.display = 'none'; }
+
+            const targetStockArea = document.getElementById('targetStockArea');
+            if (minDisplayQty > result.systemBuffer || extraStockDays > 0 || (result.systemBuffer > 0 && minDisplayQty > 0)) {
+                document.getElementById('resTargetStock').innerText = Math.ceil(result.baseDemand);
+                document.getElementById('targetStockLabel').innerText = minDisplayQty > result.systemBuffer ? `(予測数 ＋ 設定最低陳列量 ${minDisplayQty}個 確保)` : (extraStockDays > 0 ? `(予測数 ＋ ${extraStockDays}日分の売場・安全在庫を上乗せ)` : `(予測数 ＋ 安全在庫確保 ※指定陳列量はクリア)`);
+                targetStockArea.style.display = 'block';
+            } else { targetStockArea.style.display = 'none'; }
+
+            let warningTriggered = false, warningMsgText = "", stockLabel = "", stockValue = "";
+            let rawOrderQty = Math.ceil(result.baseDemand - effectiveCurrentStock);
+            
+            if (freshnessHours === 14 || freshnessHours === 23) {
+                if (diffShortageRate > 0) {
+                    warningTriggered = true; warningMsgText = shortageMsg; stockLabel = "ロス削減(廃棄マイナス)制限中"; stockValue = `-${effectiveWaste.toFixed(1)} 個`;
+                } else if (rawOrderQty > (rawOrderQty - effectiveWaste)) {
+                    warningTriggered = true; warningMsgText = "⚠️ [ロス削減] 平均廃棄数を差し引き、無駄を削りました。"; stockLabel = "平均廃棄数マイナス調整"; stockValue = "-" + effectiveWaste.toFixed(1) + " 個";
+                } else {
+                     stockLabel = "鮮度上限チェック"; stockValue = "対象外 (短鮮度)";
+                }
+            } else {
+                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - effectiveCurrentStock));
+                if (result.finalOrderQty === maxOrderableQty && maxOrderableQty < (rawOrderQty - effectiveWaste)) { 
+                    warningTriggered = true; warningMsgText = "⚠️ [鮮度警告] 鮮度時間を超えるため、上限でカットしました。"; stockLabel = "販売時間に基づく理論上限"; stockValue = maxOrderableQty + " 個"; 
+                } else if (diffShortageRate > 0) {
+                    warningTriggered = true; warningMsgText = shortageMsg; stockLabel = "ロス削減(廃棄マイナス)制限中"; stockValue = `-${effectiveWaste.toFixed(1)} 個`;
+                } else if (rawOrderQty > (rawOrderQty - effectiveWaste)) { 
+                    warningTriggered = true; warningMsgText = "⚠️ [ロス削減] 平均廃棄数を差し引き、無駄を削りました。"; stockLabel = "上限内 / 廃棄削減を適用"; stockValue = "-" + effectiveWaste.toFixed(1) + " 個"; 
+                } else { 
+                    stockLabel = "鮮度上限チェック"; stockValue = "クリア (問題なし)"; 
+                }
+            }
+
+            document.getElementById('resMaxStockLabel').innerText = stockLabel;
+            document.getElementById('resMaxStock').innerText = stockValue;
+            
+            document.getElementById('resultArea').style.display = 'block';
+            const warnArea = document.getElementById('warningArea');
+            if (warningTriggered) { document.getElementById('warningMessageText').innerHTML = warningMsgText; warnArea.style.display = 'block'; }
+            else { warnArea.style.display = 'none'; }
+        }
+    };
+
+    State.load();
+    UI.init();
+});
