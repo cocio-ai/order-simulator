@@ -117,21 +117,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const calcBtn = document.getElementById('btn-calculate');
             const calcText = document.getElementById('btn-calc-text');
+            
+            // 🌟 解析ボタンクリック時の処理
             calcBtn.addEventListener('click', () => {
                 if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
                 calcBtn.classList.add('loading');
                 calcText.innerText = "データ解析中...";
                 
                 setTimeout(() => {
-                    const success = Logic.calculate(false);
-                    calcBtn.classList.remove('loading');
-                    calcText.innerText = "⚡ AI 発注シミュレーション実行";
-                    
-                    if (success) {
-                        setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-                    } else {
-                        alert("店舗名と対象分類を選択してください。");
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    try {
+                        const success = Logic.calculate(false);
+                        calcBtn.classList.remove('loading');
+                        calcText.innerText = "⚡ AI 発注シミュレーション実行";
+                        
+                        if (success) {
+                            setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                        } else {
+                            alert("店舗名と対象分類を選択してください。");
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    } catch (e) {
+                        console.error("解析中にエラーが発生しました:", e);
+                        calcBtn.classList.remove('loading');
+                        calcText.innerText = "⚡ AI 発注シミュレーション実行";
+                        alert("エラーが発生しました。入力内容を確認してください。");
                     }
                 }, 400); 
             });
@@ -183,7 +192,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         },
 
-        // 🌟 【確実な修正】ここで「現在庫」の表示と非表示をコントロールします
         updateFreshnessDisplay(category) {
             const display = document.getElementById('freshnessDisplay');
             const hiddenVal = document.getElementById('freshnessTime');
@@ -208,7 +216,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     hiddenVal.value = "0"; display.value = "上の分類を選択してください"; displayInputArea.style.display = "none";
             }
 
-            // 短鮮度の場合は入力欄を消してメッセージを出す
             if (stockInput && stockMessageArea) {
                 if (isShortShelfLife) {
                     stockInput.style.display = "none";
@@ -583,10 +590,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
             const stdDev_raw = diff_raw / 4; 
             
+            // 🌟 【修正箇所】ここで消してしまったID（dispStdDev）を呼び出していたためエラーになっていました。削除済みです。
             document.getElementById('dispMax').innerText = Math.max(maxS, minS);
             document.getElementById('dispMin').innerText = Math.min(maxS, minS);
             document.getElementById('dispDiff').innerText = diff_raw;
-            document.getElementById('dispStdDev').innerText = stdDev_raw.toFixed(1);
 
             if (!storeName || !catVal || freshnessHours === 0) {
                 if(!silent) {
@@ -617,7 +624,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
-            // 🌟 短鮮度の場合はシステム内部で強制的に在庫0にして計算
             const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
 
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
