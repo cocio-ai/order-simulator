@@ -6,10 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
             version: 1, 
             currentStore: "", 
             currentCategory: "",
-            targetDateOffset: "1",
             stores: {} 
         },
-        weatherCache: null,
 
         load() {
             try {
@@ -70,16 +68,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- UI制御 ---
     const UI = {
         init() {
-            this.updateDateOptions();
-            this.setupRatios();
-            
             if (State.data.currentStore) {
                 document.getElementById('storeName').value = State.data.currentStore;
             }
-            if (State.data.targetDateOffset) {
-                document.getElementById('targetDateOffset').value = State.data.targetDateOffset;
-            }
-            
             this.renderStoreDatalist();
 
             if (State.data.currentCategory) {
@@ -89,7 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             Weather.restoreStoreWeather();
-            Logic.calculate(true);
             this.setupEventListeners();
         },
 
@@ -110,19 +100,20 @@ document.addEventListener("DOMContentLoaded", () => {
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) {
-                    el.addEventListener('input', () => { State.updateInputData(); Logic.calculate(false); });
+                    el.addEventListener('input', () => { 
+                        State.updateInputData(); 
+                        Logic.calculate(false); 
+                    });
                     if(el.type === 'number') el.addEventListener('focus', function() { this.select(); });
                 }
             });
 
             document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false));
-            document.getElementById('weather').addEventListener('change', () => Logic.calculate(false));
             document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false));
             document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false));
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
-            document.getElementById('cityArea').addEventListener('change', () => Weather.onCityAreaChange());
-            document.getElementById('targetDateOffset').addEventListener('change', () => Weather.onDateOffsetChange());
+            document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(1); });
 
             const calcBtn = document.getElementById('btn-calculate');
             const calcText = document.getElementById('btn-calc-text');
@@ -145,33 +136,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 }, 400); 
             });
 
-            const refreshAllBtn = document.getElementById('btn-refresh-all');
-            const allBtnText = document.getElementById('allBtnText');
-            refreshAllBtn.addEventListener('click', () => {
-                refreshAllBtn.classList.add('loading');
-                allBtnText.innerText = "一括解析中...";
-                setTimeout(() => {
-                    Logic.calculateAll();
-                    refreshAllBtn.classList.remove('loading');
-                    allBtnText.innerText = "🔄 最新情報で一括更新";
-                }, 400);
-            });
-
+            document.getElementById('btn-refresh-all').addEventListener('click', () => { Logic.calculateAll(); });
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
+            document.getElementById('btn-copy').addEventListener('click', () => this.copyBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
         },
 
         switchTab(tabId) {
             if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-            
             document.getElementById('tabContainer').setAttribute('data-active-tab', tabId);
             document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-
-            if (tabId === 'all') {
-                Logic.calculateAll();
-            }
+            if (tabId === 'all') Logic.calculateAll();
         },
 
         onStoreChange() {
@@ -180,7 +157,6 @@ document.addEventListener("DOMContentLoaded", () => {
             State.data.currentStore = s;
             State.ensureStore(s);
             State.save();
-            
             this.renderStoreDatalist();
             this.restoreCategoryInputs();
             Weather.restoreStoreWeather();
@@ -196,15 +172,6 @@ document.addEventListener("DOMContentLoaded", () => {
             Logic.calculate(true);
         },
 
-        updateDateOptions() {
-            const today = new Date();
-            const tmw = new Date(today); tmw.setDate(today.getDate() + 1);
-            const dat = new Date(today); dat.setDate(today.getDate() + 2);
-            const days = ['日', '月', '火', '水', '木', '金', '土'];
-            document.getElementById('opt-tomorrow').innerText = `${tmw.getMonth() + 1}/${tmw.getDate()}(${days[tmw.getDay()]}) [明日] の予報を取得`;
-            document.getElementById('opt-dayafter').innerText = `${dat.getMonth() + 1}/${dat.getDate()}(${days[dat.getDay()]}) [明後日] の予報を取得`;
-        },
-
         renderStoreDatalist() {
             const dataList = document.getElementById('storeList');
             dataList.innerHTML = '';
@@ -216,16 +183,29 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         },
 
+        // 🌟 分類選択時に「現在庫」の入力欄とメッセージを切り替える処理
         updateFreshnessDisplay(category) {
             const display = document.getElementById('freshnessDisplay');
             const hiddenVal = document.getElementById('freshnessTime');
             const displayInputArea = document.getElementById('displayInputArea');
+            const stockInputArea = document.getElementById('stockInputArea');
+            const stockMessageArea = document.getElementById('stockMessageArea');
+
+            // まずリセット（デフォルトは長鮮度として入力欄を表示）
+            if (stockInputArea) stockInputArea.style.display = "block";
+            if (stockMessageArea) stockMessageArea.style.display = "none";
 
             switch(category) {
                 case "おにぎり": case "こだわりおにぎり": case "弁当":
-                    hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; break;
+                    hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; 
+                    if (stockInputArea) stockInputArea.style.display = "none";
+                    if (stockMessageArea) stockMessageArea.style.display = "flex";
+                    break;
                 case "寿司": case "サンドイッチ": case "ロール":
-                    hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; break;
+                    hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; 
+                    if (stockInputArea) stockInputArea.style.display = "none";
+                    if (stockMessageArea) stockMessageArea.style.display = "flex";
+                    break;
                 case "調理麺": case "カップ麺": case "惣菜": case "サラダ":
                     hiddenVal.value = "38"; display.value = "維持ロジック (38H: +0.2日分)"; displayInputArea.style.display = "none"; break;
                 case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ":
@@ -235,19 +215,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        setupRatios() {
-            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-            days.forEach(d => {
-                const select = document.getElementById('ratio_' + d);
-                for (let i = 0.5; i <= 3.01; i += 0.1) {
-                    let valStr = i.toFixed(1);
-                    let option = document.createElement('option');
-                    option.value = valStr; option.text = valStr;
-                    select.appendChild(option);
-                }
-            });
-        },
-
         restoreCategoryInputs() {
             const store = State.data.currentStore;
             const cat = State.data.currentCategory;
@@ -255,7 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const defaults = {
                 avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
-                ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.2", sun:"1.3"}
+                ratios: {mon:"50", tue:"50", wed:"50", thu:"50", fri:"55", sat:"60", sun:"55"}
             };
 
             let data = defaults;
@@ -273,53 +240,56 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
 
             Object.keys(data.ratios).forEach(d => {
-                document.getElementById('ratio_' + d).value = Number(data.ratios[d]).toFixed(1);
+                document.getElementById('ratio_' + d).value = data.ratios[d];
             });
+        },
+
+        setCorr(btn) {
+            document.querySelectorAll('.corr-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('weatherCoeff').value = btn.dataset.val;
+            Logic.calculate(false);
         },
 
         showSaveIndicator() {
             const ind = document.getElementById('saveIndicator');
-            if(ind) {
-                ind.innerText = "✓ 保存済"; 
-                setTimeout(() => { ind.innerText = ""; }, 2000);
-            }
+            if(ind) { ind.innerText = "✓ 保存済"; setTimeout(() => { ind.innerText = ""; }, 2000); }
         },
-
         showSaveError() {
             const ind = document.getElementById('saveIndicator');
             if(ind) { ind.innerText = "⚠️ エラー"; }
         },
-
         exportBackup() {
             const dataStr = JSON.stringify(State.data);
             const encoded = btoa(unescape(encodeURIComponent(dataStr)));
             const textArea = document.getElementById('backupCode');
             textArea.value = encoded;
             textArea.select();
-            alert("コードを作成しました！コピーして保存してください。");
+            alert("コードを作成しました！");
         },
-
+        copyBackup() {
+            const textArea = document.getElementById('backupCode');
+            if (!textArea.value) return alert("先にコードを作成してください。");
+            textArea.select();
+            if (navigator.clipboard) { navigator.clipboard.writeText(textArea.value).then(() => alert("✅ コピーしました！")); } 
+            else { document.execCommand('copy'); alert("✅ コピーしました！"); }
+        },
         importBackup() {
             const textArea = document.getElementById('backupCode');
             const encoded = textArea.value.trim();
             if (!encoded) return alert("コードが入力されていません。");
-
             try {
                 const parsed = JSON.parse(decodeURIComponent(escape(atob(encoded))));
                 if (parsed && parsed.stores) {
-                    State.data = parsed;
-                    State.save(); 
-                    this.init(); 
-                    alert("復元に成功しました！");
-                    textArea.value = ""; 
-                    this.switchTab('simulator');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    State.data = parsed; State.save(); this.init(); 
+                    alert("復元に成功しました！"); textArea.value = ""; 
+                    this.switchTab('simulator'); window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             } catch(e) { alert("コードの形式が間違っています。"); }
         }
     };
 
-    // --- 気象情報連携 ---
+    window.UI = UI; 
     const Weather = {
         restoreStoreWeather() {
             const store = State.data.currentStore;
@@ -330,11 +300,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('prefecture').value = pref;
             if (pref) {
-                this.fetchWeather(pref, city);
+                this.fetchAreaList(pref, city);
             } else {
                 document.getElementById('cityArea').innerHTML = '<option value="">-- エリア --</option>';
-                document.getElementById('acquiredDateDisplay').style.display = 'none';
-                State.weatherCache = null;
             }
         },
 
@@ -347,8 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
             State.data.stores[store].cityArea = ""; 
             State.save();
             
-            if (pref) this.fetchWeather(pref, null);
-            else { this.restoreStoreWeather(); Logic.calculate(false); }
+            if (pref) this.fetchAreaList(pref, null);
         },
 
         onCityAreaChange() {
@@ -357,24 +324,13 @@ document.addEventListener("DOMContentLoaded", () => {
             State.ensureStore(store);
             State.data.stores[store].cityArea = document.getElementById('cityArea').value;
             State.save();
-            this.applyWeatherData();
         },
 
-        onDateOffsetChange() {
-            State.data.targetDateOffset = document.getElementById('targetDateOffset').value;
-            State.save();
-            this.applyWeatherData();
-        },
-
-        async fetchWeather(prefCode, targetCityCode) {
-            const statusText = document.getElementById('weatherStatus');
+        async fetchAreaList(prefCode, targetCityCode) {
             const areaSelect = document.getElementById('cityArea');
-            statusText.innerText = "取得中...";
             try {
                 const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
                 const data = await response.json();
-                State.weatherCache = data;
-
                 let series = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].weathers) || data[0].timeSeries[0];
                 areaSelect.innerHTML = '';
                 series.areas.forEach((area) => {
@@ -382,51 +338,51 @@ document.addEventListener("DOMContentLoaded", () => {
                     opt.value = area.area.code; opt.text = area.area.name; 
                     areaSelect.appendChild(opt);
                 });
-
                 if (targetCityCode && Array.from(areaSelect.options).some(o => o.value === targetCityCode)) {
                     areaSelect.value = targetCityCode;
                 }
-                statusText.innerText = "✓ 取得済";
-                statusText.style.color = "var(--success)";
-                setTimeout(() => { statusText.innerText = ""; }, 3000);
-                this.applyWeatherData();
-            } catch(e) {
-                statusText.innerText = "取得失敗"; statusText.style.color = "var(--danger)";
-            }
+            } catch(e) { console.error("エリア取得失敗"); }
         },
 
-        applyWeatherData() {
-            if (!State.weatherCache) return;
-            const data = State.weatherCache;
+        async fetchWeather(offset) {
+            const prefCode = document.getElementById('prefecture').value;
             const areaCode = document.getElementById('cityArea').value;
-            if (!areaCode) return;
+            if (!prefCode || !areaCode) { alert("都道府県とエリアを選択してください"); return; }
             
-            const offset = parseInt(State.data.targetDateOffset) || 1;
-            
+            const btn = offset === 1 ? document.getElementById('btn-weather-tmw') : document.getElementById('btn-weather-dat');
+            const originalText = btn.innerText;
+            btn.innerText = "取得中...";
+            btn.disabled = true;
+
             try {
+                const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
+                const data = await response.json();
+
                 const targetDate = new Date();
                 targetDate.setDate(targetDate.getDate() + offset);
                 const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`; 
 
-                let minT = "", maxT = "", weatherText = "予報データなし", wDate = targetDate;
+                let minT = "", maxT = "", weatherText = "不明", wDate = targetDate;
                 
                 const getArea = (series) => {
                     if (!series || !series.areas) return null;
                     return series.areas.find(a => a.area && a.area.code === areaCode) || series.areas[0];
                 };
 
-                if (data[1] && data[1].timeSeries) {
-                    let wSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
+                if (data[0] && data[0].timeSeries) {
+                    let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     if (wSeries) {
                         let idx = wSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
                         if (idx !== -1) {
                             let aData = getArea(wSeries);
-                            if (aData && aData.weathers && aData.weathers[idx]) {
-                                weatherText = aData.weathers[idx];
-                                wDate = new Date(wSeries.timeDefines[idx]);
-                            }
+                            if (aData && aData.weathers && aData.weathers[idx]) { weatherText = aData.weathers[idx]; wDate = new Date(wSeries.timeDefines[idx]); }
+                        } else if (wSeries.timeDefines.length > offset) {
+                            let aData = getArea(wSeries);
+                            if (aData && aData.weathers && aData.weathers[offset]) { weatherText = aData.weathers[offset]; wDate = new Date(wSeries.timeDefines[offset]); }
                         }
                     }
+                }
+                if (data[1] && data[1].timeSeries) {
                     let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax);
                     if (tSeries) {
                         let idx = tSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
@@ -440,89 +396,39 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                if (data[0] && data[0].timeSeries) {
-                    let shortW = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
-                    if (shortW) {
-                        let idx = shortW.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        if (idx !== -1) {
-                            let aData = getArea(shortW);
-                            if (aData && aData.weathers && aData.weathers[idx]) {
-                                weatherText = aData.weathers[idx];
-                                wDate = new Date(shortW.timeDefines[idx]);
-                            }
-                        }
-                    }
-                    
-                    let shortT = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].temps);
-                    if (shortT) {
-                        let aData = getArea(shortT);
-                        if (aData && aData.temps) {
-                            let mins = [], maxs = [];
-                            shortT.timeDefines.forEach((t, i) => {
-                                if (t.startsWith(targetDateStr)) {
-                                    let hr = new Date(t).getHours();
-                                    if (hr === 0 || hr === 6) mins.push(aData.temps[i]);
-                                    if (hr === 9 || hr === 12 || hr === 15) maxs.push(aData.temps[i]);
-                                }
-                            });
-                            if (mins.length > 0) minT = mins[0];
-                            if (maxs.length > 0) maxT = maxs[maxs.length - 1];
-                            
-                            if (minT === "" && maxT === "" && offset === 1 && aData.temps.length >= 2) {
-                                minT = aData.temps[aData.temps.length - 2];
-                                maxT = aData.temps[aData.temps.length - 1];
-                            }
-                        }
-                    }
-                }
-
-                if (weatherText === "予報データなし" && data[0] && data[0].timeSeries) {
-                    let shortW = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
-                    if (shortW && shortW.timeDefines.length > offset) {
-                        let aData = getArea(shortW);
-                        if (aData && aData.weathers && aData.weathers[offset]) {
-                            weatherText = aData.weathers[offset];
-                            wDate = new Date(shortW.timeDefines[offset]);
-                        }
-                    }
-                }
-
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
-                let wRatio = 1.0;
-                let textForRatio = weatherText || ""; 
-                if (textForRatio.includes("雨") || textForRatio.includes("雪")) {
-                    if (textForRatio.includes("一時") || textForRatio.includes("時々") || textForRatio.includes("小雨")) {
-                        wRatio = 0.9; 
-                    } else if (textForRatio.includes("夜遅く") || textForRatio.includes("夕方から") || textForRatio.includes("明け方")) {
-                        wRatio = 1.0; 
-                    } else if (textForRatio.includes("のち")) {
-                        wRatio = 0.9; 
-                    } else {
-                        wRatio = 0.8; 
-                    }
-                }
-                document.getElementById('weather').value = wRatio.toFixed(1);
-                
-                document.getElementById('actualWeatherText').innerText = (weatherText || "取得できませんでした").replace(/　/g, ' ');
-                document.getElementById('acquiredDateDisplay').style.display = 'block';
+                let icon = '⛅', corrVal = "1.0";
+                if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.8"; }
+                else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.9"; }
+                else if (/晴|曇/.test(weatherText)) { icon='☀️'; corrVal="1.0"; }
+
+                const disp = document.getElementById('weather-display');
+                disp.style.display = 'inline-flex';
+                disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,20)}`;
                 
                 const days = ['日', '月', '火', '水', '木', '金', '土'];
-                document.getElementById('acquiredDateText').innerText = `${wDate.getMonth() + 1}月${wDate.getDate()}日 (${days[wDate.getDay()]})`;
-                document.getElementById('targetDay').value = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
+                document.getElementById('weather-date').innerText = `📅 対象日：${wDate.getFullYear()}/${wDate.getMonth() + 1}/${wDate.getDate()}(${days[wDate.getDay()]})`;
+                
+                const dayValue = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
+                document.getElementById('targetDay').value = dayValue;
+
+                document.querySelectorAll('.corr-btn').forEach(b => {
+                    if (b.dataset.val === corrVal) UI.setCorr(b);
+                });
 
                 Logic.calculate(false);
-                if (document.getElementById('tab-all').classList.contains('active')) {
-                    Logic.calculateAll();
-                }
-                
             } catch (e) { 
-                console.error("天気データ解析エラー:", e);
-                document.getElementById('actualWeatherText').innerText = "取得エラーが発生しました";
+                console.error("天気データ取得エラー:", e);
+                alert("天気データの取得に失敗しました。");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
             }
         }
     };
+    window.Weather = Weather; 
 
     // --- 計算ロジック ---
     const Logic = {
@@ -539,10 +445,9 @@ document.addEventListener("DOMContentLoaded", () => {
         getTempCoeff(catVal, maxTemp, minTemp) {
             let tempCoeff = 1.0; let tempMessage = "";
             if (catVal === "調理麺") {
-                // 🌟 修正①: 調理麺の気温による過剰な係数を現実に即した値に抑制
-                if (maxTemp >= 35) { tempCoeff = 1.40 + ((maxTemp - 35) * 0.05); tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
-                else if (maxTemp >= 30) { tempCoeff = 1.25 + ((maxTemp - 30) * 0.03); tempMessage = "☀️ 30℃超え！調理麺の飛躍的な売上増を予測"; }
-                else if (maxTemp >= 25) { tempCoeff = 1.10 + ((maxTemp - 25) * 0.03); tempMessage = "🔥 25℃超え。調理麺がよく動く気温です"; }
+                if (maxTemp >= 35) { tempCoeff = 1.0 + 0.10 + 0.30 + 0.50 + ((maxTemp - 35) * 0.15); tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
+                else if (maxTemp >= 30) { tempCoeff = 1.0 + 0.10 + 0.30 + ((maxTemp - 30) * 0.10); tempMessage = "☀️ 30℃超え！調理麺の飛躍的な売上増を予測"; }
+                else if (maxTemp >= 25) { tempCoeff = 1.0 + 0.10 + ((maxTemp - 25) * 0.06); tempMessage = "🔥 25℃超え。調理麺がよく動く気温です"; }
                 else if (maxTemp >= 20) { tempCoeff = 1.0 + ((maxTemp - 20) * 0.02); tempMessage = "🌤 20℃超え。調理麺が少しずつ動き出します"; }
                 else if (maxTemp < 10) { tempCoeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04); tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きはかなり鈍ります"; }
                 else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により調理麺予測をマイナス補正"; }
@@ -569,8 +474,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const baseDemand = (baseAdjustedSales * leadTime) + appliedBuffer;
             let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
 
-            // 🌟 修正②: 目標と乖離していても極端に廃棄引き算をゼロにせず、最低でも半分は差し引いて安全側に倒す
-            const wasteReductionRatio = Math.max(0.5, 1 - (diffShortageRate / 20));
+            const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
             const effectiveWaste = avgWaste * wasteReductionRatio;
 
             let finalOrderQty = Math.max(0, rawOrderQty - effectiveWaste);
@@ -595,7 +499,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const categoriesData = State.data.stores[storeName].categories;
             const targetDay = document.getElementById('targetDay').value;
-            const weatherCoeff = parseFloat(document.getElementById('weather').value);
+            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
             
@@ -618,9 +522,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     else if (safeShortageRate > 5) targetShortageRate = 5;
 
                     const currentStock = parseInt(data.currentStock) || 0;
+                    const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
+                    
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
-                    const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
+                    
+                    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                    let totalDaySales = 0;
+                    days.forEach(d => { totalDaySales += (parseFloat(data.ratios[d]) || 0); });
+                    const avgDaySales = totalDaySales / 7;
+                    const targetDaySales = parseFloat(data.ratios[targetDay]) || 0;
+                    const dayRatio = avgDaySales > 0 ? (targetDaySales / avgDaySales) : 1.0;
                     
                     let shortageCoeff = 1.0;
                     if (safeShortageRate > targetShortageRate) {
@@ -637,16 +549,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
                     
                     const trueAvgSales = avgSales * shortageCoeff;
-                    // 🌟 修正③: 安全在庫の無駄な膨張を防ぐ
-                    const stdDev = stdDev_raw; 
+                    const stdDev = stdDev_raw * shortageCoeff;
                     
-                    // 🌟 修正③: 曜日×天候×気温 の係数掛け合わせにストッパーを設ける（最大1.6倍）
-                    let combinedCoeff = dayRatio * weatherCoeff * tempInfo.coeff;
-                    combinedCoeff = Math.min(1.6, Math.max(0.5, combinedCoeff));
-                    
-                    const adjustedSales = trueAvgSales * combinedCoeff;
+                    const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
 
-                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
+                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
                     
                     html += `
                         <div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
@@ -705,14 +612,22 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
+            const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
+
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             
             const targetDay = document.getElementById('targetDay').value;
-            const dayRatio = parseFloat(document.getElementById('ratio_' + targetDay).value) || 1.0;
-            const weatherCoeff = parseFloat(document.getElementById('weather').value);
+            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; 
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
+
+            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            let totalDaySales = 0;
+            days.forEach(d => { totalDaySales += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
+            const avgDaySales = totalDaySales / 7;
+            const targetDaySales = parseFloat(document.getElementById('ratio_' + targetDay).value) || 0;
+            const dayRatio = avgDaySales > 0 ? (targetDaySales / avgDaySales) : 1.0;
 
             const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
@@ -724,30 +639,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const diffShortageRate = safeShortageRate - targetShortageRate;
 
             const trueAvgSales = avgSales * shortageCoeff;
+            const stdDev = stdDev_raw * shortageCoeff; 
             
-            // 🌟 修正③: 安全在庫の無駄な膨張を防ぐ
-            const stdDev = stdDev_raw; 
+            const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
             
-            // 🌟 修正③: 曜日×天候×気温 の係数掛け合わせにストッパーを設ける（最大1.6倍）
-            let combinedCoeff = dayRatio * weatherCoeff * tempInfo.coeff;
-            combinedCoeff = Math.min(1.6, Math.max(0.5, combinedCoeff));
-            
-            const adjustedSales = trueAvgSales * combinedCoeff;
-            
-            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
-            
-            // 通常算出のベースも暴走しないよう上限をつける
-            let normalCombinedCoeff = dayRatio * weatherCoeff;
-            normalCombinedCoeff = Math.min(1.6, Math.max(0.5, normalCombinedCoeff));
-            const normalResult = this.calculateCoreOrderQty(avgSales * normalCombinedCoeff, stdDev_raw, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
+            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
+            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             document.getElementById('resBaseSales').innerText = avgSales;
@@ -759,7 +664,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 shortageBoostDisplay.innerText = "";
             }
 
-            document.getElementById('resDayRatio').innerText = dayRatio.toFixed(1);
+            document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
             document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(1);
             document.getElementById('resTempRatio').innerText = tempCoeff.toFixed(2);
             document.getElementById('resTempMessage').innerText = tempMessage;
@@ -769,15 +674,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let boostQty = result.finalOrderQty - normalResult.finalOrderQty;
             const boostDiv = document.getElementById('boostBreakdown');
-            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0)) {
+            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0)) {
                 document.getElementById('resNormalQty').innerText = normalResult.finalOrderQty;
                 document.getElementById('resBoostQty').innerText = boostQty;
                 const label = document.getElementById('boostLabelText');
                 if (shortageCoeff > 1.0) {
-                    label.innerText = "🔥 欠品対策＋気候ブースト:";
+                    label.innerText = "🔥 欠品対策＋条件ブースト:";
                     label.style.color = "#FF9500";
                 } else {
-                    label.innerText = tempCoeff >= 1.4 ? "🌋 超絶気温ブースト:" : "🔥 気温ブースト:";
+                    label.innerText = tempCoeff >= 1.4 ? "🌋 超絶気温ブースト等:" : "🔥 気温・曜日ブースト等:";
                     label.style.color = tempCoeff >= 1.4 ? "#FF453A" : "#FF9500";
                 }
                 boostDiv.style.display = 'block';
@@ -791,9 +696,10 @@ document.addEventListener("DOMContentLoaded", () => {
             } else { targetStockArea.style.display = 'none'; }
 
             let warningTriggered = false, warningMsgText = "", stockLabel = "", stockValue = "";
-            let rawOrderQty = Math.ceil(result.baseDemand - currentStock);
+            let rawOrderQty = Math.ceil(result.baseDemand - effectiveCurrentStock);
             
-            if (freshnessHours === 14) {
+            // 下部のアラートボックスでは、在庫無視に関する注意書きはUI上で既に説明しているため省略し、ロス削減メッセージのみ表示
+            if (freshnessHours === 14 || freshnessHours === 23) {
                 if (diffShortageRate > 0) {
                     warningTriggered = true; warningMsgText = shortageMsg; stockLabel = "ロス削減(廃棄マイナス)制限中"; stockValue = `-${effectiveWaste.toFixed(1)} 個`;
                 } else if (rawOrderQty > (rawOrderQty - effectiveWaste)) {
@@ -802,7 +708,7 @@ document.addEventListener("DOMContentLoaded", () => {
                      stockLabel = "鮮度上限チェック"; stockValue = "対象外 (短鮮度)";
                 }
             } else {
-                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - currentStock));
+                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - effectiveCurrentStock));
                 if (result.finalOrderQty === maxOrderableQty && maxOrderableQty < (rawOrderQty - effectiveWaste)) { 
                     warningTriggered = true; warningMsgText = "⚠️ [鮮度警告] 鮮度時間を超えるため、上限でカットしました。"; stockLabel = "販売時間に基づく理論上限"; stockValue = maxOrderableQty + " 個"; 
                 } else if (diffShortageRate > 0) {
