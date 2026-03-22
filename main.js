@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.data.stores[store].categories[cat] = {
                 avgSales: document.getElementById('avgSales').value,
                 currentStock: document.getElementById('currentStock').value,
+                leadTime: document.getElementById('leadTime').value, // 新規追加: 納品リードタイム
                 maxSales: document.getElementById('maxSales').value,
                 minSales: document.getElementById('minSales').value,
                 avgWaste: document.getElementById('avgWaste').value,
@@ -95,12 +96,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
-            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
+            const inputs = ['avgSales', 'currentStock', 'leadTime', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
                             'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) {
-                    el.addEventListener('input', () => { 
+                    el.addEventListener('input', (e) => { 
+                        // 🌟 最大/最小販売数が変更されたらブレ幅表示を即時更新
+                        if (e.target.id === 'maxSales' || e.target.id === 'minSales') {
+                            this.updateFluctuationDisplay();
+                        }
                         State.updateInputData(); 
                         Logic.calculate(false); 
                     });
@@ -175,8 +180,11 @@ document.addEventListener("DOMContentLoaded", () => {
         renderStoreDatalist() {
             const dataList = document.getElementById('storeList');
             dataList.innerHTML = '';
-            const stores = Object.keys(State.data.stores).filter(s => s.trim() !== "");
-            stores.forEach(store => {
+            // 履歴（入力済み）に加えて、HTMLで設定した初期の店舗名も保持する
+            const stores = new Set(Object.keys(State.data.stores).filter(s => s.trim() !== ""));
+            stores.add("セブンイレブン尾張旭晴丘町池上店"); // 固定で追加
+            
+            Array.from(stores).forEach(store => {
                 let option = document.createElement('option');
                 option.value = store;
                 dataList.appendChild(option);
@@ -201,6 +209,21 @@ document.addEventListener("DOMContentLoaded", () => {
                     hiddenVal.value = "0"; display.value = "上の分類を選択してください"; displayInputArea.style.display = "none";
             }
         },
+        
+        // 🌟 ブレ幅のリアルタイム更新関数
+        updateFluctuationDisplay() {
+            const max = Number(document.getElementById('maxSales').value) || 0;
+            const min = Number(document.getElementById('minSales').value) || 0;
+            const dispMax = document.getElementById('dispMax');
+            const dispMin = document.getElementById('dispMin');
+            const dispDiff = document.getElementById('dispDiff');
+            
+            if (dispMax && dispMin && dispDiff) {
+                dispMax.innerText = Math.max(max, min);
+                dispMin.innerText = Math.min(max, min);
+                dispDiff.innerText = Math.max(max, min) - Math.min(max, min);
+            }
+        },
 
         restoreCategoryInputs() {
             const store = State.data.currentStore;
@@ -208,7 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!store || !cat) return;
             
             const defaults = {
-                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
+                avgSales: "50", currentStock: "15", leadTime: "12", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
                 ratios: {mon:"50", tue:"50", wed:"50", thu:"50", fri:"55", sat:"60", sun:"55"}
             };
 
@@ -220,6 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('avgSales').value = data.avgSales;
             document.getElementById('currentStock').value = data.currentStock;
+            if (document.getElementById('leadTime')) document.getElementById('leadTime').value = data.leadTime; // リードタイム復元
             document.getElementById('maxSales').value = data.maxSales;
             document.getElementById('minSales').value = data.minSales;
             document.getElementById('avgWaste').value = data.avgWaste;
@@ -229,9 +253,11 @@ document.addEventListener("DOMContentLoaded", () => {
             Object.keys(data.ratios).forEach(d => {
                 document.getElementById('ratio_' + d).value = data.ratios[d];
             });
+            
+            // 復元後、ブレ幅表示も更新
+            this.updateFluctuationDisplay();
         },
 
-        // 🌟 天候補正ボタンが押された時の処理（UI更新と隠し値のセット）
         setCorr(btn) {
             document.querySelectorAll('.corr-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -277,9 +303,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // 🌟 気象情報連携（ボタン式API取得と天候判定ロジックの完全復元）
-    window.UI = UI; // onclickから呼ぶためにグローバル化
+    window.UI = UI; 
     const Weather = {
+        // ... (Weatherオブジェクトの中身は既存のまま変更なし) ...
         restoreStoreWeather() {
             const store = State.data.currentStore;
             if (!store) return;
@@ -315,7 +341,6 @@ document.addEventListener("DOMContentLoaded", () => {
             State.save();
         },
 
-        // エリアリストの取得だけを行う
         async fetchAreaList(prefCode, targetCityCode) {
             const areaSelect = document.getElementById('cityArea');
             try {
@@ -334,7 +359,6 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch(e) { console.error("エリア取得失敗"); }
         },
 
-        // 天気・気温の取得とUI連動（引数1=明日, 2=明後日）
         async fetchWeather(offset) {
             const prefCode = document.getElementById('prefecture').value;
             const areaCode = document.getElementById('cityArea').value;
@@ -360,7 +384,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     return series.areas.find(a => a.area && a.area.code === areaCode) || series.areas[0];
                 };
 
-                // 天気と気温の抽出ロジック
                 if (data[0] && data[0].timeSeries) {
                     let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     if (wSeries) {
@@ -391,7 +414,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
-                // 🌟 天気テキストから自動で天候補正ボタンを選択するロジック（復元）
                 let icon = '⛅', corrVal = "1.0";
                 if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.8"; }
                 else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.9"; }
@@ -404,11 +426,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const days = ['日', '月', '火', '水', '木', '金', '土'];
                 document.getElementById('weather-date').innerText = `📅 対象日：${wDate.getFullYear()}/${wDate.getMonth() + 1}/${wDate.getDate()}(${days[wDate.getDay()]})`;
                 
-                // 曜日も自動変更
                 const dayValue = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
                 document.getElementById('targetDay').value = dayValue;
 
-                // ボタンの自動選択
                 document.querySelectorAll('.corr-btn').forEach(b => {
                     if (b.dataset.val === corrVal) UI.setCorr(b);
                 });
@@ -423,7 +443,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     };
-    window.Weather = Weather; // onclickから呼ぶためにグローバル化
+    window.Weather = Weather; 
 
     // --- 計算ロジック ---
     const Logic = {
@@ -435,6 +455,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ": return 60;
                 default: return 0;
             }
+        },
+
+        // 🌟 対象分類ごとの天候補正（一律ではなく、特性に合わせる）
+        getWeatherCoeffForCategory(catVal, baseWeatherCoeff) {
+            // イベント(1.2)などはそのまま適用するため、ベース係数が1.0以外の天候悪化時のみ調整
+            if (baseWeatherCoeff >= 1.0) return baseWeatherCoeff;
+            
+            // 雨などによる売上低下が顕著なもの（ついで買い・外出需要）
+            if (["サンドイッチ", "ロール", "おにぎり", "こだわりおにぎり", "調理麺"].includes(catVal)) {
+                return baseWeatherCoeff; // 設定通り(0.9, 0.8)に減らす
+            }
+            // 悪天候でも家ごもり需要で売上が落ちにくい、あるいは伸びるもの
+            if (["カップ麺", "惣菜", "チルド弁当", "グラタンドリア"].includes(catVal)) {
+                // 0.8なら0.95、0.9なら1.0など、マイナス影響を和らげる
+                return baseWeatherCoeff + (1.0 - baseWeatherCoeff) * 0.7; 
+            }
+            // 中間
+            return baseWeatherCoeff + (1.0 - baseWeatherCoeff) * 0.3;
         },
 
         getTempCoeff(catVal, maxTemp, minTemp) {
@@ -461,25 +499,45 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: tempCoeff, message: tempMessage };
         },
 
-        calculateCoreOrderQty(baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
-            const safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
+        // 🌟 納品リードタイムを含めたコア計算ロジック
+        calculateCoreOrderQty(baseAdjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, leadTimeHours, avgWaste, freshnessHours, diffShortageRate = 0) {
+            
+            // 納品されるまでに売れて減る在庫（納品までの予測販売）
+            const salesDuringLeadTime = (baseAdjustedSales / 24) * leadTimeHours;
+            // 納品された時点での予測在庫
+            const stockAtDelivery = Math.max(0, currentStock - salesDuringLeadTime);
+
+            // ブレ幅(stdDev)を用いた安全在庫（※リードタイム中は考慮せず、販売期間に対して設定）
+            // extraStockDays=0(短鮮度)の場合は当日のブレに対応。
+            const safetyStock = 1.645 * stdDev * Math.sqrt(1 + extraStockDays);
+            
+            // システム上の基準陳列量（販売予測＋安全在庫）
             const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
+            
+            // 最低陳列量設定がある場合は、基準陳列量と大きい方を採用
             let appliedBuffer = (minDisplayQty > systemBuffer) ? minDisplayQty : systemBuffer;
 
-            const baseDemand = (baseAdjustedSales * leadTime) + appliedBuffer;
-            let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
+            // 基本の需要 = 予測販売数 + (最低陳列 or 安全在庫)
+            const baseDemand = baseAdjustedSales + appliedBuffer;
+            
+            // 純粋な発注数 = 基本需要 - 納品時予測在庫
+            let rawOrderQty = Math.max(0, Math.ceil(baseDemand - stockAtDelivery));
 
+            // 🌟 廃棄と欠品の計算競合を防ぐ処理
+            // 欠品改善を強く指示されている場合(diffShortageRate大)、廃棄マイナスの適用率を下げる
             const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
             const effectiveWaste = avgWaste * wasteReductionRatio;
 
+            // 最終発注数 = 純粋発注数 - 有効廃棄数
             let finalOrderQty = Math.max(0, rawOrderQty - effectiveWaste);
 
+            // 長鮮度商材の販売期間上限キャップ（納品時在庫から計算）
             if (freshnessHours > 24) {
-                let maxOrderableQty = Math.max(0, Math.floor((baseAdjustedSales * (freshnessHours / 24)) - currentStock));
+                let maxOrderableQty = Math.max(0, Math.floor((baseAdjustedSales * (freshnessHours / 24)) - stockAtDelivery));
                 if (finalOrderQty > maxOrderableQty) finalOrderQty = maxOrderableQty;
             }
 
-            return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer, effectiveWaste };
+            return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer, effectiveWaste, stockAtDelivery, salesDuringLeadTime };
         },
 
         calculateAll() {
@@ -494,7 +552,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const categoriesData = State.data.stores[storeName].categories;
             const targetDay = document.getElementById('targetDay').value;
-            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
+            const baseWeatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
             
@@ -517,10 +575,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     else if (safeShortageRate > 5) targetShortageRate = 5;
 
                     const currentStock = parseInt(data.currentStock) || 0;
+                    const leadTimeHours = parseFloat(data.leadTime) || 12; // 🌟 追加: リードタイム
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
-                    // 🌟 曜日係数の自動計算
                     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
                     let totalDaySales = 0;
                     days.forEach(d => { totalDaySales += (parseFloat(data.ratios[d]) || 0); });
@@ -541,13 +599,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const tempInfo = this.getTempCoeff(catName, maxTemp, minTemp);
                     const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
+                    const weatherCoeff = this.getWeatherCoeffForCategory(catName, baseWeatherCoeff); // 個別天候係数
                     
                     const trueAvgSales = avgSales * shortageCoeff;
                     const stdDev = stdDev_raw * shortageCoeff;
                     
                     const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
 
-                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
+                    // calculateCoreOrderQtyにleadTimeHoursを渡す
+                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, leadTimeHours, avgWaste, freshnessHours, diffShortageRate);
                     
                     html += `
                         <div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
@@ -567,15 +627,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const catVal = catSelect.value;
             const freshnessHours = parseFloat(document.getElementById('freshnessTime').value);
             
+            // 🌟 ブレ幅のUIはinputイベントでリアルタイム更新するようにしたため、ここは変数取得のみ
             const maxS = parseFloat(document.getElementById('maxSales').value) || 0;
             const minS = parseFloat(document.getElementById('minSales').value) || 0;
             const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
             const stdDev_raw = diff_raw / 4; 
-            
-            document.getElementById('dispMax').innerText = Math.max(maxS, minS);
-            document.getElementById('dispMin').innerText = Math.min(maxS, minS);
-            document.getElementById('dispDiff').innerText = diff_raw;
-            document.getElementById('dispStdDev').innerText = stdDev_raw.toFixed(1);
 
             if (!storeName || !catVal || freshnessHours === 0) {
                 if(!silent) {
@@ -606,15 +662,15 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
+            const leadTimeHours = parseFloat(document.getElementById('leadTime') ? document.getElementById('leadTime').value : 12) || 12; // 🌟 リードタイム取得
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             
             const targetDay = document.getElementById('targetDay').value;
-            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; // 🌟 hiddenから取得
+            const baseWeatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; 
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
-            // 🌟 実数入力からAIが自動で曜日係数を算出
             const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
             let totalDaySales = 0;
             days.forEach(d => { totalDaySales += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
@@ -624,6 +680,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
+            const weatherCoeff = this.getWeatherCoeffForCategory(catVal, baseWeatherCoeff); // 🌟 個別天候係数取得
             
             let shortageCoeff = 1.0;
             if (safeShortageRate > targetShortageRate) {
@@ -636,16 +693,19 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
             
-            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
-            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
+            // calculateCoreOrderQtyにleadTimeHoursを渡す
+            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, leadTimeHours, avgWaste, freshnessHours, diffShortageRate);
+            
+            // ブレ幅や補正なしの「通常算出（比較用）」もリードタイムで計算
+            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, extraStockDays, minDisplayQty, currentStock, leadTimeHours, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, leadTimeHours, result.stockAtDelivery, result.salesDuringLeadTime);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, leadTimeHours, stockAtDelivery, salesDuringLeadTime) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             document.getElementById('resBaseSales').innerText = avgSales;
@@ -658,7 +718,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
-            document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(1);
+            document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(2); // 🌟 丸めを2桁に
             document.getElementById('resTempRatio').innerText = tempCoeff.toFixed(2);
             document.getElementById('resTempMessage').innerText = tempMessage;
             
@@ -689,7 +749,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else { targetStockArea.style.display = 'none'; }
 
             let warningTriggered = false, warningMsgText = "", stockLabel = "", stockValue = "";
-            let rawOrderQty = Math.ceil(result.baseDemand - currentStock);
+            let rawOrderQty = Math.ceil(result.baseDemand - stockAtDelivery); // 🌟 納品時在庫で判定
             
             if (freshnessHours === 14) {
                 if (diffShortageRate > 0) {
@@ -700,7 +760,7 @@ document.addEventListener("DOMContentLoaded", () => {
                      stockLabel = "鮮度上限チェック"; stockValue = "対象外 (短鮮度)";
                 }
             } else {
-                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - currentStock));
+                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - stockAtDelivery)); // 🌟 納品時在庫で判定
                 if (result.finalOrderQty === maxOrderableQty && maxOrderableQty < (rawOrderQty - effectiveWaste)) { 
                     warningTriggered = true; warningMsgText = "⚠️ [鮮度警告] 鮮度時間を超えるため、上限でカットしました。"; stockLabel = "販売時間に基づく理論上限"; stockValue = maxOrderableQty + " 個"; 
                 } else if (diffShortageRate > 0) {
@@ -710,6 +770,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else { 
                     stockLabel = "鮮度上限チェック"; stockValue = "クリア (問題なし)"; 
                 }
+            }
+            
+            // 🌟 結果表示に納品時の予測在庫についての注記を追加
+            if (salesDuringLeadTime > 0) {
+                stockLabel = `納品時予測在庫: ${Math.floor(stockAtDelivery)}個 / ` + stockLabel;
             }
 
             document.getElementById('resMaxStockLabel').innerText = stockLabel;
