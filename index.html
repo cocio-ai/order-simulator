@@ -131,7 +131,6 @@
         .math-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.95rem; }
         .math-row.result { border-top: 1px dashed #48484A; padding-top: 10px; margin-top: 10px; font-size: 1.15rem; color: #34C759; font-weight: 800; }
         
-        /* 状態ごとの非表示用クラス */
         .hidden-for-short-life { display: block; }
     </style>
 </head>
@@ -571,7 +570,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     hiddenVal.value = "0"; display.value = "上の分類を選択してください"; isShortShelfLife = false;
             }
 
-            // 🌟 修正：短期鮮度の場合は、関係のない入力項目（在庫・ブレ幅・廃棄数）を非表示にする
             if (stockInput && stockMessageArea) {
                 if (isShortShelfLife) {
                     stockInput.style.display = "none";
@@ -639,6 +637,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.UI = UI; 
 
+    // 🌟 修正：気象庁APIデータの堅牢なパース処理
     const Weather = {
         restoreStoreWeather() {
             const store = State.data.currentStore; if (!store) return; State.ensureStore(store);
@@ -670,32 +669,60 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch(e) { console.error("エリア取得失敗"); }
         },
         async fetchWeather(offset) {
-            const prefCode = document.getElementById('prefecture').value; const areaCode = document.getElementById('cityArea').value;
+            const prefCode = document.getElementById('prefecture').value; 
+            const areaCode = document.getElementById('cityArea').value;
             if (!prefCode || !areaCode) { alert("都道府県とエリアを選択してください"); return; }
             const btn = offset === 1 ? document.getElementById('btn-weather-tmw') : document.getElementById('btn-weather-dat');
             const originalText = btn.innerText; btn.innerText = "取得中..."; btn.disabled = true;
 
             try {
-                const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`); const data = await response.json();
+                const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`); 
+                const data = await response.json();
                 const targetDate = new Date(); targetDate.setDate(targetDate.getDate() + offset);
+                // 例: "2026-03-23" 形式
                 const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`; 
+                
                 let minT = "", maxT = "", weatherText = "不明", wDate = targetDate;
                 
-                const getArea = (series) => { if (!series || !series.areas) return null; return series.areas.find(a => a.area && a.area.code === areaCode) || series.areas[0]; };
+                // 完全一致するエリアを探し、なければ最初のエリア(県全体等)をフォールバックする
+                const getArea = (series) => { 
+                    if (!series || !series.areas) return null; 
+                    return series.areas.find(a => a.area && a.area.code === areaCode) || series.areas[0]; 
+                };
 
+                // 1. 短期予報(data[0])から天気を取得
                 if (data[0] && data[0].timeSeries) {
                     let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     if (wSeries) {
                         let idx = wSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        if (idx !== -1) { let aData = getArea(wSeries); if (aData && aData.weathers && aData.weathers[idx]) { weatherText = aData.weathers[idx]; wDate = new Date(wSeries.timeDefines[idx]); } }
-                        else if (wSeries.timeDefines.length > offset) { let aData = getArea(wSeries); if (aData && aData.weathers && aData.weathers[offset]) { weatherText = aData.weathers[offset]; wDate = new Date(wSeries.timeDefines[offset]); } }
+                        let aData = getArea(wSeries); 
+                        if (aData && aData.weathers) {
+                            // もし指定日のインデックスが見つからなければ、一番最初の天気を強引に拾う（空欄エラー回避）
+                            weatherText = (idx !== -1 && aData.weathers[idx]) ? aData.weathers[idx] : aData.weathers[0];
+                            if(idx !== -1) wDate = new Date(wSeries.timeDefines[idx]);
+                        }
                     }
                 }
+
+                // 2. 週間予報(data[1])から気温を取得（最高・最低が別々の箱に入っていることに対応）
                 if (data[1] && data[1].timeSeries) {
-                    let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax);
-                    if (tSeries) {
-                        let idx = tSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        if (idx !== -1) { let aData = getArea(tSeries); if (aData) { if (aData.tempsMin && aData.tempsMin[idx]) minT = aData.tempsMin[idx]; if (aData.tempsMax && aData.tempsMax[idx]) maxT = aData.tempsMax[idx]; } }
+                    // 最高気温の箱を探す
+                    let maxSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax);
+                    if (maxSeries) {
+                        let idx = maxSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
+                        if (idx !== -1) {
+                            let aData = getArea(maxSeries);
+                            if (aData && aData.tempsMax && aData.tempsMax[idx]) maxT = aData.tempsMax[idx];
+                        }
+                    }
+                    // 最低気温の箱を探す
+                    let minSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMin);
+                    if (minSeries) {
+                        let idx = minSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
+                        if (idx !== -1) {
+                            let aData = getArea(minSeries);
+                            if (aData && aData.tempsMin && aData.tempsMin[idx]) minT = aData.tempsMin[idx];
+                        }
                     }
                 }
 
@@ -707,16 +734,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.95"; }
                 else if (/晴|曇/.test(weatherText)) { icon='☀️'; corrVal="1.0"; }
 
-                const disp = document.getElementById('weather-display'); disp.style.display = 'inline-flex'; disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,20)}`;
+                const disp = document.getElementById('weather-display'); 
+                disp.style.display = 'inline-flex'; 
+                disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,20)}`;
+                
                 const days = ['日', '月', '火', '水', '木', '金', '土'];
                 document.getElementById('weather-date').innerText = `📅 対象日：${wDate.getFullYear()}/${wDate.getMonth() + 1}/${wDate.getDate()}(${days[wDate.getDay()]})`;
                 const dayValue = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
                 document.getElementById('targetDay').value = dayValue;
 
                 document.querySelectorAll('.corr-btn').forEach(b => { if (b.dataset.val === corrVal) UI.setCorr(b); });
+                
+                // 取得完了後に再計算
                 Logic.calculate(false);
-            } catch (e) { console.error("天気データ取得エラー:", e); alert("天気データの取得に失敗しました。"); } 
-            finally { btn.innerText = originalText; btn.disabled = false; }
+                
+            } catch (e) { 
+                console.error("天気データ取得エラー:", e); 
+                alert("気象庁APIからのデータ取得に失敗しました。時間帯によってはデータが更新中の場合があります。手動で入力してください。"); 
+            } finally { 
+                btn.innerText = originalText; 
+                btn.disabled = false; 
+            }
         }
     };
     window.Weather = Weather; 
@@ -750,13 +788,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: tempCoeff, message: tempMessage };
         },
 
-        // 🌟 修正：究極のシンプルロジック（短期鮮度品は純粋に「予想＋陳列量」のみ）
         calculateCoreOrderQty(catVal, baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
             
             const isShortLife = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール"].includes(catVal);
 
             if (isShortLife) {
-                // 短期鮮度商品：「販売予想数 ＋ 最低陳列量」のダイレクト計算
                 let forecast = Math.ceil(baseAdjustedSales);
                 let finalOrderQty = forecast + Number(minDisplayQty);
                 
@@ -769,7 +805,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     isShortLife: true
                 };
             } else {
-                // 通常商品（カップ麺など）：従来通り現在庫や廃棄を考慮するロジック
                 let safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
                 const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
                 let appliedBuffer = (minDisplayQty > systemBuffer) ? minDisplayQty : systemBuffer;
@@ -998,10 +1033,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('resTempMessage').innerText = tempMessage;
             
-            // 🌟 修正：カテゴリに応じて「完全透明化の計算式」の表示を切り替える
             let mathHtml = '';
             if (result.isShortLife) {
-                // 短期鮮度商品用
                 mathHtml = `
                     <div style="font-size: 0.85rem; color: #AEAEB2; margin-bottom: 8px;">💡 最終計算式（短期鮮度特化）</div>
                     <div class="math-row"><span>販売予想数 (平均販売数×指数):</span> <strong>${result.baseDemand} 個</strong></div>
@@ -1009,7 +1042,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     <div class="math-row result"><span>＝ 発注目安:</span> <span>${result.finalOrderQty} 個</span></div>
                 `;
             } else {
-                // 日持ち商材用（従来）
                 mathHtml = `
                     <div style="font-size: 0.85rem; color: #AEAEB2; margin-bottom: 8px;">💡 最終計算式（透明化）</div>
                     <div class="math-row"><span>需要予測 (平均販売数×指数＋安全在庫):</span> <strong>${Math.ceil(result.baseDemand)} 個</strong></div>
