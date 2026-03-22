@@ -99,7 +99,6 @@
         .btn-weather:disabled { background: #C7C7CC; cursor: wait; box-shadow: none; }
         .weather-badge { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #fff; border-radius: 20px; font-size: 1.1rem; margin: 8px 0; font-weight: 800; color: #1C1C1E; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #E5E5EA; }
         .correction-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px; }
-        /* 🌟 現実的な変動数値に修正 */
         .corr-btn { padding: 14px 8px; border-radius: 12px; border: 2px solid transparent; background: #E5E5EA; color: #8E8E93; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-align: center; }
         .corr-btn.active { border-color: #007AFF; color: #007AFF; background: #E0F2FE; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.15); }
 
@@ -719,7 +718,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
-                // 🌟 気象庁のテキストから天候係数を自動セット
                 let icon = '⛅', corrVal = "1.0";
                 if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.85"; }
                 else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.95"; }
@@ -751,26 +749,39 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // 🌟 現実的な気温の影響度（最大で±15%程度）に完全修正
+        // 🌟 ご要望に合わせた「調理麺専用」の特別な気温ブーストシステム
         getTempCoeff(catVal, maxTemp, minTemp) {
             let tempCoeff = 1.0; let tempMessage = "";
+            
             if (catVal === "調理麺") {
-                if (maxTemp >= 35) { tempCoeff = 1.15; tempMessage = "🌋 35℃超え！調理麺がよく売れる暑さです"; }
-                else if (maxTemp >= 30) { tempCoeff = 1.10; tempMessage = "☀️ 30℃超え！調理麺の売上増を予測"; }
-                else if (maxTemp >= 25) { tempCoeff = 1.05; tempMessage = "🔥 25℃超え。調理麺が少し動き出します"; }
-                else if (maxTemp < 10) { tempCoeff = 0.90; tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きは鈍ります"; }
-                else if (maxTemp < 15) { tempCoeff = 0.95; tempMessage = "↓ 気温低下により調理麺予測を微減補正"; }
-                else { tempCoeff = 1.0; tempMessage = "☁️ 過ごしやすい気温。調理麺は通常通りの動きです"; }
-            } else if (catVal === "サラダ" || catVal === "カップデリ") {
-                if (maxTemp > 25) { tempCoeff = 1.05; tempMessage = "↑ 暑さにより予測を微増補正（夏型商材）"; }
-                else if (maxTemp < 15) { tempCoeff = 0.95; tempMessage = "↓ 気温低下により予測を微減補正"; }
-            } else if (["カップ麺", "グラタンドリア", "スパゲティパスタ", "チルド弁当"].includes(catVal)) {
-                if (minTemp < 5) { tempCoeff = 1.10; tempMessage = "↑ 強い冷え込みにより予測をプラス（冬型商材）"; }
-                else if (minTemp < 10) { tempCoeff = 1.05; tempMessage = "↑ 冷え込みにより予測を微増（冬型商材）"; }
-                else if (maxTemp > 25) { tempCoeff = 0.95; tempMessage = "↓ 暑さにより予測を微減補正"; }
+                if (maxTemp >= 35) { 
+                    tempCoeff = 1.40; 
+                    tempMessage = "🌋 35℃超え！調理麺の【特大ブースト(+40%)】が発動します"; 
+                }
+                else if (maxTemp >= 30) { 
+                    tempCoeff = 1.25; 
+                    tempMessage = "☀️ 30℃超え！調理麺の【大ブースト(+25%)】が発動します"; 
+                }
+                else if (maxTemp >= 25) { 
+                    tempCoeff = 1.15; 
+                    tempMessage = "🔥 25℃超え。調理麺の【中ブースト(+15%)】が発動します"; 
+                }
+                else if (maxTemp >= 20) { 
+                    tempCoeff = 1.05; 
+                    tempMessage = "🌤 20℃超え。調理麺の【小ブースト(+5%)】が発動します"; 
+                }
+                else if (maxTemp < 10) { 
+                    tempCoeff = 0.90; 
+                    tempMessage = "❄️ 10℃未満。冷え込みのため調理麺をマイナス補正(-10%)"; 
+                }
+                else { 
+                    tempCoeff = 1.0; 
+                    tempMessage = "☁️ 20℃未満。調理麺は平常通りの動きです"; 
+                }
             } else {
-                if (maxTemp > 35) { tempCoeff = 0.95; tempMessage = "↓ 猛暑による食欲減退を考慮して微減"; }
-                else if (maxTemp < 5) { tempCoeff = 0.95; tempMessage = "↓ 極寒による客数減を考慮して微減"; }
+                // 🌟 その他の商材は「天候・曜日」が主軸になるよう気温係数を完全に無効化(1.0)
+                tempCoeff = 1.0;
+                tempMessage = "☁️ このカテゴリーは「天候」と「曜日」を主軸に予測されます";
             }
             return { coeff: tempCoeff, message: tempMessage };
         },
@@ -861,8 +872,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
                     
-                    // 🌟 絶対安全リミッター（最大±30%で制御）
-                    totalFactor = Math.max(0.70, Math.min(1.30, totalFactor)); 
+                    // 🌟 絶対安全リミッター（調理麺の特大ブースト(+40%)を許容するため ±50%に拡張）
+                    totalFactor = Math.max(0.50, Math.min(1.50, totalFactor)); 
                     
                     const trueAvgSales = baseSales * shortageCoeff;
                     const adjustedSales = trueAvgSales * totalFactor;
@@ -897,7 +908,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 return false; 
             }
 
-            // 🌟 基準（ベース）は平均販売数
             const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
             const baseSales = avgSales;
 
@@ -920,7 +930,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
-            // 曜日指数の算出
             const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
             let totalDaySales = 0;
             days.forEach(d => { totalDaySales += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
@@ -938,7 +947,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const diffShortageRate = safeShortageRate - targetShortageRate;
             const stdDev = stdDev_raw * shortageCoeff; 
             
-            // 各指数を「変動割合」として加算合成
             const dayImpact = dayRatio - 1.0;
             const weatherImpact = weatherCoeff - 1.0;
             const tempImpact = tempInfo.coeff - 1.0;
@@ -946,17 +954,15 @@ document.addEventListener("DOMContentLoaded", () => {
             let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
             let limiterActive = false;
 
-            // 🌟 絶対安全リミッター（どんなに条件が重なっても上下30%まで）
-            if (totalFactor > 1.30) { totalFactor = 1.30; limiterActive = true; }
-            if (totalFactor < 0.70) { totalFactor = 0.70; limiterActive = true; }
+            // 🌟 絶対安全リミッター（上限を1.50へ）
+            if (totalFactor > 1.50) { totalFactor = 1.50; limiterActive = true; }
+            if (totalFactor < 0.50) { totalFactor = 0.50; limiterActive = true; }
             
-            // 最終予測数 ＝ (基本平均販売数 × 欠品底上げ) × 総合変動指数
             const trueAvgSales = baseSales * shortageCoeff;
             const adjustedSales = trueAvgSales * totalFactor;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
             
-            // 比較用（変動が一切なかった場合の基本値）
             const normalResult = this.calculateCoreOrderQty(trueAvgSales, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
@@ -985,10 +991,9 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('resWeatherImpact').innerText = formatImpact(weatherImpact, '天');
             document.getElementById('resTempImpact').innerText = formatImpact(tempImpact, '温');
 
-            // 🌟 リミッター発動時の警告表示
             const limiterText = document.getElementById('resSafetyLimiter');
             if (limiterActive) {
-                limiterText.innerText = "※変動上限(±30%)で安全制御";
+                limiterText.innerText = "※変動上限(±50%)で安全制御";
             } else {
                 limiterText.innerText = "";
             }
