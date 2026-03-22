@@ -46,7 +46,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.data.stores[store].categories[cat] = {
                 avgSales: document.getElementById('avgSales').value,
                 currentStock: document.getElementById('currentStock').value,
-                leadTime: document.getElementById('leadTime').value, // 新規追加: 納品リードタイム
                 maxSales: document.getElementById('maxSales').value,
                 minSales: document.getElementById('minSales').value,
                 avgWaste: document.getElementById('avgWaste').value,
@@ -96,13 +95,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
-            const inputs = ['avgSales', 'currentStock', 'leadTime', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
+            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
                             'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) {
                     el.addEventListener('input', (e) => { 
-                        // 🌟 最大/最小販売数が変更されたらブレ幅表示を即時更新
                         if (e.target.id === 'maxSales' || e.target.id === 'minSales') {
                             this.updateFluctuationDisplay();
                         }
@@ -180,7 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
         renderStoreDatalist() {
             const dataList = document.getElementById('storeList');
             dataList.innerHTML = '';
-            // 保存されている店舗履歴だけを読み込んでリスト化する（特定の店舗名を固定しない）
             const stores = Object.keys(State.data.stores).filter(s => s.trim() !== "");
             stores.forEach(store => {
                 let option = document.createElement('option');
@@ -208,7 +205,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
         
-        // 🌟 ブレ幅のリアルタイム更新関数
         updateFluctuationDisplay() {
             const max = Number(document.getElementById('maxSales').value) || 0;
             const min = Number(document.getElementById('minSales').value) || 0;
@@ -229,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!store || !cat) return;
             
             const defaults = {
-                avgSales: "50", currentStock: "15", leadTime: "12", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
+                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
                 ratios: {mon:"50", tue:"50", wed:"50", thu:"50", fri:"55", sat:"60", sun:"55"}
             };
 
@@ -241,7 +237,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('avgSales').value = data.avgSales;
             document.getElementById('currentStock').value = data.currentStock;
-            if (document.getElementById('leadTime')) document.getElementById('leadTime').value = data.leadTime; // リードタイム復元
             document.getElementById('maxSales').value = data.maxSales;
             document.getElementById('minSales').value = data.minSales;
             document.getElementById('avgWaste').value = data.avgWaste;
@@ -252,7 +247,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById('ratio_' + d).value = data.ratios[d];
             });
             
-            // 復元後、ブレ幅表示も更新
             this.updateFluctuationDisplay();
         },
 
@@ -454,10 +448,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // 🌟 対象分類ごとの天候補正
         getWeatherCoeffForCategory(catVal, baseWeatherCoeff) {
             if (baseWeatherCoeff >= 1.0) return baseWeatherCoeff;
-            
             if (["サンドイッチ", "ロール", "おにぎり", "こだわりおにぎり", "調理麺"].includes(catVal)) {
                 return baseWeatherCoeff; 
             }
@@ -491,17 +483,13 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: tempCoeff, message: tempMessage };
         },
 
-        // 🌟 納品リードタイムを含めたコア計算ロジック
-        calculateCoreOrderQty(baseAdjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, leadTimeHours, avgWaste, freshnessHours, diffShortageRate = 0) {
-            
-            const salesDuringLeadTime = (baseAdjustedSales / 24) * leadTimeHours;
-            const stockAtDelivery = Math.max(0, currentStock - salesDuringLeadTime);
+        calculateCoreOrderQty(baseAdjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
             const safetyStock = 1.645 * stdDev * Math.sqrt(1 + extraStockDays);
             const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
             let appliedBuffer = (minDisplayQty > systemBuffer) ? minDisplayQty : systemBuffer;
 
             const baseDemand = baseAdjustedSales + appliedBuffer;
-            let rawOrderQty = Math.max(0, Math.ceil(baseDemand - stockAtDelivery));
+            let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
 
             const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
             const effectiveWaste = avgWaste * wasteReductionRatio;
@@ -509,11 +497,11 @@ document.addEventListener("DOMContentLoaded", () => {
             let finalOrderQty = Math.max(0, rawOrderQty - effectiveWaste);
 
             if (freshnessHours > 24) {
-                let maxOrderableQty = Math.max(0, Math.floor((baseAdjustedSales * (freshnessHours / 24)) - stockAtDelivery));
+                let maxOrderableQty = Math.max(0, Math.floor((baseAdjustedSales * (freshnessHours / 24)) - currentStock));
                 if (finalOrderQty > maxOrderableQty) finalOrderQty = maxOrderableQty;
             }
 
-            return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer, effectiveWaste, stockAtDelivery, salesDuringLeadTime };
+            return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer, effectiveWaste };
         },
 
         calculateAll() {
@@ -551,7 +539,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     else if (safeShortageRate > 5) targetShortageRate = 5;
 
                     const currentStock = parseInt(data.currentStock) || 0;
-                    const leadTimeHours = parseFloat(data.leadTime) || 12;
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
@@ -582,7 +569,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
 
-                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, leadTimeHours, avgWaste, freshnessHours, diffShortageRate);
+                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
                     html += `
                         <div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
@@ -636,7 +623,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
-            const leadTimeHours = parseFloat(document.getElementById('leadTime') ? document.getElementById('leadTime').value : 12) || 12;
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             
@@ -667,17 +653,17 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
             
-            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, leadTimeHours, avgWaste, freshnessHours, diffShortageRate);
+            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
             
-            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, extraStockDays, minDisplayQty, currentStock, leadTimeHours, avgWaste, freshnessHours, 0);
+            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, leadTimeHours, result.stockAtDelivery, result.salesDuringLeadTime);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, leadTimeHours, stockAtDelivery, salesDuringLeadTime) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             document.getElementById('resBaseSales').innerText = avgSales;
@@ -705,10 +691,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const label = document.getElementById('boostLabelText');
                 if (shortageCoeff > 1.0) {
                     label.innerText = "🔥 欠品対策＋条件ブースト:";
-                    label.style.color = "#FF9500";
+                    label.style.color = "var(--warning)";
                 } else {
                     label.innerText = tempCoeff >= 1.4 ? "🌋 超絶気温ブースト等:" : "🔥 気温・曜日ブースト等:";
-                    label.style.color = tempCoeff >= 1.4 ? "#FF453A" : "#FF9500";
+                    label.style.color = tempCoeff >= 1.4 ? "var(--danger)" : "var(--warning)";
                 }
                 boostDiv.style.display = 'block';
             } else { boostDiv.style.display = 'none'; }
@@ -721,7 +707,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else { targetStockArea.style.display = 'none'; }
 
             let warningTriggered = false, warningMsgText = "", stockLabel = "", stockValue = "";
-            let rawOrderQty = Math.ceil(result.baseDemand - stockAtDelivery); 
+            let rawOrderQty = Math.ceil(result.baseDemand - currentStock); 
             
             if (freshnessHours === 14) {
                 if (diffShortageRate > 0) {
@@ -732,7 +718,7 @@ document.addEventListener("DOMContentLoaded", () => {
                      stockLabel = "鮮度上限チェック"; stockValue = "対象外 (短鮮度)";
                 }
             } else {
-                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - stockAtDelivery));
+                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - currentStock));
                 if (result.finalOrderQty === maxOrderableQty && maxOrderableQty < (rawOrderQty - effectiveWaste)) { 
                     warningTriggered = true; warningMsgText = "⚠️ [鮮度警告] 鮮度時間を超えるため、上限でカットしました。"; stockLabel = "販売時間に基づく理論上限"; stockValue = maxOrderableQty + " 個"; 
                 } else if (diffShortageRate > 0) {
@@ -744,10 +730,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
             
-            if (salesDuringLeadTime > 0) {
-                stockLabel = `納品時予測在庫: ${Math.floor(stockAtDelivery)}個 / ` + stockLabel;
-            }
-
             document.getElementById('resMaxStockLabel').innerText = stockLabel;
             document.getElementById('resMaxStock').innerText = stockValue;
             
