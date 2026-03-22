@@ -10,14 +10,11 @@
            CSS (スタイル) エリア - 7-Eleven Theme
         ============================== */
         :root {
-            /* 7-Eleven Corporate Colors */
             --711-green: #00803E;
             --711-red: #EE1C25;
             --711-orange: #F47A20;
             
             --primary: var(--711-green);       
-            --primary-dark: #00632f;  
-            --success: #00803E;       
             --danger: #EE1C25;
             --warning: #F47A20;
             --bg-body: #F4F5F7;       
@@ -29,13 +26,14 @@
             --radius-card: 20px;
             --radius-input: 12px;
             --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.06);
+            --shadow-float: 0 14px 40px rgba(0, 0, 0, 0.08);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background-color: var(--bg-body); color: var(--text-main); line-height: 1.6; -webkit-text-size-adjust: 100%; }
 
-        /* 🌟 7-Eleven Top Brand Stripe */
+        /* 7-Eleven Top Brand Stripe */
         .brand-stripe {
             height: 8px;
             background: linear-gradient(to right, var(--711-orange) 0%, var(--711-orange) 33.3%, var(--711-red) 33.3%, var(--711-red) 66.6%, var(--711-green) 66.6%, var(--711-green) 100%);
@@ -61,37 +59,32 @@
         .tab-content.active { display: block; }
         @keyframes scaleIn { to { opacity: 1; transform: translateY(0); } }
 
-        /* マニュアル */
-        .lecture-box { background: #FFFFFF; border-radius: 16px; margin-bottom: 24px; border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-soft); }
-        .lecture-box summary { padding: 16px 20px; font-weight: 800; color: var(--711-green); font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; background: #F2FBEE; }
-        .lecture-box summary::-webkit-details-marker { display: none; }
-        .lecture-box summary::after { content: '＋'; font-size: 1.2rem; font-weight: 700; color: var(--711-orange); transition: transform 0.3s ease; }
-        .lecture-box[open] summary::after { transform: rotate(45deg); }
-        .lecture-content { padding: 16px; font-size: 0.85rem; color: var(--text-main); background: #FFFFFF; border-top: 1px solid var(--border); }
-        .step-group { background: #F9F9FB; border-radius: 12px; padding: 14px; margin-bottom: 12px; border-left: 4px solid var(--711-orange); }
-        .step-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
-
         .card { background: var(--bg-card); border-radius: var(--radius-card); padding: 28px 24px; margin-bottom: 24px; box-shadow: var(--shadow-soft); border: 1px solid rgba(255, 255, 255, 0.8); }
-        .section-title { font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+        .section-title { font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
         .section-title::before { content: ''; display: inline-block; width: 6px; height: 20px; background: var(--711-red); border-radius: 4px; }
 
-        label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-muted); }
+        label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-weight: 700; font-size: 0.85rem; color: var(--text-muted); }
         
-        .flex-row { display: flex; gap: 16px; margin-bottom: 20px; }
+        .flex-row { display: flex; gap: 16px; margin-bottom: 16px; }
         .flex-col { flex: 1; }
         .flex-col .form-group { margin-bottom: 0; }
 
-        input[type="number"], input[type="text"], select { width: 100%; padding: 16px; font-size: 16px; font-weight: 700; border: 2px solid var(--border); border-radius: var(--radius-input); background-color: var(--input-bg); color: var(--text-main); transition: all 0.2s ease; appearance: none; -webkit-appearance: none; }
+        input[type="number"], input[type="text"], select { width: 100%; padding: 14px 16px; font-size: 16px; font-weight: 700; border: 2px solid var(--border); border-radius: var(--radius-input); background-color: var(--input-bg); color: var(--text-main); transition: all 0.2s ease; appearance: none; -webkit-appearance: none; }
         select { cursor: pointer; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300803E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 16px center; background-size: 18px; padding-right: 44px; }
         input:focus, select:focus { outline: none; background-color: #FFFFFF; border-color: var(--711-green); box-shadow: 0 0 0 4px rgba(0, 128, 62, 0.15); transform: translateY(-1px); }
         input[readonly] { background-color: #F2FBEE; color: var(--711-green); border: 2px dashed #A5D6A7; text-align: center; }
 
-        .day-ratio-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: transparent; }
-        .day-ratio-box input { padding: 12px 4px; font-size: 15px; text-align: center; }
+        /* 🌟 各項目のマニュアル（インラインヘルプ）用のスタイル */
+        .inline-help { font-size: 0.8rem; color: var(--711-orange); font-weight: 700; margin-top: 4px; margin-bottom: 16px; padding-left: 4px; line-height: 1.5; }
+        .inline-help::before { content: '💡 '; }
+        
+        /* 曜日比率（指数入力）用 */
+        .day-ratio-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: transparent; }
+        .day-ratio-box input { padding: 10px 4px; font-size: 15px; text-align: center; }
         .day-sat label { color: #007AFF !important; }
         .day-sun label { color: var(--711-red) !important; }
 
-        .weather-auto-area { background: #FFF3E0; padding: 24px; border-radius: var(--radius-card); border: 1px solid #FFE0B2; }
+        .weather-auto-area { background: #FFF3E0; padding: 24px; border-radius: var(--radius-card); border: 1px solid #FFE0B2; margin-bottom: 16px;}
         .weather-header { color: var(--711-orange); font-size: 1rem; font-weight: 800; border-bottom: 2px solid rgba(244, 122, 32, 0.2); padding-bottom: 12px; margin-bottom: 16px; }
         .btn-weather { padding: 14px; background: var(--711-orange); border: none; border-radius: 12px; color: #fff; font-size: 0.9rem; font-weight: 800; cursor: pointer; transition: 0.2s; flex: 1; min-width: 140px; box-shadow: 0 4px 10px rgba(244, 122, 32, 0.2); width: 100%; margin-bottom: 8px;}
         .btn-weather:active { transform: scale(0.96); }
@@ -105,7 +98,7 @@
         .calc-button:active { transform: scale(0.96); box-shadow: 0 4px 10px rgba(0, 128, 62, 0.3); }
         .calc-button.loading { opacity: 0.9; cursor: wait; pointer-events: none; }
 
-        /* 結果エリアの洗練 */
+        /* 結果エリア */
         .result-card { background: #1C1C1E; color: #FFFFFF; border-radius: var(--radius-card); padding: 32px 24px; box-shadow: var(--shadow-float); border: 2px solid #3A3A3C; }
         .result-card .section-title { color: #FFFFFF; }
         .result-card .section-title::before { background: var(--711-green); }
@@ -123,9 +116,6 @@
         .math-row.result span:last-child { color: #34C759; font-size: 1.4rem; }
 
         .alert-box { background: #FFF3E0; border-left: 6px solid var(--711-orange); padding: 16px; border-radius: 12px; font-size: 0.95rem; color: #D84315; margin-top: 24px; font-weight: 700; display: none; }
-
-        /* Stock tooltip */
-        .stock-tooltip { font-size: 0.75rem; color: var(--711-orange); font-weight: 700; margin-top: 6px; display: block; }
     </style>
 </head>
 <body>
@@ -141,37 +131,13 @@
         <button id="tabBtn-all" class="tab-button" data-tab="all">一括確認</button>
         <button id="tabBtn-backup" class="tab-button" data-tab="backup">データ引継ぎ</button>
     </div>
-    
-    <details class="lecture-box">
-        <summary>📖 高精度予測ツールの使い方</summary>
-        <div class="lecture-content">
-            <div class="step-group">
-                <div class="step-title">1. 最高精度を出すための「最大/最小」入力</div>
-                <div style="font-size:0.85rem; color:var(--text-main);">
-                    すべてのカテゴリにおいて<b>「最高販売数と最小販売数」</b>を必ず入力してください。AIがこの差分から売上のブレ幅を計算し、欠品を防ぐ「安全在庫」を自動算出します。
-                </div>
-            </div>
-            <div class="step-group">
-                <div class="step-title">2. 短期鮮度と通常商材の自動切替</div>
-                <div style="font-size:0.85rem; color:var(--text-main);">
-                    おにぎり等を選ぶと、納品時消化の原則に従い<b>現在庫を引き算しない専用ロジック</b>に切り替わります。カップ麺等の場合は現在庫を差し引きます。
-                </div>
-            </div>
-            <div class="step-group">
-                <div class="step-title">3. 気象庁データ連動</div>
-                <div style="font-size:0.85rem; color:var(--text-main);">
-                    天候や気温の変動はボタン一つで気象庁から取得し、AIが自動で発注数を増減させます。
-                </div>
-            </div>
-        </div>
-    </details>
 
     <div id="tab-simulator" class="tab-content active">
         <div class="card">
             <h3 class="section-title">システム設定</h3>
             <div class="form-group">
                 <label><span>店舗名</span> <span id="saveIndicator" style="color: var(--711-green); font-size: 0.8rem;"></span></label>
-                <input type="text" id="storeName" list="storeList" placeholder="店舗名を入力 (履歴から選択可能)">
+                <input type="text" id="storeName" list="storeList" placeholder="店舗名を入力">
                 <datalist id="storeList"></datalist>
             </div>
             
@@ -196,9 +162,10 @@
                 </select>
             </div>
             
-            <div class="form-group" style="margin-top: 16px; margin-bottom: 0;">
+            <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
                 <input type="text" id="freshnessDisplay" value="上の分類を選択してください" readonly tabindex="-1">
                 <input type="hidden" id="freshnessTime" value="0">
+                <div class="inline-help" id="categoryHelp">おにぎり等（短期鮮度）を選択すると、自動的に「現在庫を引き算しない専用ロジック」に切り替わります。</div>
             </div>
         </div>
 
@@ -213,11 +180,11 @@
                 <div class="flex-col">
                     <label>現在庫 (発注時)</label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
-                    <span id="stockTooltip" class="stock-tooltip">※計算で差し引かれます</span>
+                    <span id="stockTooltip" style="font-size: 0.75rem; color: var(--711-orange); font-weight: 700; display: block; margin-top: 4px;">※発注時に差し引かれます</span>
                 </div>
             </div>
             
-            <div class="flex-row" style="margin-bottom: 12px; background: #F9F9FB; padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
+            <div class="flex-row" style="margin-bottom: 8px; background: #F9F9FB; padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
                 <div class="flex-col">
                     <label style="color: var(--711-red);">最高販売数</label>
                     <input type="number" inputmode="numeric" id="maxSales" value="150" min="0" style="background:#fff;">
@@ -228,11 +195,9 @@
                     <input type="number" inputmode="numeric" id="minSales" value="110" min="0" style="background:#fff;">
                 </div>
             </div>
-            <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted); margin-top: -8px; margin-bottom: 20px;">
-                ↑ AIが売上の波を検知し、安全在庫を自動計算します
-            </div>
+            <div class="inline-help">この「最高と最小の差」からAIが売上の波を検知し、欠品を防ぐための【安全在庫】を自動計算します。必ずご入力ください。</div>
 
-            <div class="flex-row" style="margin-bottom: 0;">
+            <div class="flex-row" style="margin-bottom: 16px;">
                 <div class="flex-col">
                     <label style="color: var(--711-orange);">平均欠品率 (%)</label>
                     <input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100">
@@ -243,7 +208,7 @@
                 </div>
             </div>
 
-            <div class="flex-row" style="margin-top: 20px; margin-bottom: 0;">
+            <div class="flex-row" style="margin-top: 10px; margin-bottom: 0;">
                 <div class="flex-col">
                     <label style="color: var(--711-green);">最低陳列量 (売場作り用)</label>
                     <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0" placeholder="0">
@@ -254,7 +219,8 @@
 
         <div class="card">
             <h3 class="section-title">外部変動要因</h3>
-            <div class="form-group" style="margin-bottom: 20px;">
+            
+            <div class="form-group" style="margin-bottom: 16px;">
                 <label>対象曜日</label>
                 <select id="targetDay">
                     <option value="mon">月曜日</option>
@@ -267,18 +233,19 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>曜日ごとの平均販売数 (個)</label>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>曜日ごとの販売指数 (通常を1.0とする)</label>
                 <div class="day-ratio-container">
-                    <div class="day-ratio-box"><label>月</label><input type="number" id="ratio_mon" value="50"></div>
-                    <div class="day-ratio-box"><label>火</label><input type="number" id="ratio_tue" value="50"></div>
-                    <div class="day-ratio-box"><label>水</label><input type="number" id="ratio_wed" value="50"></div>
-                    <div class="day-ratio-box"><label>木</label><input type="number" id="ratio_thu" value="50"></div>
-                    <div class="day-ratio-box"><label>金</label><input type="number" id="ratio_fri" value="55"></div>
-                    <div class="day-ratio-box day-sat"><label>土</label><input type="number" id="ratio_sat" value="60"></div>
-                    <div class="day-ratio-box day-sun"><label>日</label><input type="number" id="ratio_sun" value="55"></div>
+                    <div class="day-ratio-box"><label>月</label><input type="number" step="0.1" id="ratio_mon" value="1.0"></div>
+                    <div class="day-ratio-box"><label>火</label><input type="number" step="0.1" id="ratio_tue" value="1.0"></div>
+                    <div class="day-ratio-box"><label>水</label><input type="number" step="0.1" id="ratio_wed" value="1.0"></div>
+                    <div class="day-ratio-box"><label>木</label><input type="number" step="0.1" id="ratio_thu" value="1.0"></div>
+                    <div class="day-ratio-box"><label>金</label><input type="number" step="0.1" id="ratio_fri" value="1.1"></div>
+                    <div class="day-ratio-box day-sat"><label>土</label><input type="number" step="0.1" id="ratio_sat" value="1.2"></div>
+                    <div class="day-ratio-box day-sun"><label>日</label><input type="number" step="0.1" id="ratio_sun" value="1.1"></div>
                 </div>
             </div>
+            <div class="inline-help">通常時を「1.0」として、売れる曜日は「1.2」、売れない曜日は「0.9」のように指数をダイレクトに入力してください。</div>
 
             <hr style="border: none; border-top: 1px dashed var(--border); margin: 32px 0;">
 
@@ -310,8 +277,9 @@
 
                 <div id="weather-date" style="font-size:12px; color:#D84315; margin-top:8px; font-weight:700;"></div>
             </div>
+            <div class="inline-help" style="margin-top: -8px;">ボタンを押すと、気象庁APIから最新情報を自動取得し、下の「天候補正」と「気温」に自動セットします。</div>
 
-            <div class="form-group" style="margin-top: 24px;">
+            <div class="form-group" style="margin-top: 16px;">
                 <label>天候補正</label>
                 <div class="correction-btns" id="corr-btns">
                     <button class="corr-btn" data-val="1.10" onclick="UI.setCorr(this)">🎉 イベント等 (+10%)</button>
@@ -345,7 +313,7 @@
             </div>
             
             <div class="result-item" style="font-size: 0.9rem; margin-bottom: 8px; color: #D1D1D6;">
-                ベース: 平均販売 <strong id="resBaseSales"></strong> 個 × 変動指数 <strong id="resTotalFactor"></strong> 倍
+                ベース: 平均販売 <strong id="resBaseSales"></strong> 個 × 総合指数 <strong id="resTotalFactor"></strong> 倍
             </div>
             
             <div id="resMathBreakdown" class="math-breakdown"></div>
@@ -372,8 +340,19 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const State = {
         data: { version: 1, currentStore: "", currentCategory: "", stores: {} },
-        load() { try { const r = localStorage.getItem('oms_711_state'); if(r){ const p=JSON.parse(r); if(p.stores)this.data=p; } }catch(e){} },
-        save() { try { localStorage.setItem('oms_711_state', JSON.stringify(this.data)); UI.showSaveIndicator(); }catch(e){} },
+        load() { 
+            try { 
+                // 🌟 前々回と前回の保存キー両方を探しに行き、確実にデータを復旧する
+                const r = localStorage.getItem('oms_unified_state_v1') || localStorage.getItem('oms_711_state'); 
+                if(r){ const p=JSON.parse(r); if(p.stores)this.data=p; } 
+            }catch(e){} 
+        },
+        save() { 
+            try { 
+                localStorage.setItem('oms_unified_state_v1', JSON.stringify(this.data)); // 安定キーで保存
+                UI.showSaveIndicator(); 
+            }catch(e){} 
+        },
         ensureStore(storeName) { if(storeName && !this.data.stores[storeName]) this.data.stores[storeName] = { prefecture:"", cityArea:"", categories:{} }; },
         updateInputData() {
             const store = this.data.currentStore; const cat = this.data.currentCategory; if(!store || !cat) return;
@@ -463,22 +442,26 @@ document.addEventListener("DOMContentLoaded", () => {
             const display = document.getElementById('freshnessDisplay');
             const hiddenVal = document.getElementById('freshnessTime');
             const tooltip = document.getElementById('stockTooltip');
+            const helpText = document.getElementById('categoryHelp');
             
             const isShortLife = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール"].includes(category);
 
             if(isShortLife) {
                 hiddenVal.value = "14"; display.value = "✅ 短期鮮度ロジック（高精度予測モード）";
-                tooltip.innerText = "※納品時消化のため、計算から除外されます";
+                tooltip.innerText = "※納品時消化のため、計算で無視されます";
                 tooltip.style.color = "#8E8E93";
+                helpText.innerText = "おにぎり等（短期鮮度）を選択しているため、自動的に「現在庫を引き算しない専用ロジック」に切り替わっています。";
             } else {
-                hiddenVal.value = "38"; display.value = "📦 通常ロジック";
+                hiddenVal.value = "38"; display.value = "📦 通常商材ロジック";
                 tooltip.innerText = "※発注計算時に差し引かれます";
                 tooltip.style.color = "var(--711-orange)";
+                helpText.innerText = "カップ麺等（通常商材）を選択しているため、発注時に「現在庫をきっちり差し引くロジック」が適用されます。";
             }
         },
         restoreCategoryInputs() {
             const store = State.data.currentStore; const cat = State.data.currentCategory; if(!store || !cat) return;
-            const defaults = { avgSales:"130", currentStock:"15", maxSales:"150", minSales:"110", avgWaste:"3", avgShortageRate:"0", minDisplayQty:"0", ratios:{mon:"50",tue:"50",wed:"50",thu:"50",fri:"55",sat:"60",sun:"55"} };
+            // 🌟 デフォルト値を元の指数（1.0ベース）に戻す
+            const defaults = { avgSales:"130", currentStock:"15", maxSales:"150", minSales:"110", avgWaste:"3", avgShortageRate:"0", minDisplayQty:"0", ratios:{mon:"1.0",tue:"1.0",wed:"1.0",thu:"1.0",fri:"1.1",sat:"1.2",sun:"1.1"} };
             let data = defaults;
             if(State.data.stores[store] && State.data.stores[store].categories[cat]) {
                 const saved = State.data.stores[store].categories[cat]; data = { ...defaults, ...saved, ratios: { ...defaults.ratios, ...(saved.ratios||{}) } };
@@ -504,7 +487,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.UI = UI; 
 
-    // 気象庁APIロジック（夕方以降のデータ構造変更にも対応した堅牢版）
+    // 🌟 気象庁APIロジック（日付文字列による完全一致検索システム）
     const Weather = {
         restoreStoreWeather() {
             const store = State.data.currentStore; if(!store) return; State.ensureStore(store);
@@ -536,50 +519,88 @@ document.addEventListener("DOMContentLoaded", () => {
             const origTxt = btn.innerText; btn.innerText = "取得中..."; btn.disabled = true;
 
             try {
-                const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`); const data = await res.json();
+                const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`); 
+                const data = await res.json();
+                
+                // 取得したいターゲット日付の文字列を作成 (例: "2026-03-24")
                 const targetDate = new Date(); targetDate.setDate(targetDate.getDate() + offset);
                 const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`; 
                 
                 let minT="", maxT="", weatherText="不明", wDate=targetDate;
-                const getArea = (series) => series.areas.find(a => a.area.code === areaCode) || series.areas[0];
 
-                try {
-                    let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
-                    if(wSeries) {
-                        let idx = wSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        let aData = getArea(wSeries); 
-                        weatherText = (idx !== -1 && aData.weathers[idx]) ? aData.weathers[idx] : aData.weathers[0];
-                        if(idx !== -1) wDate = new Date(wSeries.timeDefines[idx]);
+                // 🌟 最強のフォールバック機能：全データの配列を横断して、日付が完全一致するキーの値を抜き出す
+                const extractData = (searchKey) => {
+                    for (let i = 0; i < data.length; i++) {
+                        if (!data[i] || !data[i].timeSeries) continue;
+                        for (let ts of data[i].timeSeries) {
+                            if (ts.areas && ts.areas[0][searchKey]) {
+                                let timeIdx = ts.timeDefines.findIndex(t => t.startsWith(targetDateStr));
+                                if (timeIdx !== -1) {
+                                    let areaData = ts.areas.find(a => a.area.code === areaCode) || ts.areas[0];
+                                    if (areaData && areaData[searchKey] && areaData[searchKey][timeIdx] !== undefined) {
+                                        return areaData[searchKey][timeIdx];
+                                    }
+                                }
+                            }
+                        }
                     }
-                }catch(e){}
+                    return null;
+                };
 
-                try {
-                    let maxSeries = (data[0]&&data[0].timeSeries.find(ts=>ts.areas[0].tempsMax)) || (data[1]&&data[1].timeSeries.find(ts=>ts.areas[0].tempsMax));
-                    if(maxSeries){ let idx=maxSeries.timeDefines.findIndex(t=>t.startsWith(targetDateStr)); if(idx!==-1) maxT=getArea(maxSeries).tempsMax[idx]; }
-                    
-                    let minSeries = (data[0]&&data[0].timeSeries.find(ts=>ts.areas[0].tempsMin)) || (data[1]&&data[1].timeSeries.find(ts=>ts.areas[0].tempsMin));
-                    if(minSeries){ let idx=minSeries.timeDefines.findIndex(t=>t.startsWith(targetDateStr)); if(idx!==-1) minT=getArea(minSeries).tempsMin[idx]; }
-                }catch(e){}
+                // 天気の取得
+                let extWeather = extractData('weathers');
+                if (extWeather) weatherText = extWeather;
 
+                // 最低気温の取得
+                let extMin = extractData('tempsMin');
+                if (extMin) minT = extMin;
+
+                // 最高気温の取得
+                let extMax = extractData('tempsMax');
+                if (extMax) maxT = extMax;
+
+                // UIへ確実に入れる
                 if(minT!=="" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if(maxT!=="" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
                 let corrVal = "1.0";
-                if(/大雨|豪雨|暴風|大雪/.test(weatherText)) corrVal="0.85";
+                if(/大雨|豪雨|暴風|大雪|雷/.test(weatherText)) corrVal="0.85";
                 else if(/雨|雪/.test(weatherText)) corrVal="0.95";
                 
                 document.getElementById('weather-date').innerText = `📅 取得成功：${weatherText.replace(/　/g,' ').substring(0,15)}`;
                 const dayValue = ['sun','mon','tue','wed','thu','fri','sat'][wDate.getDay()];
                 document.getElementById('targetDay').value = dayValue;
+                
                 document.querySelectorAll('.corr-btn').forEach(b => { if(b.dataset.val === corrVal) UI.setCorr(b); });
                 Logic.calculate(false);
-            } catch (e) { alert("データ取得に失敗しました。手動で入力してください。"); } finally { btn.innerText = origTxt; btn.disabled = false; }
+
+            } catch (e) { 
+                console.error(e);
+                alert("気象庁のサーバーからデータが取得できませんでした。手動で入力してください。"); 
+            } finally { 
+                btn.innerText = origTxt; btn.disabled = false; 
+            }
         }
     };
     window.Weather = Weather; 
 
-    // --- 計算ロジック（オリジナルの高精度版の復活） ---
+    // --- 計算ロジック ---
     const Logic = {
+        getTempCoeff(catVal, maxTemp, minTemp) {
+            let tempCoeff = 1.0; let tempMessage = "";
+            
+            if (catVal === "調理麺") {
+                if (maxTemp >= 35) { tempCoeff = 1.40; tempMessage = "🌋 35℃超え！調理麺の【特大ブースト(+40%)】が発動します"; }
+                else if (maxTemp >= 30) { tempCoeff = 1.25; tempMessage = "☀️ 30℃超え！調理麺の【大ブースト(+25%)】が発動します"; }
+                else if (maxTemp >= 25) { tempCoeff = 1.15; tempMessage = "🔥 25℃超え。調理麺の【中ブースト(+15%)】が発動します"; }
+                else if (maxTemp >= 20) { tempCoeff = 1.05; tempMessage = "🌤 20℃超え。調理麺の【小ブースト(+5%)】が発動します"; }
+                else if (maxTemp < 10) { tempCoeff = 0.90; tempMessage = "❄️ 10℃未満。冷え込みのため調理麺をマイナス補正(-10%)"; }
+                else { tempCoeff = 1.0; tempMessage = "☁️ 20℃未満。調理麺は平常通りの動きです"; }
+            } else {
+                tempCoeff = 1.0;
+            }
+            return { coeff: tempCoeff, message: tempMessage };
+        },
         calculate(silent = false) {
             const storeName = document.getElementById('storeName').value.trim();
             const catSelect = document.getElementById('categoryName');
@@ -596,24 +617,39 @@ document.addEventListener("DOMContentLoaded", () => {
             const minDisplayQty = parseFloat(document.getElementById('minDisplayQty').value) || 0;
             const avgShortageRate = parseFloat(document.getElementById('avgShortageRate').value) || 0;
             
-            // 2. 変動指数の計算
+            // 2. 変動指数の計算（🌟 指数ロジック完全復元）
             const targetDay = document.getElementById('targetDay').value;
-            let totalDaySales = 0; ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => totalDaySales += (parseFloat(document.getElementById('ratio_'+d).value)||0));
-            const dayRatio = (totalDaySales/7) > 0 ? ((parseFloat(document.getElementById('ratio_'+targetDay).value)||0) / (totalDaySales/7)) : 1.0;
+            const dayRatio = parseFloat(document.getElementById('ratio_'+targetDay).value) || 1.0; 
             const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
-            const totalFactor = dayRatio * weatherCoeff; // シンプルな掛け合わせ
             
+            const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
+            const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
+            const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
+
+            // 指数の足し算ロジック
+            const dayImpact = dayRatio - 1.0;
+            const weatherImpact = weatherCoeff - 1.0;
+            const tempImpact = tempInfo.coeff - 1.0;
+            
+            let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
+            
+            let maxFactor = 1.30; let minFactor = 0.70;
+            if (catVal === "調理麺") { maxFactor = 1.50; minFactor = 0.50; }
+            else if (["おにぎり", "こだわりおにぎり", "弁当", "寿司", "サンドイッチ"].includes(catVal)) { maxFactor = 1.25; minFactor = 0.75; }
+
+            if (totalFactor > maxFactor) { totalFactor = maxFactor; }
+            if (totalFactor < minFactor) { totalFactor = minFactor; }
+
             // 3. 欠品・廃棄補正係数
             let shortageCoeff = 1.0 + (Math.min(avgShortageRate, 90) / 100); 
-            let effectiveWaste = avgWaste * Math.max(0, 1 - (avgShortageRate/20)); // 欠品が多いと廃棄引き算を弱める
+            let effectiveWaste = avgWaste * Math.max(0, 1 - (avgShortageRate/20));
 
             // 4. ベース需要 ＆ 安全在庫の計算
             let baseForecast = avgSales * shortageCoeff * totalFactor;
             
-            // 🔥 復活：最大/最小からの標準偏差（ブレ幅）計算
             const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
             const stdDev = (diff_raw / 4) * shortageCoeff;
-            const safetyStock = 1.645 * stdDev; // 95%カバーの安全在庫
+            const safetyStock = 1.645 * stdDev;
 
             const isShortLife = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール"].includes(catVal);
             
@@ -622,23 +658,23 @@ document.addEventListener("DOMContentLoaded", () => {
             let warningText = "";
 
             if (isShortLife) {
-                // 【短期鮮度ロジック】: 在庫を引かない。予測＋ブレ幅＋最低陳列量－廃棄削減
+                // 【短期鮮度】: 在庫を引かない
                 let dailyForecast = baseForecast + safetyStock; 
                 finalOrderQty = Math.ceil(dailyForecast) + minDisplayQty - Math.floor(effectiveWaste);
                 finalOrderQty = Math.max(0, finalOrderQty);
                 
                 mathHtml = `
                     <div class="math-row"><span>需要予測 (ベース予測 × 指数):</span> <strong>${Math.ceil(baseForecast)} 個</strong></div>
-                    <div class="math-row" style="color:var(--711-orange);"><span>＋ 安全在庫 (最大/最小ブレ幅から算出):</span> <strong>${Math.ceil(safetyStock)} 個</strong></div>
+                    <div class="math-row" style="color:var(--711-orange);"><span>＋ 安全在庫 (最大/最小の波から算出):</span> <strong>${Math.ceil(safetyStock)} 個</strong></div>
                     <div class="math-row"><span>＋ 最低陳列量 (売場作り用):</span> <strong>${minDisplayQty} 個</strong></div>
                     <div class="math-row" style="color:var(--711-red);"><span>－ 廃棄削減:</span> <strong>${Math.floor(effectiveWaste)} 個</strong></div>
                     <div class="math-row result"><span>＝ 最終発注目安:</span> <span>${finalOrderQty} 個</span></div>
                 `;
-                if(effectiveWaste > 0) warningText = `🎯 短期鮮度特化：廃棄削減のため ${Math.floor(effectiveWaste)} 個を自動マイナス調整しました。`;
+                if(effectiveWaste > 0) warningText = `🎯 廃棄削減のため ${Math.floor(effectiveWaste)} 個をマイナス調整しました。`;
                 
             } else {
-                // 【通常商材ロジック】: 予測＋ブレ幅－現在庫－廃棄削減（陳列量を下限）
-                let targetStock = baseForecast + safetyStock + (baseForecast * 0.2); // 0.2日分の余剰
+                // 【通常商材】: 在庫を引く
+                let targetStock = baseForecast + safetyStock + (baseForecast * 0.2); 
                 targetStock = Math.max(targetStock, minDisplayQty);
                 
                 finalOrderQty = Math.ceil(targetStock) - currentStock - Math.floor(effectiveWaste);
@@ -666,7 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return true;
         },
         calculateAll() {
-            // 省略（個別計算と同等のロジックで全カテゴリ回す）
+            // 省略
         }
     };
 
