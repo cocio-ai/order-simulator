@@ -58,20 +58,6 @@
         .tip-box::after { content: ''; position: absolute; top: 100%; right: 5px; border-width: 6px; border-style: solid; border-color: #1C1C1E transparent transparent transparent; }
         .tip-wrap:hover .tip-box, .tip-wrap:active .tip-box { display: block; }
 
-        .lecture-box { background: #FFFFFF; border-radius: 16px; margin-bottom: 24px; border: 2px solid var(--border); overflow: hidden; transition: all 0.3s ease; }
-        .lecture-box summary { padding: 16px 20px; font-weight: 700; color: var(--text-main); font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; background: var(--bg-body); }
-        .lecture-box summary::-webkit-details-marker { display: none; }
-        .lecture-box summary::after { content: '+'; font-size: 1.4rem; font-weight: 400; color: var(--primary); transition: transform 0.3s ease; }
-        .lecture-box[open] summary::after { transform: rotate(45deg); }
-        .lecture-content { padding: 16px; font-size: 0.85rem; color: var(--text-muted); background: #FFFFFF; }
-        .step-group { background: #F9F9FB; border-radius: 12px; padding: 14px; margin-bottom: 12px; border: 1px solid rgba(0, 122, 255, 0.1); }
-        .step-title { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .step-note { font-size: 0.75rem; color: #FF3B30; background: rgba(255, 59, 48, 0.1); padding: 4px 8px; border-radius: 6px; font-weight: 700; }
-        .step-flow { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-bottom: 8px; }
-        .step-flow span { background: #FFFFFF; color: var(--text-main); font-size: 0.8rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; border: 1px solid #D1D1D6; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .step-flow .arrow { color: #8E8E93; font-size: 0.9rem; font-weight: 900; }
-        .step-desc { font-size: 0.85rem; color: var(--text-main); font-weight: 600; line-height: 1.6; padding-left: 6px; border-left: 3px solid var(--primary); }
-
         .flex-row { display: flex; gap: 16px; margin-bottom: 20px; }
         .flex-col { flex: 1; }
         .flex-col .form-group { margin-bottom: 0; }
@@ -84,7 +70,6 @@
         .info-box { background: rgba(52, 199, 89, 0.1); border-radius: 16px; padding: 16px; font-size: 0.85rem; color: #1E8236; margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; }
         .waste-input-box input { background-color: rgba(255, 59, 48, 0.08); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.2); }
         .shortage-input-box input { background-color: rgba(255, 149, 0, 0.08); color: var(--warning); border: 1px solid rgba(255, 149, 0, 0.3); }
-        .display-input-box { display: none; }
 
         .day-ratio-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: transparent; }
         .day-ratio-box input { padding: 12px 4px; font-size: 15px; text-align: center; background-color: var(--input-bg); }
@@ -142,10 +127,12 @@
         .btn-restore { background: var(--success); }
         .btn-create:active, .btn-restore:active, .backup-btn:active { transform: scale(0.96); }
         
-        /* 🌟 透明化計算式用のスタイル */
         .math-breakdown { background: rgba(0,0,0,0.25); border-radius: 12px; padding: 16px; margin: 16px 0; border: 1px solid #3A3A3C; }
         .math-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.95rem; }
         .math-row.result { border-top: 1px dashed #48484A; padding-top: 10px; margin-top: 10px; font-size: 1.15rem; color: #34C759; font-weight: 800; }
+        
+        /* 状態ごとの非表示用クラス */
+        .hidden-for-short-life { display: block; }
     </style>
 </head>
 <body>
@@ -197,7 +184,7 @@
         </div>
 
         <div class="card">
-            <h3 class="section-title">販売・在庫データ</h3>
+            <h3 class="section-title">販売予測・陳列データ</h3>
 
             <div class="flex-row">
                 <div class="flex-col">
@@ -205,57 +192,48 @@
                         平均販売数
                         <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の「平均販売数」を入力します。</div></div>
                     </label>
-                    <input type="number" inputmode="numeric" id="avgSales" value="50" min="0">
+                    <input type="number" inputmode="numeric" id="avgSales" value="130" min="0">
                 </div>
 
-                <div class="flex-col" style="position: relative;">
-                    <label>
-                        現在庫 (発注時)
-                    </label>
+                <div class="flex-col" id="stockInputContainer" style="position: relative;">
+                    <label>現在庫 (発注時)</label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
-                </div>
-            </div>
-
-            <div class="flex-row" style="align-items: center;">
-                <div class="flex-col">
-                    <label style="color: var(--primary);">最高販売数</label>
-                    <input type="number" inputmode="numeric" id="maxSales" value="65" min="0">
-                </div>
-                <div style="font-weight: 800; color: #C7C7CC; margin-top: 15px;">ー</div>
-                <div class="flex-col">
-                    <label style="color: var(--primary);">最小販売数</label>
-                    <input type="number" inputmode="numeric" id="minSales" value="35" min="0">
+                    <div id="stockMessageArea" style="display: none; background: rgba(0, 122, 255, 0.08); border: 2px dashed rgba(0, 122, 255, 0.3); border-radius: var(--radius-input); padding: 0 10px; text-align: center; color: var(--primary); font-size: 0.8rem; font-weight: 800; flex-direction: column; justify-content: center; align-items: center; height: 56px; line-height: 1.4;">
+                        💡 納品時消化のため<br>入力は不要です
+                    </div>
                 </div>
             </div>
             
-            <div class="info-box">
-                <span style="font-size: 1.2rem;">💡</span>
-                <div>
-                    最大 <strong id="dispMax">65</strong> − 最小 <strong id="dispMin">35</strong> ＝ ブレ幅 <strong id="dispDiff">30</strong><br>
-                    <span style="font-size: 0.85em; opacity: 0.8;">(売上の波に合わせて安全在庫を自動で調整します ※米飯類は適用外)</span>
+            <div class="flex-row hidden-for-short-life" id="diffInputContainer">
+                <div class="flex-col" style="margin-bottom: 12px;">
+                    <div class="flex-row" style="align-items: center; margin-bottom: 0;">
+                        <div class="flex-col">
+                            <label style="color: var(--primary);">最高販売数</label>
+                            <input type="number" inputmode="numeric" id="maxSales" value="65" min="0">
+                        </div>
+                        <div style="font-weight: 800; color: #C7C7CC; margin-top: 15px;">ー</div>
+                        <div class="flex-col">
+                            <label style="color: var(--primary);">最小販売数</label>
+                            <input type="number" inputmode="numeric" id="minSales" value="35" min="0">
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="flex-row" style="margin-bottom: 0;">
-                <div class="flex-col waste-input-box">
-                    <label style="color: var(--danger);">
-                        平均廃棄数
-                    </label>
-                    <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
-                </div>
                 <div class="flex-col shortage-input-box">
-                    <label style="color: #FF9500;">
-                        平均欠品率 (%)
-                    </label>
+                    <label style="color: #FF9500;">平均欠品率 (%)</label>
                     <input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100">
+                </div>
+                <div class="flex-col waste-input-box" id="wasteInputContainer">
+                    <label style="color: var(--danger);">平均廃棄数</label>
+                    <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
                 </div>
             </div>
 
-            <div class="flex-row display-input-box" id="displayInputArea" style="margin-top: 20px; margin-bottom: 0;">
+            <div class="flex-row" id="displayInputArea" style="margin-top: 20px; margin-bottom: 0;">
                 <div class="flex-col">
-                    <label style="color: var(--primary);">
-                        最低陳列量
-                    </label>
+                    <label style="color: var(--primary);">最低陳列量 (売場作り用)</label>
                     <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0">
                 </div>
                 <div class="flex-col"></div>
@@ -370,18 +348,7 @@
             
             <div id="resMathBreakdown" class="math-breakdown"></div>
             
-            <div id="targetStockArea" style="display: none; margin-bottom: 24px;">
-                <div class="result-item" style="color: #34C759; font-weight: 600; font-size: 1.05rem;">売場目標在庫数: <strong id="resTargetStock" style="font-size: 1.4rem;"></strong> 個</div>
-                <div class="result-item" style="font-size: 0.85rem;" id="targetStockLabel"></div>
-            </div>
-            <div class="result-item" style="font-size: 0.95rem; color: #FF453A;"><span id="resMaxStockLabel"></span>: <strong id="resMaxStock"></strong></div>
-            
-            <div class="forecast-panel">
-                <div style="font-size: 0.95rem; font-weight: bold; color: #5AC8FA;">📊 1日の販売予測</div>
-                <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; color: #5AC8FA;">個</span></div>
-            </div>
-
-            <div class="order-panel">
+            <div class="order-panel" style="margin-top: 24px;">
                 <div class="o-label">✅ 最終 発注目安数</div>
                 <div><span class="o-value" id="resOrderQty"></span><span class="o-unit">個</span></div>
             </div>
@@ -584,34 +551,47 @@ document.addEventListener("DOMContentLoaded", () => {
         updateFreshnessDisplay(category) {
             const display = document.getElementById('freshnessDisplay');
             const hiddenVal = document.getElementById('freshnessTime');
-            const displayInputArea = document.getElementById('displayInputArea');
             const stockInput = document.getElementById('currentStock');
             const stockMessageArea = document.getElementById('stockMessageArea');
+            const diffInputContainer = document.getElementById('diffInputContainer');
+            const wasteInputContainer = document.getElementById('wasteInputContainer');
             
-            // 🌟 修正：どのような鮮度時間であっても「現在庫」の入力欄は絶対に隠さない
-            if (stockInput && stockMessageArea) {
-                stockInput.style.display = "block";
-                stockMessageArea.style.display = "none";
-            }
+            let isShortShelfLife = false;
 
             switch(category) {
                 case "おにぎり": case "こだわりおにぎり": case "弁当":
-                    hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; break;
+                    hiddenVal.value = "14"; display.value = "短期鮮度ロジック (約14H)"; isShortShelfLife = true; break;
                 case "寿司": case "サンドイッチ": case "ロール":
-                    hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; break;
+                    hiddenVal.value = "23"; display.value = "短期鮮度ロジック (約23H)"; isShortShelfLife = true; break;
                 case "調理麺": case "カップ麺": case "惣菜": case "サラダ":
-                    hiddenVal.value = "38"; display.value = "維持ロジック (38H: +0.2日分)"; displayInputArea.style.display = "none"; break;
+                    hiddenVal.value = "38"; display.value = "通常ロジック (38H: +0.2日分)"; isShortShelfLife = false; break;
                 case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ":
-                    hiddenVal.value = "60"; display.value = "維持ロジック (60H: +0.5日分)"; displayInputArea.style.display = "none"; break;
+                    hiddenVal.value = "60"; display.value = "通常ロジック (60H: +0.5日分)"; isShortShelfLife = false; break;
                 default:
-                    hiddenVal.value = "0"; display.value = "上の分類を選択してください"; displayInputArea.style.display = "none";
+                    hiddenVal.value = "0"; display.value = "上の分類を選択してください"; isShortShelfLife = false;
+            }
+
+            // 🌟 修正：短期鮮度の場合は、関係のない入力項目（在庫・ブレ幅・廃棄数）を非表示にする
+            if (stockInput && stockMessageArea) {
+                if (isShortShelfLife) {
+                    stockInput.style.display = "none";
+                    stockMessageArea.style.display = "flex";
+                    stockMessageArea.innerHTML = "💡 短期鮮度商品のため<br>発注要素に関係なく入力不要です";
+                    diffInputContainer.style.display = "none";
+                    wasteInputContainer.style.display = "none";
+                } else {
+                    stockInput.style.display = "block";
+                    stockMessageArea.style.display = "none";
+                    diffInputContainer.style.display = "flex";
+                    wasteInputContainer.style.display = "flex";
+                }
             }
         },
         restoreCategoryInputs() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             if (!store || !cat) return;
             const defaults = {
-                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
+                avgSales: "130", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
                 ratios: {mon:"50", tue:"50", wed:"50", thu:"50", fri:"55", sat:"60", sun:"55"}
             };
             let data = defaults;
@@ -770,34 +750,52 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: tempCoeff, message: tempMessage };
         },
 
+        // 🌟 修正：究極のシンプルロジック（短期鮮度品は純粋に「予想＋陳列量」のみ）
         calculateCoreOrderQty(catVal, baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
-            let safetyStock = 0;
             
-            // 🌟 修正：おにぎり・弁当等の短鮮度品は、売れ残りが即廃棄になるため、安全在庫（バッファ）を「絶対に0」にする
-            if (["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール"].includes(catVal)) {
-                safetyStock = 0; 
+            const isShortLife = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール"].includes(catVal);
+
+            if (isShortLife) {
+                // 短期鮮度商品：「販売予想数 ＋ 最低陳列量」のダイレクト計算
+                let forecast = Math.ceil(baseAdjustedSales);
+                let finalOrderQty = forecast + Number(minDisplayQty);
+                
+                return { 
+                    finalOrderQty: finalOrderQty, 
+                    baseDemand: forecast, 
+                    appliedBuffer: Number(minDisplayQty), 
+                    systemBuffer: 0, 
+                    effectiveWaste: 0,
+                    isShortLife: true
+                };
             } else {
-                // カップ麺等の日持ち商材は通常の統計的な安全在庫を適用
-                safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
+                // 通常商品（カップ麺など）：従来通り現在庫や廃棄を考慮するロジック
+                let safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
+                const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
+                let appliedBuffer = (minDisplayQty > systemBuffer) ? minDisplayQty : systemBuffer;
+
+                const baseDemand = (baseAdjustedSales * leadTime) + appliedBuffer;
+                let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
+
+                const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
+                const effectiveWaste = avgWaste * wasteReductionRatio;
+
+                let finalOrderQty = Math.max(0, rawOrderQty - effectiveWaste);
+
+                if (freshnessHours > 24) {
+                    let maxOrderableQty = Math.max(0, Math.floor((baseAdjustedSales * (freshnessHours / 24)) - currentStock));
+                    if (finalOrderQty > maxOrderableQty) finalOrderQty = maxOrderableQty;
+                }
+
+                return { 
+                    finalOrderQty: Math.ceil(finalOrderQty), 
+                    baseDemand, 
+                    appliedBuffer, 
+                    systemBuffer, 
+                    effectiveWaste,
+                    isShortLife: false
+                };
             }
-
-            const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
-            let appliedBuffer = (minDisplayQty > systemBuffer) ? minDisplayQty : systemBuffer;
-
-            const baseDemand = (baseAdjustedSales * leadTime) + appliedBuffer;
-            let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
-
-            const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
-            const effectiveWaste = avgWaste * wasteReductionRatio;
-
-            let finalOrderQty = Math.max(0, rawOrderQty - effectiveWaste);
-
-            if (freshnessHours > 24) {
-                let maxOrderableQty = Math.max(0, Math.floor((baseAdjustedSales * (freshnessHours / 24)) - currentStock));
-                if (finalOrderQty > maxOrderableQty) finalOrderQty = maxOrderableQty;
-            }
-
-            return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer, effectiveWaste };
         },
 
         calculateAll() {
@@ -835,12 +833,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     else if (safeShortageRate > 5) targetShortageRate = 5;
 
                     const currentStock = parseInt(data.currentStock) || 0;
-                    
-                    // 🌟 修正：すべてのカテゴリで、入力された現在庫をそのまま計算に使う（無視しない）
                     const effectiveCurrentStock = currentStock;
 
                     const avgWaste = parseFloat(data.avgWaste) || 0;
-                    const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
+                    const minDisplayQty = parseFloat(data.minDisplayQty) || 0;
                     
                     const baseSales = avgSales;
 
@@ -898,10 +894,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const minS = parseFloat(document.getElementById('minSales').value) || 0;
             const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
             const stdDev_raw = diff_raw / 4; 
-            
-            document.getElementById('dispMax').innerText = Math.max(maxS, minS);
-            document.getElementById('dispMin').innerText = Math.min(maxS, minS);
-            document.getElementById('dispDiff').innerText = diff_raw;
 
             if (!storeName || !catVal || freshnessHours === 0) {
                 if(!silent) { document.getElementById('resultArea').style.display = 'none'; document.getElementById('warningArea').style.display = 'none'; }
@@ -915,18 +907,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const safeShortageRate = Math.min(avgShortageRate, 90); 
             
             let targetShortageRate = safeShortageRate; let shortageMsg = "";
-            if (safeShortageRate >= 20) { targetShortageRate = 20; shortageMsg = "🎯 [機会損失改善] 欠品率20%以下を目指して段階的に発注を底上げしました。"; } 
-            else if (safeShortageRate >= 10) { targetShortageRate = 10; shortageMsg = "🎯 [機会損失改善] 欠品率10%以下を目指して適正に発注を底上げしました。"; } 
-            else if (safeShortageRate > 5) { targetShortageRate = 5; shortageMsg = "🎯 [機会損失改善] 欠品率5%以下を目指して微増調整しました。"; } 
+            if (safeShortageRate >= 20) { targetShortageRate = 20; shortageMsg = "🎯 [機会損失改善] 欠品率20%以下を目指して段階的に予測を底上げしました。"; } 
+            else if (safeShortageRate >= 10) { targetShortageRate = 10; shortageMsg = "🎯 [機会損失改善] 欠品率10%以下を目指して適正に予測を底上げしました。"; } 
+            else if (safeShortageRate > 5) { targetShortageRate = 5; shortageMsg = "🎯 [機会損失改善] 欠品率5%以下を目指して予測を微増調整しました。"; } 
             else if (safeShortageRate > 0) { shortageMsg = "✨ 欠品率は非常に優秀です。現在のペースを維持します。"; }
 
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
-            
-            // 🌟 修正：どのような鮮度時間であっても、現在庫はそのまま差し引く
             const effectiveCurrentStock = currentStock;
 
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
-            const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
+            const minDisplayQty = parseFloat(document.getElementById('minDisplayQty').value) || 0;
             
             const targetDay = document.getElementById('targetDay').value;
             const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; 
@@ -1008,14 +998,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('resTempMessage').innerText = tempMessage;
             
-            // 🌟 追加：完全に透明化された「計算式」を表示するエリア
-            document.getElementById('resMathBreakdown').innerHTML = `
-                <div style="font-size: 0.85rem; color: #AEAEB2; margin-bottom: 8px;">💡 最終計算式（透明化）</div>
-                <div class="math-row"><span>需要予測 (平均販売数×指数):</span> <strong>${Math.ceil(result.baseDemand)} 個</strong></div>
-                <div class="math-row" style="color: #FFD60A;"><span>－ 現在庫:</span> <strong>${effectiveCurrentStock} 個</strong></div>
-                <div class="math-row" style="color: #FF453A;"><span>－ 廃棄削減:</span> <strong>${effectiveWaste.toFixed(1)} 個</strong></div>
-                <div class="math-row result"><span>＝ 発注目安:</span> <span>${result.finalOrderQty} 個</span></div>
-            `;
+            // 🌟 修正：カテゴリに応じて「完全透明化の計算式」の表示を切り替える
+            let mathHtml = '';
+            if (result.isShortLife) {
+                // 短期鮮度商品用
+                mathHtml = `
+                    <div style="font-size: 0.85rem; color: #AEAEB2; margin-bottom: 8px;">💡 最終計算式（短期鮮度特化）</div>
+                    <div class="math-row"><span>販売予想数 (平均販売数×指数):</span> <strong>${result.baseDemand} 個</strong></div>
+                    <div class="math-row" style="color: #34C759;"><span>＋ 最低陳列量 (売場作り分):</span> <strong>${result.appliedBuffer} 個</strong></div>
+                    <div class="math-row result"><span>＝ 発注目安:</span> <span>${result.finalOrderQty} 個</span></div>
+                `;
+            } else {
+                // 日持ち商材用（従来）
+                mathHtml = `
+                    <div style="font-size: 0.85rem; color: #AEAEB2; margin-bottom: 8px;">💡 最終計算式（透明化）</div>
+                    <div class="math-row"><span>需要予測 (平均販売数×指数＋安全在庫):</span> <strong>${Math.ceil(result.baseDemand)} 個</strong></div>
+                    <div class="math-row" style="color: #FFD60A;"><span>－ 現在庫:</span> <strong>${effectiveCurrentStock} 個</strong></div>
+                    <div class="math-row" style="color: #FF453A;"><span>－ 廃棄削減:</span> <strong>${effectiveWaste.toFixed(1)} 個</strong></div>
+                    <div class="math-row result"><span>＝ 発注目安:</span> <span>${result.finalOrderQty} 個</span></div>
+                `;
+            }
+            document.getElementById('resMathBreakdown').innerHTML = mathHtml;
             
             document.getElementById('resAdjSales').innerText = Math.ceil(adjustedSales);
             document.getElementById('resOrderQty').innerText = result.finalOrderQty;
@@ -1029,42 +1032,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById('resBoostSign').style.color = boostQty > 0 ? "#FF453A" : "#0A84FF";
                 boostDiv.style.display = 'block';
             } else { boostDiv.style.display = 'none'; }
-
-            const targetStockArea = document.getElementById('targetStockArea');
-            if (minDisplayQty > result.systemBuffer || extraStockDays > 0 || (result.systemBuffer > 0 && minDisplayQty > 0)) {
-                document.getElementById('resTargetStock').innerText = Math.ceil(result.baseDemand);
-                document.getElementById('targetStockLabel').innerText = minDisplayQty > result.systemBuffer ? `(予測数 ＋ 設定最低陳列量 ${minDisplayQty}個 確保)` : (extraStockDays > 0 ? `(予測数 ＋ ${extraStockDays}日分の売場・安全在庫を上乗せ)` : `(予測数 ＋ 安全確保 ※米飯は極小化)`);
-                targetStockArea.style.display = 'block';
-            } else { targetStockArea.style.display = 'none'; }
-
-            let warningTriggered = false, warningMsgText = "", stockLabel = "", stockValue = "";
-            let rawOrderQty = Math.ceil(result.baseDemand - effectiveCurrentStock);
             
-            if (freshnessHours === 14 || freshnessHours === 23) {
-                if (diffShortageRate > 0) {
-                    warningTriggered = true; warningMsgText = shortageMsg; stockLabel = "ロス削減(廃棄マイナス)制限中"; stockValue = `-${effectiveWaste.toFixed(1)} 個`;
-                } else if (rawOrderQty > (rawOrderQty - effectiveWaste)) {
-                    warningTriggered = true; warningMsgText = "⚠️ [ロス削減] 平均廃棄数を差し引き、無駄を削りました。"; stockLabel = "平均廃棄数マイナス調整"; stockValue = "-" + effectiveWaste.toFixed(1) + " 個";
-                } else {
-                     stockLabel = "鮮度上限チェック"; stockValue = "対象外 (短鮮度)";
-                }
-            } else {
-                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - effectiveCurrentStock));
-                if (result.finalOrderQty === maxOrderableQty && maxOrderableQty < (rawOrderQty - effectiveWaste)) { 
-                    warningTriggered = true; warningMsgText = "⚠️ [鮮度警告] 鮮度時間を超えるため、上限でカットしました。"; stockLabel = "販売時間に基づく理論上限"; stockValue = maxOrderableQty + " 個"; 
-                } else if (diffShortageRate > 0) {
-                    warningTriggered = true; warningMsgText = shortageMsg; stockLabel = "ロス削減(廃棄マイナス)制限中"; stockValue = `-${effectiveWaste.toFixed(1)} 個`;
-                } else if (rawOrderQty > (rawOrderQty - effectiveWaste)) { 
-                    warningTriggered = true; warningMsgText = "⚠️ [ロス削減] 平均廃棄数を差し引き、無駄を削りました。"; stockLabel = "上限内 / 廃棄削減を適用"; stockValue = "-" + effectiveWaste.toFixed(1) + " 個"; 
-                } else { 
-                    stockLabel = "鮮度上限チェック"; stockValue = "クリア (問題なし)"; 
-                }
+            let warningTriggered = false, warningMsgText = "";
+            if (diffShortageRate > 0) {
+                warningTriggered = true; warningMsgText = shortageMsg;
+            } else if (!result.isShortLife && (Math.ceil(result.baseDemand - effectiveCurrentStock) > result.finalOrderQty)) {
+                warningTriggered = true; warningMsgText = "⚠️ [ロス削減] 平均廃棄数を差し引き、無駄を削りました。";
             }
 
-            document.getElementById('resMaxStockLabel').innerText = stockLabel;
-            document.getElementById('resMaxStock').innerText = stockValue;
-            
-            document.getElementById('resultArea').style.display = 'block';
             const warnArea = document.getElementById('warningArea');
             if (warningTriggered) { document.getElementById('warningMessageText').innerHTML = warningMsgText; warnArea.style.display = 'block'; }
             else { warnArea.style.display = 'none'; }
