@@ -141,6 +141,11 @@
         .btn-create { background: #8E8E93; }
         .btn-restore { background: var(--success); }
         .btn-create:active, .btn-restore:active, .backup-btn:active { transform: scale(0.96); }
+        
+        /* 🌟 透明化計算式用のスタイル */
+        .math-breakdown { background: rgba(0,0,0,0.25); border-radius: 12px; padding: 16px; margin: 16px 0; border: 1px solid #3A3A3C; }
+        .math-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.95rem; }
+        .math-row.result { border-top: 1px dashed #48484A; padding-top: 10px; margin-top: 10px; font-size: 1.15rem; color: #34C759; font-weight: 800; }
     </style>
 </head>
 <body>
@@ -208,9 +213,6 @@
                         現在庫 (発注時)
                     </label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
-                    <div id="stockMessageArea" style="display: none; background: rgba(0, 122, 255, 0.08); border: 2px dashed rgba(0, 122, 255, 0.3); border-radius: var(--radius-input); padding: 0 10px; text-align: center; color: var(--primary); font-size: 0.8rem; font-weight: 800; flex-direction: column; justify-content: center; align-items: center; height: 56px; line-height: 1.4;">
-                        💡 納品時消化のため<br>入力は不要です
-                    </div>
                 </div>
             </div>
 
@@ -230,7 +232,7 @@
                 <span style="font-size: 1.2rem;">💡</span>
                 <div>
                     最大 <strong id="dispMax">65</strong> − 最小 <strong id="dispMin">35</strong> ＝ ブレ幅 <strong id="dispDiff">30</strong><br>
-                    <span style="font-size: 0.85em; opacity: 0.8;">(売上の波に合わせて安全在庫を自動で調整します)</span>
+                    <span style="font-size: 0.85em; opacity: 0.8;">(売上の波に合わせて安全在庫を自動で調整します ※米飯類は適用外)</span>
                 </div>
             </div>
 
@@ -361,10 +363,12 @@
                 (内訳: <strong>平均販売数 <span id="resBaseSales"></span> 個</strong> <span id="resShortageBoost" style="color:#FF9500; font-weight:bold;"></span> × 総合指数 <strong id="resTotalFactor"></strong> 倍)
             </div>
             <div class="result-item" style="font-size: 0.8rem; color: #8E8E93; margin-bottom: 12px; border-bottom: 1px dashed #3A3A3C; padding-bottom: 8px;">
-                [ 算出根拠: 基本1.00 <span id="resDayImpact"></span> <span id="resWeatherImpact"></span> <span id="resTempImpact"></span> ] <span id="resSafetyLimiter" style="color:#FF3B30; font-weight:bold; margin-left:4px;"></span>
+                [ 指数内訳: 基本1.00 <span id="resDayImpact"></span> <span id="resWeatherImpact"></span> <span id="resTempImpact"></span> ] <span id="resSafetyLimiter" style="color:#FF3B30; font-weight:bold; margin-left:4px;"></span>
             </div>
 
-            <div class="result-item" id="resTempMessage" style="color: #FFD60A; font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
+            <div class="result-item" id="resTempMessage" style="color: #FFD60A; font-size: 0.95rem; margin-bottom: 16px; font-weight: 700;"></div>
+            
+            <div id="resMathBreakdown" class="math-breakdown"></div>
             
             <div id="targetStockArea" style="display: none; margin-bottom: 24px;">
                 <div class="result-item" style="color: #34C759; font-weight: 600; font-size: 1.05rem;">売場目標在庫数: <strong id="resTargetStock" style="font-size: 1.4rem;"></strong> 個</div>
@@ -583,24 +587,24 @@ document.addEventListener("DOMContentLoaded", () => {
             const displayInputArea = document.getElementById('displayInputArea');
             const stockInput = document.getElementById('currentStock');
             const stockMessageArea = document.getElementById('stockMessageArea');
-            let isShortShelfLife = false;
+            
+            // 🌟 修正：どのような鮮度時間であっても「現在庫」の入力欄は絶対に隠さない
+            if (stockInput && stockMessageArea) {
+                stockInput.style.display = "block";
+                stockMessageArea.style.display = "none";
+            }
 
             switch(category) {
                 case "おにぎり": case "こだわりおにぎり": case "弁当":
-                    hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; isShortShelfLife = true; break;
+                    hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; break;
                 case "寿司": case "サンドイッチ": case "ロール":
-                    hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; isShortShelfLife = true; break;
+                    hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; break;
                 case "調理麺": case "カップ麺": case "惣菜": case "サラダ":
                     hiddenVal.value = "38"; display.value = "維持ロジック (38H: +0.2日分)"; displayInputArea.style.display = "none"; break;
                 case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ":
                     hiddenVal.value = "60"; display.value = "維持ロジック (60H: +0.5日分)"; displayInputArea.style.display = "none"; break;
                 default:
                     hiddenVal.value = "0"; display.value = "上の分類を選択してください"; displayInputArea.style.display = "none";
-            }
-
-            if (stockInput && stockMessageArea) {
-                if (isShortShelfLife) { stockInput.style.display = "none"; stockMessageArea.style.display = "flex"; } 
-                else { stockInput.style.display = "block"; stockMessageArea.style.display = "none"; }
             }
         },
         restoreCategoryInputs() {
@@ -766,16 +770,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: tempCoeff, message: tempMessage };
         },
 
-        // 🌟 修正：カテゴリー名を引数に追加し、米飯専用の安全在庫処理を適用
         calculateCoreOrderQty(catVal, baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
             let safetyStock = 0;
             
+            // 🌟 修正：おにぎり・弁当等の短鮮度品は、売れ残りが即廃棄になるため、安全在庫（バッファ）を「絶対に0」にする
             if (["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール"].includes(catVal)) {
-                // 米飯・パン等の短鮮度品は、売れ残りが即廃棄になるため、
-                // 統計的な過剰バッファをカットし、最大でも予測数の5%までに制限
-                safetyStock = Math.min(stdDev * 0.3, baseAdjustedSales * 0.05);
+                safetyStock = 0; 
             } else {
-                // カップ麺等の日持ち商材は通常の統計的な安全在庫（1.645×標準偏差）
+                // カップ麺等の日持ち商材は通常の統計的な安全在庫を適用
                 safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
             }
 
@@ -833,7 +835,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     else if (safeShortageRate > 5) targetShortageRate = 5;
 
                     const currentStock = parseInt(data.currentStock) || 0;
-                    const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
+                    
+                    // 🌟 修正：すべてのカテゴリで、入力された現在庫をそのまま計算に使う（無視しない）
+                    const effectiveCurrentStock = currentStock;
+
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
@@ -863,11 +868,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
                     
-                    // 🌟 修正：カテゴリごとのリミッター
                     let maxFactor = 1.30; let minFactor = 0.70;
                     if (catName === "調理麺") { maxFactor = 1.50; minFactor = 0.50; }
                     else if (["おにぎり", "こだわりおにぎり", "弁当", "寿司", "サンドイッチ"].includes(catName)) {
-                        maxFactor = 1.25; minFactor = 0.75; // 米飯は過度に振れさせない
+                        maxFactor = 1.25; minFactor = 0.75; 
                     }
                     totalFactor = Math.max(minFactor, Math.min(maxFactor, totalFactor)); 
                     
@@ -917,7 +921,10 @@ document.addEventListener("DOMContentLoaded", () => {
             else if (safeShortageRate > 0) { shortageMsg = "✨ 欠品率は非常に優秀です。現在のペースを維持します。"; }
 
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
-            const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
+            
+            // 🌟 修正：どのような鮮度時間であっても、現在庫はそのまま差し引く
+            const effectiveCurrentStock = currentStock;
+
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             
@@ -950,12 +957,11 @@ document.addEventListener("DOMContentLoaded", () => {
             let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
             let limiterActive = false;
 
-            // 🌟 修正：カテゴリごとのリミッター
             let maxFactor = 1.30; let minFactor = 0.70; let limitLabel = "±30%";
             if (catVal === "調理麺") { 
                 maxFactor = 1.50; minFactor = 0.50; limitLabel = "±50%"; 
             } else if (["おにぎり", "こだわりおにぎり", "弁当", "寿司", "サンドイッチ"].includes(catVal)) {
-                maxFactor = 1.25; minFactor = 0.75; limitLabel = "±25%"; // 米飯は過度に振れさせない
+                maxFactor = 1.25; minFactor = 0.75; limitLabel = "±25%";
             }
 
             if (totalFactor > maxFactor) { totalFactor = maxFactor; limiterActive = true; }
@@ -1001,6 +1007,15 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             document.getElementById('resTempMessage').innerText = tempMessage;
+            
+            // 🌟 追加：完全に透明化された「計算式」を表示するエリア
+            document.getElementById('resMathBreakdown').innerHTML = `
+                <div style="font-size: 0.85rem; color: #AEAEB2; margin-bottom: 8px;">💡 最終計算式（透明化）</div>
+                <div class="math-row"><span>需要予測 (平均販売数×指数):</span> <strong>${Math.ceil(result.baseDemand)} 個</strong></div>
+                <div class="math-row" style="color: #FFD60A;"><span>－ 現在庫:</span> <strong>${effectiveCurrentStock} 個</strong></div>
+                <div class="math-row" style="color: #FF453A;"><span>－ 廃棄削減:</span> <strong>${effectiveWaste.toFixed(1)} 個</strong></div>
+                <div class="math-row result"><span>＝ 発注目安:</span> <span>${result.finalOrderQty} 個</span></div>
+            `;
             
             document.getElementById('resAdjSales').innerText = Math.ceil(adjustedSales);
             document.getElementById('resOrderQty').innerText = result.finalOrderQty;
