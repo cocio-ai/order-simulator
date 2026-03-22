@@ -117,30 +117,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const calcBtn = document.getElementById('btn-calculate');
             const calcText = document.getElementById('btn-calc-text');
-            
-            // 🌟 解析ボタンクリック時の処理
             calcBtn.addEventListener('click', () => {
                 if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
                 calcBtn.classList.add('loading');
                 calcText.innerText = "データ解析中...";
                 
                 setTimeout(() => {
-                    try {
-                        const success = Logic.calculate(false);
-                        calcBtn.classList.remove('loading');
-                        calcText.innerText = "⚡ AI 発注シミュレーション実行";
-                        
-                        if (success) {
-                            setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-                        } else {
-                            alert("店舗名と対象分類を選択してください。");
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                    } catch (e) {
-                        console.error("解析中にエラーが発生しました:", e);
-                        calcBtn.classList.remove('loading');
-                        calcText.innerText = "⚡ AI 発注シミュレーション実行";
-                        alert("エラーが発生しました。入力内容を確認してください。");
+                    const success = Logic.calculate(false);
+                    calcBtn.classList.remove('loading');
+                    calcText.innerText = "⚡ AI 発注シミュレーション実行";
+                    
+                    if (success) {
+                        setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                    } else {
+                        alert("店舗名と対象分類を選択してください。");
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 }, 400); 
             });
@@ -196,34 +187,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const display = document.getElementById('freshnessDisplay');
             const hiddenVal = document.getElementById('freshnessTime');
             const displayInputArea = document.getElementById('displayInputArea');
-            
-            const stockInput = document.getElementById('currentStock');
-            const stockMessageArea = document.getElementById('stockMessageArea');
-            let isShortShelfLife = false;
 
             switch(category) {
                 case "おにぎり": case "こだわりおにぎり": case "弁当":
-                    hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; 
-                    isShortShelfLife = true; break;
+                    hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; break;
                 case "寿司": case "サンドイッチ": case "ロール":
-                    hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; 
-                    isShortShelfLife = true; break;
+                    hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; break;
                 case "調理麺": case "カップ麺": case "惣菜": case "サラダ":
                     hiddenVal.value = "38"; display.value = "維持ロジック (38H: +0.2日分)"; displayInputArea.style.display = "none"; break;
                 case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ":
                     hiddenVal.value = "60"; display.value = "維持ロジック (60H: +0.5日分)"; displayInputArea.style.display = "none"; break;
                 default:
                     hiddenVal.value = "0"; display.value = "上の分類を選択してください"; displayInputArea.style.display = "none";
-            }
-
-            if (stockInput && stockMessageArea) {
-                if (isShortShelfLife) {
-                    stockInput.style.display = "none";
-                    stockMessageArea.style.display = "flex";
-                } else {
-                    stockInput.style.display = "block";
-                    stockMessageArea.style.display = "none";
-                }
             }
         },
 
@@ -256,6 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         },
 
+        // 🌟 天候補正ボタンが押された時の処理（UI更新と隠し値のセット）
         setCorr(btn) {
             document.querySelectorAll('.corr-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -301,7 +277,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    window.UI = UI; 
+    // 🌟 気象情報連携（ボタン式API取得と天候判定ロジックの完全復元）
+    window.UI = UI; // onclickから呼ぶためにグローバル化
     const Weather = {
         restoreStoreWeather() {
             const store = State.data.currentStore;
@@ -338,6 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
             State.save();
         },
 
+        // エリアリストの取得だけを行う
         async fetchAreaList(prefCode, targetCityCode) {
             const areaSelect = document.getElementById('cityArea');
             try {
@@ -356,6 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch(e) { console.error("エリア取得失敗"); }
         },
 
+        // 天気・気温の取得とUI連動（引数1=明日, 2=明後日）
         async fetchWeather(offset) {
             const prefCode = document.getElementById('prefecture').value;
             const areaCode = document.getElementById('cityArea').value;
@@ -381,6 +360,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     return series.areas.find(a => a.area && a.area.code === areaCode) || series.areas[0];
                 };
 
+                // 天気と気温の抽出ロジック
                 if (data[0] && data[0].timeSeries) {
                     let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     if (wSeries) {
@@ -411,6 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
+                // 🌟 天気テキストから自動で天候補正ボタンを選択するロジック（復元）
                 let icon = '⛅', corrVal = "1.0";
                 if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.8"; }
                 else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.9"; }
@@ -423,9 +404,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 const days = ['日', '月', '火', '水', '木', '金', '土'];
                 document.getElementById('weather-date').innerText = `📅 対象日：${wDate.getFullYear()}/${wDate.getMonth() + 1}/${wDate.getDate()}(${days[wDate.getDay()]})`;
                 
+                // 曜日も自動変更
                 const dayValue = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
                 document.getElementById('targetDay').value = dayValue;
 
+                // ボタンの自動選択
                 document.querySelectorAll('.corr-btn').forEach(b => {
                     if (b.dataset.val === corrVal) UI.setCorr(b);
                 });
@@ -440,7 +423,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     };
-    window.Weather = Weather; 
+    window.Weather = Weather; // onclickから呼ぶためにグローバル化
 
     // --- 計算ロジック ---
     const Logic = {
@@ -534,11 +517,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     else if (safeShortageRate > 5) targetShortageRate = 5;
 
                     const currentStock = parseInt(data.currentStock) || 0;
-                    const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
-                    
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
+                    // 🌟 曜日係数の自動計算
                     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
                     let totalDaySales = 0;
                     days.forEach(d => { totalDaySales += (parseFloat(data.ratios[d]) || 0); });
@@ -565,7 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
 
-                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
+                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
                     html += `
                         <div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
@@ -590,10 +572,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
             const stdDev_raw = diff_raw / 4; 
             
-            // 🌟 【修正箇所】ここで消してしまったID（dispStdDev）を呼び出していたためエラーになっていました。削除済みです。
             document.getElementById('dispMax').innerText = Math.max(maxS, minS);
             document.getElementById('dispMin').innerText = Math.min(maxS, minS);
             document.getElementById('dispDiff').innerText = diff_raw;
+            document.getElementById('dispStdDev').innerText = stdDev_raw.toFixed(1);
 
             if (!storeName || !catVal || freshnessHours === 0) {
                 if(!silent) {
@@ -624,16 +606,15 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
-            const effectiveCurrentStock = (freshnessHours === 14 || freshnessHours === 23) ? 0 : currentStock;
-
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             
             const targetDay = document.getElementById('targetDay').value;
-            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; 
+            const weatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; // 🌟 hiddenから取得
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
+            // 🌟 実数入力からAIが自動で曜日係数を算出
             const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
             let totalDaySales = 0;
             days.forEach(d => { totalDaySales += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
@@ -655,16 +636,16 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
             
-            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
-            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
+            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
+            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, 1, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             document.getElementById('resBaseSales').innerText = avgSales;
@@ -708,9 +689,9 @@ document.addEventListener("DOMContentLoaded", () => {
             } else { targetStockArea.style.display = 'none'; }
 
             let warningTriggered = false, warningMsgText = "", stockLabel = "", stockValue = "";
-            let rawOrderQty = Math.ceil(result.baseDemand - effectiveCurrentStock);
+            let rawOrderQty = Math.ceil(result.baseDemand - currentStock);
             
-            if (freshnessHours === 14 || freshnessHours === 23) {
+            if (freshnessHours === 14) {
                 if (diffShortageRate > 0) {
                     warningTriggered = true; warningMsgText = shortageMsg; stockLabel = "ロス削減(廃棄マイナス)制限中"; stockValue = `-${effectiveWaste.toFixed(1)} 個`;
                 } else if (rawOrderQty > (rawOrderQty - effectiveWaste)) {
@@ -719,7 +700,7 @@ document.addEventListener("DOMContentLoaded", () => {
                      stockLabel = "鮮度上限チェック"; stockValue = "対象外 (短鮮度)";
                 }
             } else {
-                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - effectiveCurrentStock));
+                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - currentStock));
                 if (result.finalOrderQty === maxOrderableQty && maxOrderableQty < (rawOrderQty - effectiveWaste)) { 
                     warningTriggered = true; warningMsgText = "⚠️ [鮮度警告] 鮮度時間を超えるため、上限でカットしました。"; stockLabel = "販売時間に基づく理論上限"; stockValue = maxOrderableQty + " 個"; 
                 } else if (diffShortageRate > 0) {
