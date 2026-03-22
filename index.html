@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#F2F2F7">
+    <meta name="theme-color" content="#F4F5F7">
     <title>ORDER SIMULATOR</title>
     <link rel="stylesheet" href="style.css">
     <script src="main.js" defer></script>
@@ -96,19 +96,6 @@
                 </div>
             </div>
 
-            <div class="flex-row">
-                <div class="flex-col" style="flex: 1;">
-                    <label style="color: var(--primary);">
-                        納品リードタイム (時間)
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">発注から納品までの時間を入力します。この間の販売予測を自動で差し引きます。</div></div>
-                    </label>
-                    <input type="number" inputmode="numeric" id="leadTime" value="12" min="0">
-                </div>
-                <div class="flex-col" style="flex: 1; display: flex; align-items: flex-end; padding-bottom: 8px;">
-                    <span style="font-size: 0.8rem; color: #8E8E93;">※納品時の予測在庫計算に使用</span>
-                </div>
-            </div>
-
             <div class="flex-row" style="align-items: center;">
                 <div class="flex-col">
                     <label style="color: var(--primary);">最高販売数</label>
@@ -138,7 +125,7 @@
                     <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
                 </div>
                 <div class="flex-col shortage-input-box">
-                    <label style="color: #FF9500;">
+                    <label style="color: var(--warning);">
                         平均欠品率 (%)
                         <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">欠品による売り逃しを防ぐため、入力値から潜在需要を算出して底上げします。</div></div>
                     </label>
@@ -255,23 +242,23 @@
         <div id="resultArea" class="result-card" style="display: none;">
             <h3 class="section-title">算出結果</h3>
             <div class="result-header">
-                <strong id="resCategory"></strong> <span id="resFreshnessText" style="font-size:0.85rem; color:#8E8E93; font-weight:normal; margin-left:10px;"></span>
+                <strong id="resCategory"></strong> <span id="resFreshnessText" style="font-size:0.85rem; color:#666; font-weight:normal; margin-left:10px;"></span>
             </div>
             
             <div class="result-item" style="font-size: 0.85rem; margin-bottom: 10px;">
-                (内訳: 基本 <span id="resBaseSales"></span> <span id="resShortageBoost" style="color:#FF9500; font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 天候 <span id="resWeatherRatio"></span> × 気温 <span id="resTempRatio"></span>)
+                (内訳: 基本 <span id="resBaseSales"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 天候 <span id="resWeatherRatio"></span> × 気温 <span id="resTempRatio"></span>)
             </div>
-            <div class="result-item" id="resTempMessage" style="color: #FFD60A; font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
+            <div class="result-item" id="resTempMessage" style="color: var(--warning); font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
             
             <div id="targetStockArea" style="display: none; margin-bottom: 24px;">
-                <div class="result-item" style="color: #34C759; font-weight: 600; font-size: 1.05rem;">売場目標在庫数: <strong id="resTargetStock" style="font-size: 1.4rem;"></strong> 個</div>
+                <div class="result-item" style="color: var(--success); font-weight: 600; font-size: 1.05rem;">売場目標在庫数: <strong id="resTargetStock" style="font-size: 1.4rem;"></strong> 個</div>
                 <div class="result-item" style="font-size: 0.85rem;" id="targetStockLabel"></div>
             </div>
-            <div class="result-item" style="font-size: 0.95rem; color: #FF453A;"><span id="resMaxStockLabel"></span>: <strong id="resMaxStock"></strong></div>
+            <div class="result-item" style="font-size: 0.95rem; color: var(--danger);"><span id="resMaxStockLabel"></span>: <strong id="resMaxStock"></strong></div>
             
             <div class="forecast-panel">
-                <div style="font-size: 0.95rem; font-weight: bold; color: #5AC8FA;">📊 1日の販売予測</div>
-                <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; color: #5AC8FA;">個</span></div>
+                <div style="font-size: 0.95rem; font-weight: bold; color: var(--primary-dark);">📊 1日の販売予測</div>
+                <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; color: var(--primary-dark);">個</span></div>
             </div>
 
             <div class="order-panel">
@@ -280,7 +267,7 @@
             </div>
             
             <div id="boostBreakdown" class="boost-breakdown">
-                <div class="boost-row" style="color: #AEAEB2; font-size: 0.95rem;">
+                <div class="boost-row" style="color: var(--text-muted); font-size: 0.95rem;">
                     <span>通常算出:</span><span><strong id="resNormalQty" style="font-size: 1.2rem;"></strong> 個</span>
                 </div>
                 <div class="boost-row boost-highlight">
@@ -299,7 +286,7 @@
                 ※現在選択中の店舗（<strong id="allTabStoreName" style="color: var(--primary);">未選択</strong>）に保存されたデータで一括計算しています。<br>
             </p>
             <div id="allResultsContainer"></div>
-            <button id="btn-refresh-all" class="calc-button" style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #34C759 0%, #28a745 100%);">
+            <button id="btn-refresh-all" class="calc-button" style="margin-top: 24px;">
                 <span class="spinner" id="allSpinner"></span><span id="allBtnText">🔄 最新情報で一括更新</span>
             </button>
         </div>
@@ -314,7 +301,7 @@
             <textarea id="backupCode" class="backup-textarea" rows="5" placeholder="ここにバックアップコードが表示されます"></textarea>
             <div class="flex-row" style="margin-bottom: 16px;">
                 <button id="btn-export" class="backup-btn btn-create">コードを作成</button>
-                <button id="btn-copy" class="backup-btn" style="background:#007AFF;">⧉ コピー</button>
+                <button id="btn-copy" class="backup-btn" style="background:var(--primary);">⧉ コピー</button>
             </div>
             <hr style="border: none; border-top: 1px solid var(--border); margin: 20px 0;">
             <div class="flex-row" style="margin-bottom: 0;">
