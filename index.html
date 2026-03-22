@@ -749,45 +749,36 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // 🌟 ご要望に合わせた「調理麺専用」の特別な気温ブーストシステム
         getTempCoeff(catVal, maxTemp, minTemp) {
             let tempCoeff = 1.0; let tempMessage = "";
             
             if (catVal === "調理麺") {
-                if (maxTemp >= 35) { 
-                    tempCoeff = 1.40; 
-                    tempMessage = "🌋 35℃超え！調理麺の【特大ブースト(+40%)】が発動します"; 
-                }
-                else if (maxTemp >= 30) { 
-                    tempCoeff = 1.25; 
-                    tempMessage = "☀️ 30℃超え！調理麺の【大ブースト(+25%)】が発動します"; 
-                }
-                else if (maxTemp >= 25) { 
-                    tempCoeff = 1.15; 
-                    tempMessage = "🔥 25℃超え。調理麺の【中ブースト(+15%)】が発動します"; 
-                }
-                else if (maxTemp >= 20) { 
-                    tempCoeff = 1.05; 
-                    tempMessage = "🌤 20℃超え。調理麺の【小ブースト(+5%)】が発動します"; 
-                }
-                else if (maxTemp < 10) { 
-                    tempCoeff = 0.90; 
-                    tempMessage = "❄️ 10℃未満。冷え込みのため調理麺をマイナス補正(-10%)"; 
-                }
-                else { 
-                    tempCoeff = 1.0; 
-                    tempMessage = "☁️ 20℃未満。調理麺は平常通りの動きです"; 
-                }
+                if (maxTemp >= 35) { tempCoeff = 1.40; tempMessage = "🌋 35℃超え！調理麺の【特大ブースト(+40%)】が発動します"; }
+                else if (maxTemp >= 30) { tempCoeff = 1.25; tempMessage = "☀️ 30℃超え！調理麺の【大ブースト(+25%)】が発動します"; }
+                else if (maxTemp >= 25) { tempCoeff = 1.15; tempMessage = "🔥 25℃超え。調理麺の【中ブースト(+15%)】が発動します"; }
+                else if (maxTemp >= 20) { tempCoeff = 1.05; tempMessage = "🌤 20℃超え。調理麺の【小ブースト(+5%)】が発動します"; }
+                else if (maxTemp < 10) { tempCoeff = 0.90; tempMessage = "❄️ 10℃未満。冷え込みのため調理麺をマイナス補正(-10%)"; }
+                else { tempCoeff = 1.0; tempMessage = "☁️ 20℃未満。調理麺は平常通りの動きです"; }
             } else {
-                // 🌟 その他の商材は「天候・曜日」が主軸になるよう気温係数を完全に無効化(1.0)
                 tempCoeff = 1.0;
                 tempMessage = "☁️ このカテゴリーは「天候」と「曜日」を主軸に予測されます";
             }
             return { coeff: tempCoeff, message: tempMessage };
         },
 
-        calculateCoreOrderQty(baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
-            const safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
+        // 🌟 修正：カテゴリー名を引数に追加し、米飯専用の安全在庫処理を適用
+        calculateCoreOrderQty(catVal, baseAdjustedSales, stdDev, leadTime, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
+            let safetyStock = 0;
+            
+            if (["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール"].includes(catVal)) {
+                // 米飯・パン等の短鮮度品は、売れ残りが即廃棄になるため、
+                // 統計的な過剰バッファをカットし、最大でも予測数の5%までに制限
+                safetyStock = Math.min(stdDev * 0.3, baseAdjustedSales * 0.05);
+            } else {
+                // カップ麺等の日持ち商材は通常の統計的な安全在庫（1.645×標準偏差）
+                safetyStock = 1.645 * stdDev * Math.sqrt(leadTime + extraStockDays);
+            }
+
             const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
             let appliedBuffer = (minDisplayQty > systemBuffer) ? minDisplayQty : systemBuffer;
 
@@ -872,13 +863,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
                     
-                    // 🌟 絶対安全リミッター（調理麺の特大ブースト(+40%)を許容するため ±50%に拡張）
-                    totalFactor = Math.max(0.50, Math.min(1.50, totalFactor)); 
+                    // 🌟 修正：カテゴリごとのリミッター
+                    let maxFactor = 1.30; let minFactor = 0.70;
+                    if (catName === "調理麺") { maxFactor = 1.50; minFactor = 0.50; }
+                    else if (["おにぎり", "こだわりおにぎり", "弁当", "寿司", "サンドイッチ"].includes(catName)) {
+                        maxFactor = 1.25; minFactor = 0.75; // 米飯は過度に振れさせない
+                    }
+                    totalFactor = Math.max(minFactor, Math.min(maxFactor, totalFactor)); 
                     
                     const trueAvgSales = baseSales * shortageCoeff;
                     const adjustedSales = trueAvgSales * totalFactor;
 
-                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
+                    const result = this.calculateCoreOrderQty(catName, adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
                     
                     html += `<div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
                                 <div class="all-result-cat">${catName}</div><div class="all-result-qty">${result.finalOrderQty} <span>個</span></div>
@@ -954,24 +950,30 @@ document.addEventListener("DOMContentLoaded", () => {
             let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
             let limiterActive = false;
 
-            // 🌟 絶対安全リミッター（上限を1.50へ）
-            if (totalFactor > 1.50) { totalFactor = 1.50; limiterActive = true; }
-            if (totalFactor < 0.50) { totalFactor = 0.50; limiterActive = true; }
+            // 🌟 修正：カテゴリごとのリミッター
+            let maxFactor = 1.30; let minFactor = 0.70; let limitLabel = "±30%";
+            if (catVal === "調理麺") { 
+                maxFactor = 1.50; minFactor = 0.50; limitLabel = "±50%"; 
+            } else if (["おにぎり", "こだわりおにぎり", "弁当", "寿司", "サンドイッチ"].includes(catVal)) {
+                maxFactor = 1.25; minFactor = 0.75; limitLabel = "±25%"; // 米飯は過度に振れさせない
+            }
+
+            if (totalFactor > maxFactor) { totalFactor = maxFactor; limiterActive = true; }
+            if (totalFactor < minFactor) { totalFactor = minFactor; limiterActive = true; }
             
             const trueAvgSales = baseSales * shortageCoeff;
             const adjustedSales = trueAvgSales * totalFactor;
             
-            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
-            
-            const normalResult = this.calculateCoreOrderQty(trueAvgSales, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
+            const result = this.calculateCoreOrderQty(catVal, adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
+            const normalResult = this.calculateCoreOrderQty(catVal, trueAvgSales, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact, limiterActive);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact, limiterActive, limitLabel);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact, limiterActive) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact, limiterActive, limitLabel) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             
@@ -993,7 +995,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const limiterText = document.getElementById('resSafetyLimiter');
             if (limiterActive) {
-                limiterText.innerText = "※変動上限(±50%)で安全制御";
+                limiterText.innerText = `※変動上限(${limitLabel})で安全制御`;
             } else {
                 limiterText.innerText = "";
             }
@@ -1016,7 +1018,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const targetStockArea = document.getElementById('targetStockArea');
             if (minDisplayQty > result.systemBuffer || extraStockDays > 0 || (result.systemBuffer > 0 && minDisplayQty > 0)) {
                 document.getElementById('resTargetStock').innerText = Math.ceil(result.baseDemand);
-                document.getElementById('targetStockLabel').innerText = minDisplayQty > result.systemBuffer ? `(予測数 ＋ 設定最低陳列量 ${minDisplayQty}個 確保)` : (extraStockDays > 0 ? `(予測数 ＋ ${extraStockDays}日分の売場・安全在庫を上乗せ)` : `(予測数 ＋ 安全在庫確保 ※指定陳列量はクリア)`);
+                document.getElementById('targetStockLabel').innerText = minDisplayQty > result.systemBuffer ? `(予測数 ＋ 設定最低陳列量 ${minDisplayQty}個 確保)` : (extraStockDays > 0 ? `(予測数 ＋ ${extraStockDays}日分の売場・安全在庫を上乗せ)` : `(予測数 ＋ 安全確保 ※米飯は極小化)`);
                 targetStockArea.style.display = 'block';
             } else { targetStockArea.style.display = 'none'; }
 
