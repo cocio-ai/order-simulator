@@ -384,9 +384,13 @@
                 <strong id="resCategory"></strong> <span id="resFreshnessText" style="font-size:0.85rem; color:#8E8E93; font-weight:normal; margin-left:10px;"></span>
             </div>
             
-            <div class="result-item" style="font-size: 0.85rem; margin-bottom: 10px;">
-                (内訳: 曜日ベース <strong id="resDayBase"></strong> 個 <span id="resShortageBoost" style="color:#FF9500; font-weight:bold;"></span> × 総合変動 <strong id="resTotalFactor"></strong> 倍)
+            <div class="result-item" style="font-size: 0.85rem; margin-bottom: 4px;">
+                (内訳: <strong>平均販売数 <span id="resBaseSales"></span> 個</strong> <span id="resShortageBoost" style="color:#FF9500; font-weight:bold;"></span> × 総合指数 <strong id="resTotalFactor"></strong> 倍)
             </div>
+            <div class="result-item" style="font-size: 0.8rem; color: #8E8E93; margin-bottom: 12px; border-bottom: 1px dashed #3A3A3C; padding-bottom: 8px;">
+                [ 指数詳細: 基本1.00 <span id="resDayImpact"></span> <span id="resWeatherImpact"></span> <span id="resTempImpact"></span> ]
+            </div>
+
             <div class="result-item" id="resTempMessage" style="color: #FFD60A; font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
             
             <div id="targetStockArea" style="display: none; margin-bottom: 24px;">
@@ -760,7 +764,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Weather = Weather; 
 
-    // --- 計算ロジック (🌟 乗数爆発を防ぐ加算方式にフルリニューアル) ---
+    // --- 計算ロジック (🌟 ベース販売数に対する「指数加算」ロジックへ完全移行) ---
     const Logic = {
         getFreshnessHours(category) {
             switch(category) {
@@ -855,8 +859,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
-                    // 🌟 修正：対象曜日の販売数を絶対的なベースにする
-                    const targetDaySales = parseFloat(data.ratios[targetDay]) || avgSales;
+                    // 🌟 修正：「平均販売数」を絶対的な基準（ベース）として再定義
+                    const baseSales = avgSales;
+
+                    // 曜日指数の算出
+                    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                    let totalDaySales = 0;
+                    days.forEach(d => { totalDaySales += (parseFloat(data.ratios[d]) || 0); });
+                    const avgDaySales = totalDaySales / 7;
+                    const dayRatio = avgDaySales > 0 ? ((parseFloat(data.ratios[targetDay]) || 0) / avgDaySales) : 1.0;
                     
                     let shortageCoeff = 1.0;
                     if (safeShortageRate > targetShortageRate) {
@@ -868,17 +879,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     const stdDev_raw = (Math.max(maxS, minS) - Math.min(maxS, minS)) / 4; 
                     const tempInfo = this.getTempCoeff(catName, maxTemp, minTemp);
                     const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
-                    
                     const stdDev = stdDev_raw * shortageCoeff;
                     
-                    // 🌟 修正：掛け算ではなく「影響％の足し算」で総合係数を出す
+                    // 🌟 修正：各指数を「変動％」に変換して加算合成する
+                    const dayImpact = dayRatio - 1.0;
                     const weatherImpact = weatherCoeff - 1.0;
                     const tempImpact = tempInfo.coeff - 1.0;
-                    let totalFactor = 1.0 + weatherImpact + tempImpact;
+                    
+                    let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
                     totalFactor = Math.max(0.3, totalFactor); // 暴落ストッパー
                     
-                    // 最終調整ベース ＝ (曜日実績 × 欠品底上げ) × 総合係数
-                    const adjustedSales = (targetDaySales * shortageCoeff) * totalFactor;
+                    // 最終予測数 ＝ (基本平均販売数 × 欠品底上げ) × 総合合成指数
+                    const trueAvgSales = baseSales * shortageCoeff;
+                    const adjustedSales = trueAvgSales * totalFactor;
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
                     
@@ -910,7 +923,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 return false; 
             }
 
+            // 🌟 絶対的ベースの「平均販売数」
             const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
+            const baseSales = avgSales;
+
             const avgShortageRate = parseFloat(document.getElementById('avgShortageRate').value) || 0; 
             const safeShortageRate = Math.min(avgShortageRate, 90); 
             
@@ -930,8 +946,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
-            // 🌟 修正：対象曜日の実績を絶対ベースとする
-            const targetDaySales = parseFloat(document.getElementById('ratio_' + targetDay).value) || avgSales;
+            // 曜日指数の算出
+            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            let totalDaySales = 0;
+            days.forEach(d => { totalDaySales += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
+            const avgDaySales = totalDaySales / 7;
+            const targetDaySales = parseFloat(document.getElementById('ratio_' + targetDay).value) || 0;
+            const dayRatio = avgDaySales > 0 ? (targetDaySales / avgDaySales) : 1.0;
+
             const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
             
@@ -942,37 +964,51 @@ document.addEventListener("DOMContentLoaded", () => {
             const diffShortageRate = safeShortageRate - targetShortageRate;
             const stdDev = stdDev_raw * shortageCoeff; 
             
-            // 🌟 修正：影響度（％）の足し算で総合係数を出す
+            // 🌟 修正：各指数を「変動割合」として抽出し、安全に加算合成する
+            const dayImpact = dayRatio - 1.0;
             const weatherImpact = weatherCoeff - 1.0;
             const tempImpact = tempInfo.coeff - 1.0;
-            let totalFactor = 1.0 + weatherImpact + tempImpact;
-            totalFactor = Math.max(0.3, totalFactor); // ストッパー
             
-            // 最終調整ベース ＝ (曜日実績 × 欠品底上げ) × 総合係数
-            const baseAdjusted = targetDaySales * shortageCoeff;
-            const adjustedSales = baseAdjusted * totalFactor;
+            let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
+            totalFactor = Math.max(0.3, totalFactor); 
+            
+            // 最終予測数 ＝ (元の平均販売数 × 欠品底上げ) × 総合変動指数
+            const trueAvgSales = baseSales * shortageCoeff;
+            const adjustedSales = trueAvgSales * totalFactor;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
             
-            // 通常時（変動なし）の算出結果も、正しいベース（曜日実績）で計算し直す
-            const normalResult = this.calculateCoreOrderQty(targetDaySales, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
+            // 比較用（変動が一切なかった場合の基本値）
+            const normalResult = this.calculateCoreOrderQty(baseSales, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, targetDaySales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, targetDaySales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             
-            // UI表記の更新
-            document.getElementById('resDayBase').innerText = targetDaySales;
+            // 🌟 透明化：ベースの数値を明示
+            document.getElementById('resBaseSales').innerText = baseSales;
+            
             const shortageBoostDisplay = document.getElementById('resShortageBoost');
             if (shortageCoeff > 1.0) { shortageBoostDisplay.innerText = `(欠品底上げ済)`; } 
             else { shortageBoostDisplay.innerText = ""; }
+            
+            // 🌟 透明化：総合指数と、その内訳を見える化
             document.getElementById('resTotalFactor').innerText = totalFactor.toFixed(2);
+            
+            const formatImpact = (val, label) => {
+                if (Math.abs(val) < 0.01) return "";
+                return (val > 0 ? ` +${val.toFixed(2)}` : ` ${val.toFixed(2)}`) + `(${label})`;
+            };
+            document.getElementById('resDayImpact').innerText = formatImpact(dayImpact, '曜');
+            document.getElementById('resWeatherImpact').innerText = formatImpact(weatherImpact, '天');
+            document.getElementById('resTempImpact').innerText = formatImpact(tempImpact, '温');
+
             document.getElementById('resTempMessage').innerText = tempMessage;
             
             document.getElementById('resAdjSales').innerText = Math.ceil(adjustedSales);
