@@ -99,6 +99,7 @@
         .btn-weather:disabled { background: #C7C7CC; cursor: wait; box-shadow: none; }
         .weather-badge { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #fff; border-radius: 20px; font-size: 1.1rem; margin: 8px 0; font-weight: 800; color: #1C1C1E; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #E5E5EA; }
         .correction-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px; }
+        /* 🌟 現実的な変動数値に修正 */
         .corr-btn { padding: 14px 8px; border-radius: 12px; border: 2px solid transparent; background: #E5E5EA; color: #8E8E93; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-align: center; }
         .corr-btn.active { border-color: #007AFF; color: #007AFF; background: #E0F2FE; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.15); }
 
@@ -194,26 +195,6 @@
         <div class="card">
             <h3 class="section-title">販売・在庫データ</h3>
 
-            <details class="lecture-box">
-                <summary>💡 ストアパソコン データ抽出手順</summary>
-                <div class="lecture-content">
-                    <div class="step-group">
-                        <div class="step-title"><span>📊 販売データの確認</span><span class="step-note">※毎週月曜日に更新推奨</span></div>
-                        <div class="step-flow"><span>情報分析</span><div class="arrow">➔</div><span>機会損失状況</span><div class="arrow">➔</div><span>4週間一覧表(情報分類)</span></div>
-                        <div class="step-desc">
-                            表示された「4週間一覧表」から以下の数値をアプリに入力します。<br>
-                            ① 中央にある<strong>「販売数」「最高/最小販売数」「平均欠品率(%)」</strong><br>
-                            ② 右下にある<strong>「曜日毎の販売数（月〜日）」</strong>の個数
-                        </div>
-                    </div>
-                    <div class="step-group" style="margin-bottom: 0;">
-                        <div class="step-title"><span>📦 現在庫の確認</span></div>
-                        <div class="step-flow"><span>情報分析</span><div class="arrow">➔</div><span>期間損失状況</span><div class="arrow">➔</div><span>在庫推移表</span><div class="arrow">➔</div><span>PMA選択</span><div class="arrow">➔</div><span>情報分類選択</span><div class="arrow">➔</div><span>在庫推移表(単品)</span></div>
-                        <div class="step-desc">発注する時点の在庫数を確認して入力します。</div>
-                    </div>
-                </div>
-            </details>
-
             <div class="flex-row">
                 <div class="flex-col">
                     <label>
@@ -226,7 +207,6 @@
                 <div class="flex-col" style="position: relative;">
                     <label>
                         現在庫 (発注時)
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">発注時点の在庫数を入力します。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
                     <div id="stockMessageArea" style="display: none; background: rgba(0, 122, 255, 0.08); border: 2px dashed rgba(0, 122, 255, 0.3); border-radius: var(--radius-input); padding: 0 10px; text-align: center; color: var(--primary); font-size: 0.8rem; font-weight: 800; flex-direction: column; justify-content: center; align-items: center; height: 56px; line-height: 1.4;">
@@ -259,14 +239,12 @@
                 <div class="flex-col waste-input-box">
                     <label style="color: var(--danger);">
                         平均廃棄数
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">ロスが多い場合、無駄な発注を削るように自動補正します。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="avgWaste" value="3" min="0">
                 </div>
                 <div class="flex-col shortage-input-box">
                     <label style="color: #FF9500;">
                         平均欠品率 (%)
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">欠品による売り逃しを防ぐため、入力値から潜在需要を算出して底上げします。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100">
                 </div>
@@ -276,7 +254,6 @@
                 <div class="flex-col">
                     <label style="color: var(--primary);">
                         最低陳列量
-                        <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">売場のボリュームを維持するために、最低限確保したい陳列数です。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0">
                 </div>
@@ -300,10 +277,7 @@
             </div>
 
             <div class="form-group">
-                <label>
-                    曜日ごとの平均販売数 (個)
-                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">4週間一覧表の右下にある「曜日毎の販売数」をそのまま入力してください。</div></div>
-                </label>
+                <label>曜日ごとの平均販売数 (個)</label>
                 <div class="day-ratio-container">
                     <div class="day-ratio-box"><label>月</label><input type="number" id="ratio_mon" value="50"></div>
                     <div class="day-ratio-box"><label>火</label><input type="number" id="ratio_tue" value="50"></div>
@@ -353,10 +327,10 @@
             <div class="form-group">
                 <label>天候補正</label>
                 <div class="correction-btns" id="corr-btns">
-                    <button class="corr-btn" data-val="1.2" onclick="UI.setCorr(this)">🎉 イベント等 (+20%)</button>
+                    <button class="corr-btn" data-val="1.10" onclick="UI.setCorr(this)">🎉 イベント等 (+10%)</button>
                     <button class="corr-btn active" data-val="1.0" onclick="UI.setCorr(this)">☀️ 晴れ/曇/影響小 (±0%)</button>
-                    <button class="corr-btn" data-val="0.9" onclick="UI.setCorr(this)">🌦️ 一時雨/小雨 (-10%)</button>
-                    <button class="corr-btn" data-val="0.8" onclick="UI.setCorr(this)">🌧️ 本降りの雨/雪 (-20%)</button>
+                    <button class="corr-btn" data-val="0.95" onclick="UI.setCorr(this)">🌦️ 一時雨/小雨 (-5%)</button>
+                    <button class="corr-btn" data-val="0.85" onclick="UI.setCorr(this)">🌧️ 本降りの雨/雪 (-15%)</button>
                 </div>
                 <input type="hidden" id="weatherCoeff" value="1.0">
             </div>
@@ -388,7 +362,7 @@
                 (内訳: <strong>平均販売数 <span id="resBaseSales"></span> 個</strong> <span id="resShortageBoost" style="color:#FF9500; font-weight:bold;"></span> × 総合指数 <strong id="resTotalFactor"></strong> 倍)
             </div>
             <div class="result-item" style="font-size: 0.8rem; color: #8E8E93; margin-bottom: 12px; border-bottom: 1px dashed #3A3A3C; padding-bottom: 8px;">
-                [ 指数詳細: 基本1.00 <span id="resDayImpact"></span> <span id="resWeatherImpact"></span> <span id="resTempImpact"></span> ]
+                [ 算出根拠: 基本1.00 <span id="resDayImpact"></span> <span id="resWeatherImpact"></span> <span id="resTempImpact"></span> ] <span id="resSafetyLimiter" style="color:#FF3B30; font-weight:bold; margin-left:4px;"></span>
             </div>
 
             <div class="result-item" id="resTempMessage" style="color: #FFD60A; font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
@@ -411,10 +385,10 @@
             
             <div id="boostBreakdown" class="boost-breakdown">
                 <div class="boost-row" style="color: #AEAEB2; font-size: 0.95rem;">
-                    <span>通常算出:</span><span><strong id="resNormalQty" style="font-size: 1.2rem;"></strong> 個</span>
+                    <span>変動なしの場合:</span><span><strong id="resNormalQty" style="font-size: 1.2rem;"></strong> 個</span>
                 </div>
                 <div class="boost-row boost-highlight">
-                    <span id="boostLabelText">🔥 天候・気温の変動影響:</span><span><strong id="resBoostSign"></strong> <strong id="resBoostQty" style="font-size: 1.4rem;"></strong> 個</span>
+                    <span id="boostLabelText">🔥 変動要因による増減:</span><span><strong id="resBoostSign"></strong> <strong id="resBoostQty" style="font-size: 1.4rem;"></strong> 個</span>
                 </div>
             </div>
         </div>
@@ -745,9 +719,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
                 if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
                 
+                // 🌟 気象庁のテキストから天候係数を自動セット
                 let icon = '⛅', corrVal = "1.0";
-                if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.8"; }
-                else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.9"; }
+                if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.85"; }
+                else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.95"; }
                 else if (/晴|曇/.test(weatherText)) { icon='☀️'; corrVal="1.0"; }
 
                 const disp = document.getElementById('weather-display'); disp.style.display = 'inline-flex'; disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,20)}`;
@@ -764,7 +739,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Weather = Weather; 
 
-    // --- 計算ロジック (🌟 ベース販売数に対する「指数加算」ロジックへ完全移行) ---
+    // --- 計算ロジック ---
     const Logic = {
         getFreshnessHours(category) {
             switch(category) {
@@ -776,25 +751,26 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
+        // 🌟 現実的な気温の影響度（最大で±15%程度）に完全修正
         getTempCoeff(catVal, maxTemp, minTemp) {
             let tempCoeff = 1.0; let tempMessage = "";
             if (catVal === "調理麺") {
-                if (maxTemp >= 35) { tempCoeff = 1.50; tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
-                else if (maxTemp >= 30) { tempCoeff = 1.30; tempMessage = "☀️ 30℃超え！調理麺の飛躍的な売上増を予測"; }
-                else if (maxTemp >= 25) { tempCoeff = 1.15; tempMessage = "🔥 25℃超え。調理麺がよく動く気温です"; }
-                else if (maxTemp >= 20) { tempCoeff = 1.05; tempMessage = "🌤 20℃超え。調理麺が少しずつ動き出します"; }
-                else if (maxTemp < 10) { tempCoeff = 0.80; tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きはかなり鈍ります"; }
-                else if (maxTemp < 15) { tempCoeff = 0.90; tempMessage = "↓ 気温低下により調理麺予測をマイナス補正"; }
+                if (maxTemp >= 35) { tempCoeff = 1.15; tempMessage = "🌋 35℃超え！調理麺がよく売れる暑さです"; }
+                else if (maxTemp >= 30) { tempCoeff = 1.10; tempMessage = "☀️ 30℃超え！調理麺の売上増を予測"; }
+                else if (maxTemp >= 25) { tempCoeff = 1.05; tempMessage = "🔥 25℃超え。調理麺が少し動き出します"; }
+                else if (maxTemp < 10) { tempCoeff = 0.90; tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きは鈍ります"; }
+                else if (maxTemp < 15) { tempCoeff = 0.95; tempMessage = "↓ 気温低下により調理麺予測を微減補正"; }
                 else { tempCoeff = 1.0; tempMessage = "☁️ 過ごしやすい気温。調理麺は通常通りの動きです"; }
             } else if (catVal === "サラダ" || catVal === "カップデリ") {
-                if (maxTemp > 25) { tempCoeff = 1.10; tempMessage = "↑ 暑さにより予測を微増補正（夏型商材）"; }
-                else if (maxTemp < 15) { tempCoeff = 0.90; tempMessage = "↓ 気温低下により予測をマイナス補正"; }
+                if (maxTemp > 25) { tempCoeff = 1.05; tempMessage = "↑ 暑さにより予測を微増補正（夏型商材）"; }
+                else if (maxTemp < 15) { tempCoeff = 0.95; tempMessage = "↓ 気温低下により予測を微減補正"; }
             } else if (["カップ麺", "グラタンドリア", "スパゲティパスタ", "チルド弁当"].includes(catVal)) {
-                if (minTemp < 10) { tempCoeff = 1.15; tempMessage = "↑ 冷え込みにより予測をプラス（冬型商材）"; }
-                if (maxTemp > 25) { tempCoeff = 0.90; tempMessage = "↓ 暑さにより予測をマイナス補正"; }
+                if (minTemp < 5) { tempCoeff = 1.10; tempMessage = "↑ 強い冷え込みにより予測をプラス（冬型商材）"; }
+                else if (minTemp < 10) { tempCoeff = 1.05; tempMessage = "↑ 冷え込みにより予測を微増（冬型商材）"; }
+                else if (maxTemp > 25) { tempCoeff = 0.95; tempMessage = "↓ 暑さにより予測を微減補正"; }
             } else {
-                if (maxTemp > 30) { tempCoeff = 0.95; tempMessage = "↓ 猛暑による食欲減退を考慮して微減"; }
-                else if (maxTemp < 10) { tempCoeff = 0.95; tempMessage = "↓ 極寒による客数減を考慮して微減"; }
+                if (maxTemp > 35) { tempCoeff = 0.95; tempMessage = "↓ 猛暑による食欲減退を考慮して微減"; }
+                else if (maxTemp < 5) { tempCoeff = 0.95; tempMessage = "↓ 極寒による客数減を考慮して微減"; }
             }
             return { coeff: tempCoeff, message: tempMessage };
         },
@@ -859,10 +835,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
-                    // 🌟 修正：「平均販売数」を絶対的な基準（ベース）として再定義
                     const baseSales = avgSales;
 
-                    // 曜日指数の算出
                     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
                     let totalDaySales = 0;
                     days.forEach(d => { totalDaySales += (parseFloat(data.ratios[d]) || 0); });
@@ -881,15 +855,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
                     const stdDev = stdDev_raw * shortageCoeff;
                     
-                    // 🌟 修正：各指数を「変動％」に変換して加算合成する
                     const dayImpact = dayRatio - 1.0;
                     const weatherImpact = weatherCoeff - 1.0;
                     const tempImpact = tempInfo.coeff - 1.0;
                     
                     let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
-                    totalFactor = Math.max(0.3, totalFactor); // 暴落ストッパー
                     
-                    // 最終予測数 ＝ (基本平均販売数 × 欠品底上げ) × 総合合成指数
+                    // 🌟 絶対安全リミッター（最大±30%で制御）
+                    totalFactor = Math.max(0.70, Math.min(1.30, totalFactor)); 
+                    
                     const trueAvgSales = baseSales * shortageCoeff;
                     const adjustedSales = trueAvgSales * totalFactor;
 
@@ -923,7 +897,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return false; 
             }
 
-            // 🌟 絶対的ベースの「平均販売数」
+            // 🌟 基準（ベース）は平均販売数
             const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
             const baseSales = avgSales;
 
@@ -964,41 +938,43 @@ document.addEventListener("DOMContentLoaded", () => {
             const diffShortageRate = safeShortageRate - targetShortageRate;
             const stdDev = stdDev_raw * shortageCoeff; 
             
-            // 🌟 修正：各指数を「変動割合」として抽出し、安全に加算合成する
+            // 各指数を「変動割合」として加算合成
             const dayImpact = dayRatio - 1.0;
             const weatherImpact = weatherCoeff - 1.0;
             const tempImpact = tempInfo.coeff - 1.0;
             
             let totalFactor = 1.0 + dayImpact + weatherImpact + tempImpact;
-            totalFactor = Math.max(0.3, totalFactor); 
+            let limiterActive = false;
+
+            // 🌟 絶対安全リミッター（どんなに条件が重なっても上下30%まで）
+            if (totalFactor > 1.30) { totalFactor = 1.30; limiterActive = true; }
+            if (totalFactor < 0.70) { totalFactor = 0.70; limiterActive = true; }
             
-            // 最終予測数 ＝ (元の平均販売数 × 欠品底上げ) × 総合変動指数
+            // 最終予測数 ＝ (基本平均販売数 × 欠品底上げ) × 総合変動指数
             const trueAvgSales = baseSales * shortageCoeff;
             const adjustedSales = trueAvgSales * totalFactor;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, diffShortageRate);
             
             // 比較用（変動が一切なかった場合の基本値）
-            const normalResult = this.calculateCoreOrderQty(baseSales, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
+            const normalResult = this.calculateCoreOrderQty(trueAvgSales, stdDev_raw, 1, extraStockDays, minDisplayQty, effectiveCurrentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact, limiterActive);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, effectiveCurrentStock, baseSales, totalFactor, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, dayImpact, weatherImpact, tempImpact, limiterActive) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             
-            // 🌟 透明化：ベースの数値を明示
             document.getElementById('resBaseSales').innerText = baseSales;
             
             const shortageBoostDisplay = document.getElementById('resShortageBoost');
             if (shortageCoeff > 1.0) { shortageBoostDisplay.innerText = `(欠品底上げ済)`; } 
             else { shortageBoostDisplay.innerText = ""; }
             
-            // 🌟 透明化：総合指数と、その内訳を見える化
             document.getElementById('resTotalFactor').innerText = totalFactor.toFixed(2);
             
             const formatImpact = (val, label) => {
@@ -1008,6 +984,14 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('resDayImpact').innerText = formatImpact(dayImpact, '曜');
             document.getElementById('resWeatherImpact').innerText = formatImpact(weatherImpact, '天');
             document.getElementById('resTempImpact').innerText = formatImpact(tempImpact, '温');
+
+            // 🌟 リミッター発動時の警告表示
+            const limiterText = document.getElementById('resSafetyLimiter');
+            if (limiterActive) {
+                limiterText.innerText = "※変動上限(±30%)で安全制御";
+            } else {
+                limiterText.innerText = "";
+            }
 
             document.getElementById('resTempMessage').innerText = tempMessage;
             
