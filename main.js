@@ -153,12 +153,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
             
             if (tabId === 'all') Logic.calculateAll();
-            
-            // 曜日設定タブを開いた時に分類名を表示
-            if (tabId === 'ratio') {
-                const catName = State.data.currentCategory || "未選択";
-                document.getElementById('ratioTabCategoryName').innerText = catName;
-            }
         },
 
         onStoreChange() {
@@ -180,10 +174,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.updateFreshnessDisplay(cat);
             this.restoreCategoryInputs(); 
             Logic.calculate(true);
-            
-            // 分類を変更した時に曜日設定タブのラベルも連動して更新
-            const ratioTabLabel = document.getElementById('ratioTabCategoryName');
-            if (ratioTabLabel) ratioTabLabel.innerText = cat || "未選択";
         },
 
         renderStoreDatalist() {
@@ -254,8 +244,17 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('avgShortageRate').value = data.avgShortageRate; 
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
 
+            // 以前入力していたデータをプルダウンに反映させる処理
             Object.keys(data.ratios).forEach(d => {
-                document.getElementById('ratio_' + d).value = data.ratios[d];
+                let val = parseFloat(data.ratios[d]);
+                // 過去に「50」などで入力されていたデータは 1.0 に自動リセット、1.2などの指数はそのまま維持する
+                if (isNaN(val) || val >= 5) {
+                    val = 1.0;
+                }
+                const el = document.getElementById('ratio_' + d);
+                if (el) {
+                    el.value = val.toFixed(1);
+                }
             });
             
             this.updateFluctuationDisplay();
