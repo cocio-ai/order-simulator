@@ -153,6 +153,15 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
             
             if (tabId === 'all') Logic.calculateAll();
+
+            const stickyBar = document.getElementById('stickyResultBar');
+            if (stickyBar) {
+                if (tabId === 'simulator' && document.getElementById('resOrderQty').innerText !== "") {
+                    stickyBar.classList.add('show');
+                } else {
+                    stickyBar.classList.remove('show');
+                }
+            }
         },
 
         onStoreChange() {
@@ -244,10 +253,8 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('avgShortageRate').value = data.avgShortageRate; 
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
 
-            // 以前入力していたデータをプルダウンに反映させる処理
             Object.keys(data.ratios).forEach(d => {
                 let val = parseFloat(data.ratios[d]);
-                // 過去に「50」などで入力されていたデータは 1.0 に自動リセット、1.2などの指数はそのまま維持する
                 if (isNaN(val) || val >= 5) {
                     val = 1.0;
                 }
@@ -604,6 +611,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     document.getElementById('resultArea').style.display = 'none';
                     document.getElementById('warningArea').style.display = 'none';
                 }
+                const stickyBar = document.getElementById('stickyResultBar');
+                if (stickyBar) stickyBar.classList.remove('show');
                 return false; 
             }
 
@@ -655,7 +664,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
             
-            // バグ修正箇所：通常算出のベースからdayRatioとweatherCoeffを外す
             const normalResult = this.calculateCoreOrderQty(avgSales, stdDev_raw, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
@@ -738,6 +746,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const warnArea = document.getElementById('warningArea');
             if (warningTriggered) { document.getElementById('warningMessageText').innerHTML = warningMsgText; warnArea.style.display = 'block'; }
             else { warnArea.style.display = 'none'; }
+
+            document.getElementById('stickyAdjSales').innerText = Math.ceil(adjustedSales);
+            document.getElementById('stickyOrderQty').innerText = result.finalOrderQty;
+            document.getElementById('stickyResultBar').classList.add('show');
         }
     };
 
