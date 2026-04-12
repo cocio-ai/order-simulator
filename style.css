@@ -56,9 +56,6 @@ body::before {
 
 .card { background: var(--bg-card); border-radius: var(--radius-card); padding: 28px 24px; margin-bottom: 24px; box-shadow: var(--shadow-soft); border: 1px solid rgba(0, 136, 90, 0.1); }
 
-/* 画像保存時の背景確保用 */
-#captureArea { background: var(--bg-card); }
-
 /* 🌟 見出しに3色ラインを使用 */
 .section-title { font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
 .section-title::before { content: ''; display: inline-block; width: 6px; height: 20px; border-radius: 3px; background: linear-gradient(180deg, var(--seven-orange) 33.3%, var(--seven-green) 33.3%, var(--seven-green) 66.6%, var(--seven-red) 66.6%); }
@@ -127,13 +124,11 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
 .calc-button.loading .spinner { display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* 🌟 一括確認 グリッドレイアウト（スクショ画面対応） */
-#allResultsContainer { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.all-result-item { background: #F9F9F9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; border-bottom: 4px solid var(--seven-green); }
-.all-result-item:active { transform: scale(0.96); background: #F0F0F0; border-bottom-color: var(--seven-orange); }
-.all-result-cat { font-weight: 800; color: var(--text-main); font-size: 0.85rem; text-align: center; margin-bottom: 2px; }
-.all-result-qty { font-size: 1.7rem; font-weight: 900; color: var(--seven-green-dark); display: flex; align-items: baseline; gap: 2px; line-height: 1; font-feature-settings: "tnum"; }
-.all-result-qty span { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; }
+.all-result-item { background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s ease; border-left: 6px solid var(--seven-green); }
+.all-result-item:active { transform: scale(0.98); background: #F9F9F9; }
+.all-result-cat { font-weight: 800; color: var(--text-main); font-size: 1.05rem; }
+.all-result-qty { font-size: 1.8rem; font-weight: 900; color: var(--seven-green-dark); display: flex; align-items: baseline; gap: 4px; }
+.all-result-qty span { font-size: 1rem; color: var(--text-muted); font-weight: 700; }
 
 /* 🌟 算出結果エリア */
 .result-card { background: #FFFFFF; color: var(--text-main); border-radius: var(--radius-card); padding: 32px 24px; box-shadow: var(--shadow-float); border: 2px solid var(--seven-green); position: relative; overflow: hidden; }
