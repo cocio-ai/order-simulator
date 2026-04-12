@@ -6,7 +6,6 @@
     <meta name="theme-color" content="#F4F5F7">
     <title>ORDER SIMULATOR</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="main.js" defer></script>
 </head>
 <body>
@@ -322,24 +321,14 @@
     </div>
 
     <div id="tab-all" class="tab-content">
-        <div class="card" id="captureArea" style="padding: 20px;">
-            <h3 class="section-title" style="margin-bottom: 16px;">全分類 一括発注目安</h3>
-            <div id="captureHeader" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; border-bottom: 2px dashed var(--border); padding-bottom: 8px;">
-                <span id="allTabStoreNameDisplay" style="font-weight: 800; color: var(--primary); font-size: 1.1rem;">店舗未選択</span>
-                <span id="allTabDateDisplay" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;"></span>
-            </div>
-            <p id="allTabDesc" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; text-align: right;">
-                ※タップで個別計算に戻ります
+        <div class="card">
+            <h3 class="section-title">全分類 一括発注目安</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
+                ※現在選択中の店舗（<strong id="allTabStoreName" style="color: var(--primary);">未選択</strong>）に保存されたデータで一括計算しています。<br>
             </p>
             <div id="allResultsContainer"></div>
-        </div>
-        
-        <div style="display: flex; gap: 12px; margin-top: 20px;">
-            <button id="btn-refresh-all" class="calc-button" style="margin: 0; flex: 1; font-size: 1rem; padding: 16px;">
-                <span class="spinner" id="allSpinner"></span><span id="allBtnText">🔄 最新に更新</span>
-            </button>
-            <button id="btn-screenshot" class="calc-button" style="margin: 0; flex: 1; font-size: 1rem; padding: 16px; background: var(--seven-orange);">
-                📸 画像で保存
+            <button id="btn-refresh-all" class="calc-button" style="margin-top: 24px;">
+                <span class="spinner" id="allSpinner"></span><span id="allBtnText">🔄 最新情報で一括更新</span>
             </button>
         </div>
     </div>
