@@ -151,7 +151,14 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            
             if (tabId === 'all') Logic.calculateAll();
+            
+            // 曜日設定タブを開いた時に分類名を表示
+            if (tabId === 'ratio') {
+                const catName = State.data.currentCategory || "未選択";
+                document.getElementById('ratioTabCategoryName').innerText = catName;
+            }
         },
 
         onStoreChange() {
@@ -173,6 +180,10 @@ document.addEventListener("DOMContentLoaded", () => {
             this.updateFreshnessDisplay(cat);
             this.restoreCategoryInputs(); 
             Logic.calculate(true);
+            
+            // 分類を変更した時に曜日設定タブのラベルも連動して更新
+            const ratioTabLabel = document.getElementById('ratioTabCategoryName');
+            if (ratioTabLabel) ratioTabLabel.innerText = cat || "未選択";
         },
 
         renderStoreDatalist() {
@@ -226,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const defaults = {
                 avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
-                ratios: {mon:"50", tue:"50", wed:"50", thu:"50", fri:"55", sat:"60", sun:"55"}
+                ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"}
             };
 
             let data = defaults;
@@ -542,12 +553,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
-                    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-                    let totalDaySales = 0;
-                    days.forEach(d => { totalDaySales += (parseFloat(data.ratios[d]) || 0); });
-                    const avgDaySales = totalDaySales / 7;
-                    const targetDaySales = parseFloat(data.ratios[targetDay]) || 0;
-                    const dayRatio = avgDaySales > 0 ? (targetDaySales / avgDaySales) : 1.0;
+                    const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
                     
                     let shortageCoeff = 1.0;
                     if (safeShortageRate > targetShortageRate) {
@@ -631,12 +637,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
 
-            const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-            let totalDaySales = 0;
-            days.forEach(d => { totalDaySales += (parseFloat(document.getElementById('ratio_' + d).value) || 0); });
-            const avgDaySales = totalDaySales / 7;
-            const targetDaySales = parseFloat(document.getElementById('ratio_' + targetDay).value) || 0;
-            const dayRatio = avgDaySales > 0 ? (targetDaySales / avgDaySales) : 1.0;
+            const dayRatio = parseFloat(document.getElementById('ratio_' + targetDay).value) || 1.0;
 
             const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
@@ -655,7 +656,8 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
             
-            const normalResult = this.calculateCoreOrderQty(avgSales * dayRatio * weatherCoeff, stdDev_raw, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
+            // バグ修正箇所：通常算出のベースからdayRatioとweatherCoeffを外す
+            const normalResult = this.calculateCoreOrderQty(avgSales, stdDev_raw, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
                 this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
