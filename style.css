@@ -157,25 +157,27 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
 .btn-restore { background: var(--seven-green); }
 .btn-create:active, .btn-restore:active, .backup-btn:active { transform: scale(0.96); }
 
-/* ▼▼▼ 追従バーのスタイル ▼▼▼ */
+/* ▼▼▼ 追従バーのスタイル（堅牢版） ▼▼▼ */
 .sticky-result-bar {
     position: fixed;
-    bottom: 0;
+    bottom: -120px; /* transformではなくbottomで確実に画面外へ隠す */
     left: 0;
     width: 100%;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px calc(12px + var(--safe-bottom));
-    z-index: 1000;
-    transform: translateY(150%);
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    padding: 16px 24px calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: 9999; /* 他の要素に絶対負けないように最前面へ */
+    transition: bottom 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+    opacity: 0; /* 隠れている時は透明に */
+    pointer-events: none; /* 隠れている時は誤タッチを防ぐ */
 }
 
+/* ブランドカラーのライン */
 .sticky-result-bar::before {
     content: '';
     position: absolute;
@@ -184,24 +186,26 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
 }
 
 .sticky-result-bar.show {
-    transform: translateY(0);
+    bottom: 0;
+    opacity: 1;
+    pointer-events: auto; /* 表示されたらタッチ可能に */
 }
 
 .sticky-forecast {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: var(--text-muted);
     font-weight: 700;
 }
 
 .sticky-forecast span {
     color: var(--seven-green-dark);
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 900;
-    margin-left: 4px;
+    margin-left: 6px;
 }
 
 .sticky-order {
-    font-size: 1rem;
+    font-size: 1.05rem;
     color: var(--seven-green-dark);
     font-weight: 900;
     display: flex;
@@ -210,8 +214,9 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
 
 .sticky-order span {
     color: var(--seven-green);
-    font-size: 2.2rem;
+    font-size: 2.4rem;
     font-weight: 900;
     line-height: 1;
     margin: 0 4px 0 8px;
 }
+/* ▲▲▲ 追従バーのスタイルここまで ▲▲▲ */
