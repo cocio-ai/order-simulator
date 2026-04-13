@@ -538,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
             
             let html = '';
-            const order = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール", "スパゲティパスタ", "グラタンドリア", "カップ麺", "調理麺", "惣菜", "カップデリ", "サラダ"];
+            const order = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール", "調理麺", "カップ麺", "スパゲティパスタ", "グラタンドリア", "サラダ", "カップデリ", "惣菜"];
             
             order.forEach(catName => {
                 if (categoriesData[catName]) {
