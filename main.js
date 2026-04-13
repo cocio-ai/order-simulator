@@ -202,13 +202,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const displayInputArea = document.getElementById('displayInputArea');
 
             switch(category) {
-                case "おにぎり": case "こだわりおむすび": case "弁当":
+                case "おにぎり": case "こだわりおにぎり": case "弁当":
                     hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; break;
                 case "寿司": case "サンドイッチ": case "ロール":
                     hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; break;
                 case "調理麺": case "カップ麺": case "惣菜": case "サラダ":
                     hiddenVal.value = "38"; display.value = "維持ロジック (38H: +0.2日分)"; displayInputArea.style.display = "none"; break;
-                case "チルド弁当": case "スパゲティ・パスタ": case "グラタンドリア": case "カップデリ":
+                case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ":
                     hiddenVal.value = "60"; display.value = "維持ロジック (60H: +0.5日分)"; displayInputArea.style.display = "none"; break;
                 default:
                     hiddenVal.value = "0"; display.value = "上の分類を選択してください"; displayInputArea.style.display = "none";
@@ -457,17 +457,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const Logic = {
         getFreshnessHours(category) {
             switch(category) {
-                case "おにぎり": case "こだわりおむすび": case "弁当": return 14;
+                case "おにぎり": case "こだわりおにぎり": case "弁当": return 14;
                 case "寿司": case "サンドイッチ": case "ロール": return 23;
                 case "調理麺": case "カップ麺": case "惣菜": case "サラダ": return 38;
-                case "チルド弁当": case "スパゲティ・パスタ": case "グラタンドリア": case "カップデリ": return 60;
+                case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ": return 60;
                 default: return 0;
             }
         },
 
         getWeatherCoeffForCategory(catVal, baseWeatherCoeff) {
             if (baseWeatherCoeff >= 1.0) return baseWeatherCoeff;
-            if (["サンドイッチ", "ロール", "おにぎり", "こだわりおむすび", "調理麺"].includes(catVal)) {
+            if (["サンドイッチ", "ロール", "おにぎり", "こだわりおにぎり", "調理麺"].includes(catVal)) {
                 return baseWeatherCoeff; 
             }
             if (["カップ麺", "惣菜", "チルド弁当", "グラタンドリア"].includes(catVal)) {
@@ -489,7 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (catVal === "サラダ" || catVal === "カップデリ") {
                 if (maxTemp > 25) { tempCoeff = 1.0 + ((maxTemp - 25) * 0.03); tempMessage = "↑ 暑さにより予測をプラス補正（夏型商材）"; }
                 else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により予測をマイナス補正"; }
-            } else if (["カップ麺", "グラタンドリア", "スパゲティ・パスタ", "チルド弁当"].includes(catVal)) {
+            } else if (["カップ麺", "グラタンドリア", "スパゲティパスタ", "チルド弁当"].includes(catVal)) {
                 if (minTemp < 10) { tempCoeff = 1.0 + ((10 - minTemp) * 0.03); tempMessage = "↑ 冷え込みにより予測をプラス（冬型商材）"; }
                 if (maxTemp > 25) { tempCoeff = tempCoeff - ((maxTemp - 25) * 0.02); tempMessage = "↓ 暑さにより予測をマイナス補正"; }
             } else {
@@ -538,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
             
             let html = '';
-            const order = ["おにぎり", "こだわりおむすび", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール", "調理麺", "カップ麺", "スパゲティ・パスタ", "グラタンドリア", "サラダ", "カップデリ", "惣菜"];
+            const order = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール", "スパゲティパスタ", "グラタンドリア", "カップ麺", "調理麺", "惣菜", "カップデリ", "サラダ"];
             
             order.forEach(catName => {
                 if (categoriesData[catName]) {
@@ -583,13 +583,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
+                    // 販売予測数を算出（切り上げ）
                     const forecastQty = Math.ceil(adjustedSales);
 
                     html += `
                         <div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
                             <div class="all-result-cat">${catName}</div>
                             <div class="all-result-numbers">
-                                <div class="all-result-forecast">販売予測:<strong>${forecastQty}</strong></div>
+                                <div class="all-result-forecast">予測:<strong>${forecastQty}</strong></div>
                                 <div class="all-result-qty">${result.finalOrderQty}<span>個</span></div>
                             </div>
                         </div>
