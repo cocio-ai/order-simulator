@@ -583,10 +583,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
+                    // 販売予測数を算出（切り上げ）
+                    const forecastQty = Math.ceil(adjustedSales);
+
                     html += `
                         <div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
                             <div class="all-result-cat">${catName}</div>
-                            <div class="all-result-qty">${result.finalOrderQty} <span>個</span></div>
+                            <div class="all-result-numbers">
+                                <div class="all-result-forecast">予測:<strong>${forecastQty}</strong></div>
+                                <div class="all-result-qty">${result.finalOrderQty}<span>個</span></div>
+                            </div>
                         </div>
                     `;
                 }
