@@ -124,73 +124,73 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
 .calc-button.loading .spinner { display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-
-/* 🌟 一括確認用 超高密度グリッドレイアウト（スクショ用） */
+/* 🌟 一括確認用 グリッドレイアウト */
 #allResultsContainer {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* スマホ2列 */
-    gap: 4px; /* 極限まで隙間を詰める */
+    grid-template-columns: repeat(2, 1fr); /* iPhone用：2列 */
+    gap: 8px; /* 隙間を詰めて省スペース化 */
 }
 
+/* iPadなど画面が広い場合は3列にする */
 @media (min-width: 500px) {
     #allResultsContainer {
-        grid-template-columns: repeat(3, 1fr); /* iPadは3列 */
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
 .all-result-item { 
     background: #FFFFFF; 
     border: 1px solid var(--border); 
-    border-radius: 6px; /* 角丸を少し小さく */
-    padding: 6px 8px; /* 上下左右の余白を極限まで削る */
+    border-radius: 10px; 
+    padding: 10px 12px; /* 余白を削ってコンパクトに */
     display: flex; 
     flex-direction: column; 
     justify-content: space-between;
     cursor: pointer; 
     transition: all 0.2s ease; 
-    border-left: 4px solid var(--seven-green); 
+    border-left: 5px solid var(--seven-green); 
 }
 .all-result-item:active { transform: scale(0.96); background: #F9F9F9; }
 
 .all-result-cat { 
     font-weight: 800; 
     color: var(--text-main); 
-    font-size: 0.75rem; /* 文字を小さく */
-    margin-bottom: 2px; /* 余白を削る */
+    font-size: 0.85rem; 
+    margin-bottom: 8px;
     white-space: nowrap; 
     overflow: hidden;
-    text-overflow: ellipsis; /* 長い文字は「...」で省略 */
+    text-overflow: ellipsis; /* 長い文字(こだわりおにぎり等)は「...」で省略 */
 }
 
 .all-result-numbers {
     display: flex;
     justify-content: space-between;
-    align-items: baseline; /* 下揃えでスッキリさせる */
+    align-items: flex-end;
     width: 100%;
 }
 
 .all-result-forecast {
-    font-size: 0.65rem; /* 予測ラベルを極小化 */
+    font-size: 0.75rem;
     color: var(--text-muted);
     font-weight: 600;
 }
 .all-result-forecast strong {
-    font-size: 0.85rem;
+    font-size: 1rem;
     color: var(--seven-green-dark);
     margin-left: 2px;
 }
 
 .all-result-qty { 
-    font-size: 1.15rem; /* 発注数を少し小さくしつつ目立たせる */
+    font-size: 1.4rem; 
     font-weight: 900; 
     color: var(--seven-green); 
     line-height: 1; 
 }
 .all-result-qty span { 
-    font-size: 0.65rem; 
+    font-size: 0.75rem; 
     color: var(--text-muted); 
     font-weight: 700; 
-    margin-left: 1px; 
+    margin-left: 2px; 
 }
 
 /* 🌟 算出結果エリア */
