@@ -124,11 +124,74 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
 .calc-button.loading .spinner { display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.all-result-item { background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s ease; border-left: 6px solid var(--seven-green); }
-.all-result-item:active { transform: scale(0.98); background: #F9F9F9; }
-.all-result-cat { font-weight: 800; color: var(--text-main); font-size: 1.05rem; }
-.all-result-qty { font-size: 1.8rem; font-weight: 900; color: var(--seven-green-dark); display: flex; align-items: baseline; gap: 4px; }
-.all-result-qty span { font-size: 1rem; color: var(--text-muted); font-weight: 700; }
+/* 🌟 一括確認用 グリッドレイアウト */
+#allResultsContainer {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* iPhone用：2列 */
+    gap: 8px; /* 隙間を詰めて省スペース化 */
+}
+
+/* iPadなど画面が広い場合は3列にする */
+@media (min-width: 500px) {
+    #allResultsContainer {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.all-result-item { 
+    background: #FFFFFF; 
+    border: 1px solid var(--border); 
+    border-radius: 10px; 
+    padding: 10px 12px; /* 余白を削ってコンパクトに */
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-between;
+    cursor: pointer; 
+    transition: all 0.2s ease; 
+    border-left: 5px solid var(--seven-green); 
+}
+.all-result-item:active { transform: scale(0.96); background: #F9F9F9; }
+
+.all-result-cat { 
+    font-weight: 800; 
+    color: var(--text-main); 
+    font-size: 0.85rem; 
+    margin-bottom: 8px;
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis; /* 長い文字(こだわりおにぎり等)は「...」で省略 */
+}
+
+.all-result-numbers {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.all-result-forecast {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.all-result-forecast strong {
+    font-size: 1rem;
+    color: var(--seven-green-dark);
+    margin-left: 2px;
+}
+
+.all-result-qty { 
+    font-size: 1.4rem; 
+    font-weight: 900; 
+    color: var(--seven-green); 
+    line-height: 1; 
+}
+.all-result-qty span { 
+    font-size: 0.75rem; 
+    color: var(--text-muted); 
+    font-weight: 700; 
+    margin-left: 2px; 
+}
 
 /* 🌟 算出結果エリア */
 .result-card { background: #FFFFFF; color: var(--text-main); border-radius: var(--radius-card); padding: 32px 24px; box-shadow: var(--shadow-float); border: 2px solid var(--seven-green); position: relative; overflow: hidden; }
@@ -160,7 +223,7 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
 /* ▼▼▼ 追従バーのスタイル（堅牢版） ▼▼▼ */
 .sticky-result-bar {
     position: fixed;
-    bottom: -120px; /* transformではなくbottomで確実に画面外へ隠す */
+    bottom: -120px; 
     left: 0;
     width: 100%;
     background: rgba(255, 255, 255, 0.95);
@@ -171,10 +234,10 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
     justify-content: space-between;
     align-items: center;
     padding: 16px 24px calc(16px + env(safe-area-inset-bottom, 0px));
-    z-index: 9999; /* 他の要素に絶対負けないように最前面へ */
+    z-index: 9999; 
     transition: bottom 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
-    opacity: 0; /* 隠れている時は透明に */
-    pointer-events: none; /* 隠れている時は誤タッチを防ぐ */
+    opacity: 0; 
+    pointer-events: none; 
 }
 
 /* ブランドカラーのライン */
@@ -188,7 +251,7 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
 .sticky-result-bar.show {
     bottom: 0;
     opacity: 1;
-    pointer-events: auto; /* 表示されたらタッチ可能に */
+    pointer-events: auto; 
 }
 
 .sticky-forecast {
@@ -219,4 +282,3 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
     line-height: 1;
     margin: 0 4px 0 8px;
 }
-/* ▲▲▲ 追従バーのスタイルここまで ▲▲▲ */
