@@ -550,22 +550,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     const avgShortageRate = parseFloat(data.avgShortageRate) || 0; 
                     const safeShortageRate = Math.min(avgShortageRate, 90);
                     
-                    let targetShortageRate = safeShortageRate;
-                    if (safeShortageRate >= 20) targetShortageRate = 20;
-                    else if (safeShortageRate >= 10) targetShortageRate = 10;
-                    else if (safeShortageRate > 5) targetShortageRate = 5;
-
                     const currentStock = parseInt(data.currentStock) || 0;
                     const avgWaste = parseFloat(data.avgWaste) || 0;
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
                     const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
                     
+                    // --- 新しい欠品マイルド改善ロジック ---
                     let shortageCoeff = 1.0;
-                    if (safeShortageRate > targetShortageRate) {
-                        shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
+                    let diffShortageRate = 0;
+
+                    if (safeShortageRate > 20) {
+                        shortageCoeff = 1.0 + 0.03 + ((safeShortageRate - 20) * 0.004);
+                        diffShortageRate = safeShortageRate - 20; 
+                    } else if (safeShortageRate > 5) {
+                        shortageCoeff = 1.0 + (safeShortageRate * 0.002);
+                        diffShortageRate = safeShortageRate * 0.5;
+                    } else if (safeShortageRate > 0) {
+                        shortageCoeff = 1.01;
+                        diffShortageRate = safeShortageRate;
                     }
-                    const diffShortageRate = safeShortageRate - targetShortageRate;
                     
                     const maxS = parseFloat(data.maxSales) || 0;
                     const minS = parseFloat(data.minSales) || 0;
@@ -626,22 +630,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const avgShortageRate = parseFloat(document.getElementById('avgShortageRate').value) || 0; 
             const safeShortageRate = Math.min(avgShortageRate, 90); 
             
-            let targetShortageRate = safeShortageRate;
-            let shortageMsg = "";
-
-            if (safeShortageRate >= 20) {
-                targetShortageRate = 20;
-                shortageMsg = "🎯 [機会損失改善] 欠品率20%以下を目指して段階的に発注を底上げしました。";
-            } else if (safeShortageRate >= 10) {
-                targetShortageRate = 10;
-                shortageMsg = "🎯 [機会損失改善] 欠品率10%以下を目指して適正に発注を底上げしました。";
-            } else if (safeShortageRate > 5) {
-                targetShortageRate = 5;
-                shortageMsg = "🎯 [機会損失改善] 欠品率5%以下を目指して微増調整しました。";
-            } else if (safeShortageRate > 0) {
-                shortageMsg = "✨ 欠品率は非常に優秀です。現在のペースを維持します。";
-            }
-
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
             const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
             const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
@@ -656,13 +644,28 @@ document.addEventListener("DOMContentLoaded", () => {
             const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
             const weatherCoeff = this.getWeatherCoeffForCategory(catVal, baseWeatherCoeff); 
-            
-            let shortageCoeff = 1.0;
-            if (safeShortageRate > targetShortageRate) {
-                shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
-            }
-            const diffShortageRate = safeShortageRate - targetShortageRate;
 
+            // --- 新しい欠品マイルド改善ロジック(個別用) ---
+            let shortageCoeff = 1.0;
+            let diffShortageRate = 0;
+            let shortageMsg = "";
+
+            if (safeShortageRate > 20) {
+                shortageCoeff = 1.0 + 0.03 + ((safeShortageRate - 20) * 0.004);
+                diffShortageRate = safeShortageRate - 20;
+                shortageMsg = "🎯 [欠品改善] 欠品率20%以下を目標に、廃棄リスクを抑えつつマイルドに発注を底上げします。";
+            } else if (safeShortageRate > 5) {
+                shortageCoeff = 1.0 + (safeShortageRate * 0.002);
+                diffShortageRate = safeShortageRate * 0.5;
+                shortageMsg = "🌱 [欠品改善] 基準の20%以下はクリア。さらに緩やかに欠品を減らすため微増調整を行います。";
+            } else if (safeShortageRate > 0) {
+                shortageCoeff = 1.01;
+                diffShortageRate = safeShortageRate;
+                shortageMsg = "✨ [優秀] 欠品率は非常に低水準です。現状のペースを維持しつつ売り逃しを防ぎます。";
+            } else {
+                shortageMsg = "✨ 欠品なし！現在の素晴らしい発注精度を維持します。";
+            }
+            
             const trueAvgSales = avgSales * shortageCoeff;
             const stdDev = stdDev_raw * shortageCoeff; 
             
