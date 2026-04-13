@@ -321,13 +321,13 @@
     </div>
 
     <div id="tab-all" class="tab-content">
-        <div class="card" style="padding: 12px 10px; margin-bottom: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; border-bottom: 2px solid var(--border); padding-bottom: 6px;">
-                <h3 class="section-title" style="margin-bottom: 0; font-size: 1rem;">一括発注目安</h3>
-                <div style="font-size: 0.75rem; color: var(--seven-green-dark); font-weight: bold;">店舗: <span id="allTabStoreName">未選択</span></div>
-            </div>
+        <div class="card">
+            <h3 class="section-title">全分類 一括発注目安</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
+                ※現在選択中の店舗（<strong id="allTabStoreName" style="color: var(--primary);">未選択</strong>）に保存されたデータで一括計算しています。<br>
+            </p>
             <div id="allResultsContainer"></div>
-            <button id="btn-refresh-all" class="calc-button" style="margin-top: 12px; padding: 10px; font-size: 0.95rem; margin-bottom: 0;">
+            <button id="btn-refresh-all" class="calc-button" style="margin-top: 24px;">
                 <span class="spinner" id="allSpinner"></span><span id="allBtnText">🔄 最新情報で一括更新</span>
             </button>
         </div>
