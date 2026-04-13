@@ -173,7 +173,6 @@ input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-g
     font-size: 0.65rem; /* 予測ラベルを極小化 */
     color: var(--text-muted);
     font-weight: 600;
-    white-space: nowrap; /* 「販売予測」が折り返さないようにする */
 }
 .all-result-forecast strong {
     font-size: 0.85rem;
