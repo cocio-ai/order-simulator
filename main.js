@@ -1,764 +1,285 @@
-document.addEventListener("DOMContentLoaded", () => {
+:root {
+    /* 🌟 セブンイレブン ブランドカラー */
+    --seven-green: #00885A;
+    --seven-green-dark: #006643;
+    --seven-orange: #F58220;
+    --seven-red: #EE1C25;
+
+    --primary: var(--seven-green);       
+    --primary-dark: var(--seven-green-dark);  
+    --success: var(--seven-green);       
+    --danger: var(--seven-red);
+    --warning: var(--seven-orange);
     
-    // --- 状態管理 ---
-    const State = {
-        data: {
-            version: 1, 
-            currentStore: "", 
-            currentCategory: "",
-            stores: {} 
-        },
-
-        load() {
-            try {
-                const raw = localStorage.getItem('oms_unified_state_v1');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (parsed && parsed.stores) this.data = parsed;
-                }
-            } catch(e) { console.error("データ読み込みエラー", e); }
-        },
-
-        save() {
-            try { 
-                localStorage.setItem('oms_unified_state_v1', JSON.stringify(this.data));
-                UI.showSaveIndicator();
-            } catch(e) {
-                UI.showSaveError();
-            }
-        },
-
-        ensureStore(storeName) {
-            if (!storeName) return;
-            if (!this.data.stores[storeName]) {
-                this.data.stores[storeName] = { prefecture: "", cityArea: "", categories: {} };
-            }
-        },
-
-        updateInputData() {
-            const store = this.data.currentStore;
-            const cat = this.data.currentCategory;
-            if (!store || !cat) return;
-            
-            this.ensureStore(store);
-            if (!this.data.stores[store].categories) this.data.stores[store].categories = {};
-            
-            this.data.stores[store].categories[cat] = {
-                avgSales: document.getElementById('avgSales').value,
-                currentStock: document.getElementById('currentStock').value,
-                maxSales: document.getElementById('maxSales').value,
-                minSales: document.getElementById('minSales').value,
-                avgWaste: document.getElementById('avgWaste').value,
-                avgShortageRate: document.getElementById('avgShortageRate').value,
-                minDisplayQty: document.getElementById('minDisplayQty').value,
-                ratios: {
-                    mon: document.getElementById('ratio_mon').value,
-                    tue: document.getElementById('ratio_tue').value,
-                    wed: document.getElementById('ratio_wed').value,
-                    thu: document.getElementById('ratio_thu').value,
-                    fri: document.getElementById('ratio_fri').value,
-                    sat: document.getElementById('ratio_sat').value,
-                    sun: document.getElementById('ratio_sun').value
-                }
-            };
-            this.save();
-        }
-    };
-
-    // --- UI制御 ---
-    const UI = {
-        init() {
-            if (State.data.currentStore) {
-                document.getElementById('storeName').value = State.data.currentStore;
-            }
-            this.renderStoreDatalist();
-
-            if (State.data.currentCategory) {
-                document.getElementById('categoryName').value = State.data.currentCategory;
-                this.updateFreshnessDisplay(State.data.currentCategory);
-                this.restoreCategoryInputs(); 
-            }
-            
-            Weather.restoreStoreWeather();
-            this.setupEventListeners();
-        },
-
-        setupEventListeners() {
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
-            });
-
-            const storeInput = document.getElementById('storeName');
-            storeInput.addEventListener('change', () => this.onStoreChange());
-            storeInput.addEventListener('blur', () => this.onStoreChange());
-            storeInput.addEventListener('focus', function() { this.select(); });
-
-            document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
-
-            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
-                            'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
-            inputs.forEach(id => {
-                const el = document.getElementById(id);
-                if(el) {
-                    el.addEventListener('input', (e) => { 
-                        if (e.target.id === 'maxSales' || e.target.id === 'minSales') {
-                            this.updateFluctuationDisplay();
-                        }
-                        State.updateInputData(); 
-                        Logic.calculate(false); 
-                    });
-                    if(el.type === 'number') el.addEventListener('focus', function() { this.select(); });
-                }
-            });
-
-            document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false));
-            document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false));
-            document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false));
-            
-            document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
-            document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(1); });
-
-            const calcBtn = document.getElementById('btn-calculate');
-            const calcText = document.getElementById('btn-calc-text');
-            calcBtn.addEventListener('click', () => {
-                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-                calcBtn.classList.add('loading');
-                calcText.innerText = "データ解析中...";
-                
-                setTimeout(() => {
-                    const success = Logic.calculate(false);
-                    calcBtn.classList.remove('loading');
-                    calcText.innerText = "⚡ AI 発注シミュレーション実行";
-                    
-                    if (success) {
-                        setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-                    } else {
-                        alert("店舗名と対象分類を選択してください。");
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                }, 400); 
-            });
-
-            document.getElementById('btn-refresh-all').addEventListener('click', () => { Logic.calculateAll(); });
-            document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
-            document.getElementById('btn-copy').addEventListener('click', () => this.copyBackup());
-            document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
-        },
-
-        switchTab(tabId) {
-            if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-            document.getElementById('tabContainer').setAttribute('data-active-tab', tabId);
-            document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tabId).classList.add('active');
-            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-            
-            if (tabId === 'all') Logic.calculateAll();
-
-            const stickyBar = document.getElementById('stickyResultBar');
-            if (stickyBar) {
-                if (tabId === 'simulator' && document.getElementById('resOrderQty').innerText !== "") {
-                    stickyBar.classList.add('show');
-                } else {
-                    stickyBar.classList.remove('show');
-                }
-            }
-        },
-
-        onStoreChange() {
-            const s = document.getElementById('storeName').value.trim();
-            if (!s) return;
-            State.data.currentStore = s;
-            State.ensureStore(s);
-            State.save();
-            this.renderStoreDatalist();
-            this.restoreCategoryInputs();
-            Weather.restoreStoreWeather();
-            Logic.calculate(true);
-        },
-
-        onCategoryChange() {
-            const cat = document.getElementById('categoryName').value;
-            State.data.currentCategory = cat;
-            State.save();
-            this.updateFreshnessDisplay(cat);
-            this.restoreCategoryInputs(); 
-            Logic.calculate(true);
-        },
-
-        renderStoreDatalist() {
-            const dataList = document.getElementById('storeList');
-            dataList.innerHTML = '';
-            const stores = Object.keys(State.data.stores).filter(s => s.trim() !== "");
-            stores.forEach(store => {
-                let option = document.createElement('option');
-                option.value = store;
-                dataList.appendChild(option);
-            });
-        },
-
-        updateFreshnessDisplay(category) {
-            const display = document.getElementById('freshnessDisplay');
-            const hiddenVal = document.getElementById('freshnessTime');
-            const displayInputArea = document.getElementById('displayInputArea');
-
-            switch(category) {
-                case "おにぎり": case "こだわりおにぎり": case "弁当":
-                    hiddenVal.value = "14"; display.value = "最適化ロジック (約14H)"; displayInputArea.style.display = "flex"; break;
-                case "寿司": case "サンドイッチ": case "ロール":
-                    hiddenVal.value = "23"; display.value = "当日消化ロジック (約23H)"; displayInputArea.style.display = "flex"; break;
-                case "調理麺": case "カップ麺": case "惣菜": case "サラダ":
-                    hiddenVal.value = "38"; display.value = "維持ロジック (38H: +0.2日分)"; displayInputArea.style.display = "none"; break;
-                case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ":
-                    hiddenVal.value = "60"; display.value = "維持ロジック (60H: +0.5日分)"; displayInputArea.style.display = "none"; break;
-                default:
-                    hiddenVal.value = "0"; display.value = "上の分類を選択してください"; displayInputArea.style.display = "none";
-            }
-        },
-        
-        updateFluctuationDisplay() {
-            const max = Number(document.getElementById('maxSales').value) || 0;
-            const min = Number(document.getElementById('minSales').value) || 0;
-            const dispMax = document.getElementById('dispMax');
-            const dispMin = document.getElementById('dispMin');
-            const dispDiff = document.getElementById('dispDiff');
-            
-            if (dispMax && dispMin && dispDiff) {
-                dispMax.innerText = Math.max(max, min);
-                dispMin.innerText = Math.min(max, min);
-                dispDiff.innerText = Math.max(max, min) - Math.min(max, min);
-            }
-        },
-
-        restoreCategoryInputs() {
-            const store = State.data.currentStore;
-            const cat = State.data.currentCategory;
-            if (!store || !cat) return;
-            
-            const defaults = {
-                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
-                ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"}
-            };
-
-            let data = defaults;
-            if (State.data.stores[store] && State.data.stores[store].categories && State.data.stores[store].categories[cat]) {
-                const saved = State.data.stores[store].categories[cat];
-                data = { ...defaults, ...saved, ratios: { ...defaults.ratios, ...(saved.ratios || {}) } };
-            }
-
-            document.getElementById('avgSales').value = data.avgSales;
-            document.getElementById('currentStock').value = data.currentStock;
-            document.getElementById('maxSales').value = data.maxSales;
-            document.getElementById('minSales').value = data.minSales;
-            document.getElementById('avgWaste').value = data.avgWaste;
-            document.getElementById('avgShortageRate').value = data.avgShortageRate; 
-            document.getElementById('minDisplayQty').value = data.minDisplayQty;
-
-            Object.keys(data.ratios).forEach(d => {
-                let val = parseFloat(data.ratios[d]);
-                if (isNaN(val) || val >= 5) {
-                    val = 1.0;
-                }
-                const el = document.getElementById('ratio_' + d);
-                if (el) {
-                    el.value = val.toFixed(1);
-                }
-            });
-            
-            this.updateFluctuationDisplay();
-        },
-
-        setCorr(btn) {
-            document.querySelectorAll('.corr-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('weatherCoeff').value = btn.dataset.val;
-            Logic.calculate(false);
-        },
-
-        showSaveIndicator() {
-            const ind = document.getElementById('saveIndicator');
-            if(ind) { ind.innerText = "✓ 保存済"; setTimeout(() => { ind.innerText = ""; }, 2000); }
-        },
-        showSaveError() {
-            const ind = document.getElementById('saveIndicator');
-            if(ind) { ind.innerText = "⚠️ エラー"; }
-        },
-        exportBackup() {
-            const dataStr = JSON.stringify(State.data);
-            const encoded = btoa(unescape(encodeURIComponent(dataStr)));
-            const textArea = document.getElementById('backupCode');
-            textArea.value = encoded;
-            textArea.select();
-            alert("コードを作成しました！");
-        },
-        copyBackup() {
-            const textArea = document.getElementById('backupCode');
-            if (!textArea.value) return alert("先にコードを作成してください。");
-            textArea.select();
-            if (navigator.clipboard) { navigator.clipboard.writeText(textArea.value).then(() => alert("✅ コピーしました！")); } 
-            else { document.execCommand('copy'); alert("✅ コピーしました！"); }
-        },
-        importBackup() {
-            const textArea = document.getElementById('backupCode');
-            const encoded = textArea.value.trim();
-            if (!encoded) return alert("コードが入力されていません。");
-            try {
-                const parsed = JSON.parse(decodeURIComponent(escape(atob(encoded))));
-                if (parsed && parsed.stores) {
-                    State.data = parsed; State.save(); this.init(); 
-                    alert("復元に成功しました！"); textArea.value = ""; 
-                    this.switchTab('simulator'); window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-            } catch(e) { alert("コードの形式が間違っています。"); }
-        }
-    };
-
-    window.UI = UI; 
-    const Weather = {
-        restoreStoreWeather() {
-            const store = State.data.currentStore;
-            if (!store) return;
-            State.ensureStore(store);
-            const pref = State.data.stores[store].prefecture;
-            const city = State.data.stores[store].cityArea;
-
-            document.getElementById('prefecture').value = pref;
-            if (pref) {
-                this.fetchAreaList(pref, city);
-            } else {
-                document.getElementById('cityArea').innerHTML = '<option value="">-- エリア --</option>';
-            }
-        },
-
-        onPrefectureChange() {
-            const pref = document.getElementById('prefecture').value;
-            const store = State.data.currentStore;
-            if (!store) return;
-            State.ensureStore(store);
-            State.data.stores[store].prefecture = pref;
-            State.data.stores[store].cityArea = ""; 
-            State.save();
-            
-            if (pref) this.fetchAreaList(pref, null);
-        },
-
-        onCityAreaChange() {
-            const store = State.data.currentStore;
-            if(!store) return;
-            State.ensureStore(store);
-            State.data.stores[store].cityArea = document.getElementById('cityArea').value;
-            State.save();
-        },
-
-        async fetchAreaList(prefCode, targetCityCode) {
-            const areaSelect = document.getElementById('cityArea');
-            try {
-                const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
-                const data = await response.json();
-                let series = data[0].timeSeries.find(ts => ts.areas && ts.areas[0] && ts.areas[0].weathers) || data[0].timeSeries[0];
-                areaSelect.innerHTML = '';
-                series.areas.forEach((area) => {
-                    let opt = document.createElement('option');
-                    opt.value = area.area.code; opt.text = area.area.name; 
-                    areaSelect.appendChild(opt);
-                });
-                if (targetCityCode && Array.from(areaSelect.options).some(o => o.value === targetCityCode)) {
-                    areaSelect.value = targetCityCode;
-                }
-            } catch(e) { console.error("エリア取得失敗"); }
-        },
-
-        async fetchWeather(offset) {
-            const prefCode = document.getElementById('prefecture').value;
-            const areaCode = document.getElementById('cityArea').value;
-            if (!prefCode || !areaCode) { alert("都道府県とエリアを選択してください"); return; }
-            
-            const btn = offset === 1 ? document.getElementById('btn-weather-tmw') : document.getElementById('btn-weather-dat');
-            const originalText = btn.innerText;
-            btn.innerText = "取得中...";
-            btn.disabled = true;
-
-            try {
-                const response = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
-                const data = await response.json();
-
-                const targetDate = new Date();
-                targetDate.setDate(targetDate.getDate() + offset);
-                const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`; 
-
-                let minT = "", maxT = "", weatherText = "不明", wDate = targetDate;
-                
-                const getArea = (series) => {
-                    if (!series || !series.areas) return null;
-                    return series.areas.find(a => a.area && a.area.code === areaCode) || series.areas[0];
-                };
-
-                if (data[0] && data[0].timeSeries) {
-                    let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
-                    if (wSeries) {
-                        let idx = wSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        if (idx !== -1) {
-                            let aData = getArea(wSeries);
-                            if (aData && aData.weathers && aData.weathers[idx]) { weatherText = aData.weathers[idx]; wDate = new Date(wSeries.timeDefines[idx]); }
-                        } else if (wSeries.timeDefines.length > offset) {
-                            let aData = getArea(wSeries);
-                            if (aData && aData.weathers && aData.weathers[offset]) { weatherText = aData.weathers[offset]; wDate = new Date(wSeries.timeDefines[offset]); }
-                        }
-                    }
-                }
-                if (data[1] && data[1].timeSeries) {
-                    let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax);
-                    if (tSeries) {
-                        let idx = tSeries.timeDefines.findIndex(t => t.startsWith(targetDateStr));
-                        if (idx !== -1) {
-                            let aData = getArea(tSeries);
-                            if (aData) {
-                                if (aData.tempsMin && aData.tempsMin[idx]) minT = aData.tempsMin[idx];
-                                if (aData.tempsMax && aData.tempsMax[idx]) maxT = aData.tempsMax[idx];
-                            }
-                        }
-                    }
-                }
-
-                if (minT !== "" && !isNaN(minT)) document.getElementById('minTemp').value = minT;
-                if (maxT !== "" && !isNaN(maxT)) document.getElementById('maxTemp').value = maxT;
-                
-                let icon = '⛅', corrVal = "1.0";
-                if (/大雨|豪雨|暴風|大雪/.test(weatherText)) { icon='🌧️'; corrVal="0.8"; }
-                else if (/雨|雪/.test(weatherText)) { icon='🌦️'; corrVal="0.9"; }
-                else if (/晴|曇/.test(weatherText)) { icon='☀️'; corrVal="1.0"; }
-
-                const disp = document.getElementById('weather-display');
-                disp.style.display = 'inline-flex';
-                disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,20)}`;
-                
-                const days = ['日', '月', '火', '水', '木', '金', '土'];
-                document.getElementById('weather-date').innerText = `📅 対象日：${wDate.getFullYear()}/${wDate.getMonth() + 1}/${wDate.getDate()}(${days[wDate.getDay()]})`;
-                
-                const dayValue = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][wDate.getDay()];
-                document.getElementById('targetDay').value = dayValue;
-
-                document.querySelectorAll('.corr-btn').forEach(b => {
-                    if (b.dataset.val === corrVal) UI.setCorr(b);
-                });
-
-                Logic.calculate(false);
-            } catch (e) { 
-                console.error("天気データ取得エラー:", e);
-                alert("天気データの取得に失敗しました。");
-            } finally {
-                btn.innerText = originalText;
-                btn.disabled = false;
-            }
-        }
-    };
-    window.Weather = Weather; 
-
-    // --- 計算ロジック ---
-    const Logic = {
-        getFreshnessHours(category) {
-            switch(category) {
-                case "おにぎり": case "こだわりおにぎり": case "弁当": return 14;
-                case "寿司": case "サンドイッチ": case "ロール": return 23;
-                case "調理麺": case "カップ麺": case "惣菜": case "サラダ": return 38;
-                case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ": return 60;
-                default: return 0;
-            }
-        },
-
-        getWeatherCoeffForCategory(catVal, baseWeatherCoeff) {
-            if (baseWeatherCoeff >= 1.0) return baseWeatherCoeff;
-            if (["サンドイッチ", "ロール", "おにぎり", "こだわりおにぎり", "調理麺"].includes(catVal)) {
-                return baseWeatherCoeff; 
-            }
-            if (["カップ麺", "惣菜", "チルド弁当", "グラタンドリア"].includes(catVal)) {
-                return baseWeatherCoeff + (1.0 - baseWeatherCoeff) * 0.7; 
-            }
-            return baseWeatherCoeff + (1.0 - baseWeatherCoeff) * 0.3;
-        },
-
-        getTempCoeff(catVal, maxTemp, minTemp) {
-            let tempCoeff = 1.0; let tempMessage = "";
-            if (catVal === "調理麺") {
-                if (maxTemp >= 35) { tempCoeff = 1.0 + 0.10 + 0.30 + 0.50 + ((maxTemp - 35) * 0.15); tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
-                else if (maxTemp >= 30) { tempCoeff = 1.0 + 0.10 + 0.30 + ((maxTemp - 30) * 0.10); tempMessage = "☀️ 30℃超え！調理麺の飛躍的な売上増を予測"; }
-                else if (maxTemp >= 25) { tempCoeff = 1.0 + 0.10 + ((maxTemp - 25) * 0.06); tempMessage = "🔥 25℃超え。調理麺がよく動く気温です"; }
-                else if (maxTemp >= 20) { tempCoeff = 1.0 + ((maxTemp - 20) * 0.02); tempMessage = "🌤 20℃超え。調理麺が少しずつ動き出します"; }
-                else if (maxTemp < 10) { tempCoeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04); tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きはかなり鈍ります"; }
-                else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により調理麺予測をマイナス補正"; }
-                else { tempCoeff = 1.0; tempMessage = "☁️ 過ごしやすい気温。調理麺は通常通りの動きです"; }
-            } else if (catVal === "サラダ" || catVal === "カップデリ") {
-                if (maxTemp > 25) { tempCoeff = 1.0 + ((maxTemp - 25) * 0.03); tempMessage = "↑ 暑さにより予測をプラス補正（夏型商材）"; }
-                else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により予測をマイナス補正"; }
-            } else if (["カップ麺", "グラタンドリア", "スパゲティパスタ", "チルド弁当"].includes(catVal)) {
-                if (minTemp < 10) { tempCoeff = 1.0 + ((10 - minTemp) * 0.03); tempMessage = "↑ 冷え込みにより予測をプラス（冬型商材）"; }
-                if (maxTemp > 25) { tempCoeff = tempCoeff - ((maxTemp - 25) * 0.02); tempMessage = "↓ 暑さにより予測をマイナス補正"; }
-            } else {
-                if (maxTemp > 30) { tempCoeff = 0.95; tempMessage = "↓ 猛暑による食欲減退を考慮して微減"; }
-                else if (maxTemp < 10) { tempCoeff = 0.95; tempMessage = "↓ 極寒による客数減を考慮して微減"; }
-            }
-            tempCoeff = Math.max(0.3, Math.min(2.5, tempCoeff));
-            return { coeff: tempCoeff, message: tempMessage };
-        },
-
-        calculateCoreOrderQty(baseAdjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
-            const safetyStock = 1.645 * stdDev * Math.sqrt(1 + extraStockDays);
-            const systemBuffer = (baseAdjustedSales * extraStockDays) + safetyStock;
-            let appliedBuffer = (minDisplayQty > systemBuffer) ? minDisplayQty : systemBuffer;
-
-            const baseDemand = baseAdjustedSales + appliedBuffer;
-            let rawOrderQty = Math.max(0, Math.ceil(baseDemand - currentStock));
-
-            const wasteReductionRatio = Math.max(0, 1 - (diffShortageRate / 10));
-            const effectiveWaste = avgWaste * wasteReductionRatio;
-
-            let finalOrderQty = Math.max(0, rawOrderQty - effectiveWaste);
-
-            if (freshnessHours > 24) {
-                let maxOrderableQty = Math.max(0, Math.floor((baseAdjustedSales * (freshnessHours / 24)) - currentStock));
-                if (finalOrderQty > maxOrderableQty) finalOrderQty = maxOrderableQty;
-            }
-
-            return { finalOrderQty: Math.ceil(finalOrderQty), baseDemand, appliedBuffer, systemBuffer, effectiveWaste };
-        },
-
-        calculateAll() {
-            const storeName = State.data.currentStore;
-            const container = document.getElementById('allResultsContainer');
-            document.getElementById('allTabStoreName').innerText = storeName || "未選択";
-            
-            if (!storeName || !State.data.stores[storeName] || !State.data.stores[storeName].categories || Object.keys(State.data.stores[storeName].categories).length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">データがありません。<br><br>「個別計算」タブで分類を選択し、数値を入力してください。</div>';
-                return;
-            }
-            
-            const categoriesData = State.data.stores[storeName].categories;
-            const targetDay = document.getElementById('targetDay').value;
-            const baseWeatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
-            const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
-            const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
-            
-            let html = '';
-            const order = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール", "スパゲティパスタ", "グラタンドリア", "カップ麺", "調理麺", "惣菜", "カップデリ", "サラダ"];
-            
-            order.forEach(catName => {
-                if (categoriesData[catName]) {
-                    const data = categoriesData[catName];
-                    const freshnessHours = this.getFreshnessHours(catName);
-                    if(freshnessHours === 0) return;
-                    
-                    const avgSales = parseFloat(data.avgSales) || 0;
-                    const avgShortageRate = parseFloat(data.avgShortageRate) || 0; 
-                    const safeShortageRate = Math.min(avgShortageRate, 90);
-                    
-                    let targetShortageRate = safeShortageRate;
-                    if (safeShortageRate >= 20) targetShortageRate = 20;
-                    else if (safeShortageRate >= 10) targetShortageRate = 10;
-                    else if (safeShortageRate > 5) targetShortageRate = 5;
-
-                    const currentStock = parseInt(data.currentStock) || 0;
-                    const avgWaste = parseFloat(data.avgWaste) || 0;
-                    const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
-                    
-                    const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
-                    
-                    let shortageCoeff = 1.0;
-                    if (safeShortageRate > targetShortageRate) {
-                        shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
-                    }
-                    const diffShortageRate = safeShortageRate - targetShortageRate;
-                    
-                    const maxS = parseFloat(data.maxSales) || 0;
-                    const minS = parseFloat(data.minSales) || 0;
-                    const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
-                    const stdDev_raw = diff_raw / 4; 
-                    
-                    const tempInfo = this.getTempCoeff(catName, maxTemp, minTemp);
-                    const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
-                    const weatherCoeff = this.getWeatherCoeffForCategory(catName, baseWeatherCoeff); 
-                    
-                    const trueAvgSales = avgSales * shortageCoeff;
-                    const stdDev = stdDev_raw * shortageCoeff;
-                    
-                    const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
-
-                    const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
-                    
-                    // 販売予測数を算出（切り上げ）
-                    const forecastQty = Math.ceil(adjustedSales);
-
-                    html += `
-                        <div class="all-result-item" onclick="document.getElementById('categoryName').value='${catName}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
-                            <div class="all-result-cat">${catName}</div>
-                            <div class="all-result-numbers">
-                                <div class="all-result-forecast">予測:<strong>${forecastQty}</strong></div>
-                                <div class="all-result-qty">${result.finalOrderQty}<span>個</span></div>
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-            
-            container.innerHTML = html || '<div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">有効なカテゴリデータがありません。</div>';
-        },
-
-        calculate(silent = false) {
-            const storeName = document.getElementById('storeName').value.trim();
-            const catSelect = document.getElementById('categoryName');
-            const catVal = catSelect.value;
-            const freshnessHours = parseFloat(document.getElementById('freshnessTime').value);
-            
-            const maxS = parseFloat(document.getElementById('maxSales').value) || 0;
-            const minS = parseFloat(document.getElementById('minSales').value) || 0;
-            const diff_raw = Math.max(maxS, minS) - Math.min(maxS, minS);
-            const stdDev_raw = diff_raw / 4; 
-
-            if (!storeName || !catVal || freshnessHours === 0) {
-                if(!silent) {
-                    document.getElementById('resultArea').style.display = 'none';
-                    document.getElementById('warningArea').style.display = 'none';
-                }
-                const stickyBar = document.getElementById('stickyResultBar');
-                if (stickyBar) stickyBar.classList.remove('show');
-                return false; 
-            }
-
-            const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
-            const avgShortageRate = parseFloat(document.getElementById('avgShortageRate').value) || 0; 
-            const safeShortageRate = Math.min(avgShortageRate, 90); 
-            
-            let targetShortageRate = safeShortageRate;
-            let shortageMsg = "";
-
-            if (safeShortageRate >= 20) {
-                targetShortageRate = 20;
-                shortageMsg = "🎯 [機会損失改善] 欠品率20%以下を目指して段階的に発注を底上げしました。";
-            } else if (safeShortageRate >= 10) {
-                targetShortageRate = 10;
-                shortageMsg = "🎯 [機会損失改善] 欠品率10%以下を目指して適正に発注を底上げしました。";
-            } else if (safeShortageRate > 5) {
-                targetShortageRate = 5;
-                shortageMsg = "🎯 [機会損失改善] 欠品率5%以下を目指して微増調整しました。";
-            } else if (safeShortageRate > 0) {
-                shortageMsg = "✨ 欠品率は非常に優秀です。現在のペースを維持します。";
-            }
-
-            const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
-            const avgWaste = parseFloat(document.getElementById('avgWaste').value) || 0;
-            const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
-            
-            const targetDay = document.getElementById('targetDay').value;
-            const baseWeatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; 
-            const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
-            const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
-
-            const dayRatio = parseFloat(document.getElementById('ratio_' + targetDay).value) || 1.0;
-
-            const tempInfo = this.getTempCoeff(catVal, maxTemp, minTemp);
-            const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
-            const weatherCoeff = this.getWeatherCoeffForCategory(catVal, baseWeatherCoeff); 
-            
-            let shortageCoeff = 1.0;
-            if (safeShortageRate > targetShortageRate) {
-                shortageCoeff = (1 - (targetShortageRate / 100)) / (1 - (safeShortageRate / 100));
-            }
-            const diffShortageRate = safeShortageRate - targetShortageRate;
-
-            const trueAvgSales = avgSales * shortageCoeff;
-            const stdDev = stdDev_raw * shortageCoeff; 
-            
-            const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
-            
-            const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
-            
-            const normalResult = this.calculateCoreOrderQty(avgSales, stdDev_raw, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
-
-            if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
-            }
-            return true;
-        },
-
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
-            document.getElementById('resCategory').innerText = catName;
-            document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
-            document.getElementById('resBaseSales').innerText = avgSales;
-            
-            const shortageBoostDisplay = document.getElementById('resShortageBoost');
-            if (shortageCoeff > 1.0) {
-                shortageBoostDisplay.innerText = `(×欠品補正 ${shortageCoeff.toFixed(2)})`;
-            } else {
-                shortageBoostDisplay.innerText = "";
-            }
-
-            document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
-            document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(2);
-            document.getElementById('resTempRatio').innerText = tempCoeff.toFixed(2);
-            document.getElementById('resTempMessage').innerText = tempMessage;
-            
-            document.getElementById('resAdjSales').innerText = Math.ceil(adjustedSales);
-            document.getElementById('resOrderQty').innerText = result.finalOrderQty;
-
-            let boostQty = result.finalOrderQty - normalResult.finalOrderQty;
-            const boostDiv = document.getElementById('boostBreakdown');
-            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0)) {
-                document.getElementById('resNormalQty').innerText = normalResult.finalOrderQty;
-                document.getElementById('resBoostQty').innerText = boostQty;
-                const label = document.getElementById('boostLabelText');
-                if (shortageCoeff > 1.0) {
-                    label.innerText = "🔥 欠品対策＋条件ブースト:";
-                    label.style.color = "var(--warning)";
-                } else {
-                    label.innerText = tempCoeff >= 1.4 ? "🌋 超絶気温ブースト等:" : "🔥 気温・曜日ブースト等:";
-                    label.style.color = tempCoeff >= 1.4 ? "var(--danger)" : "var(--warning)";
-                }
-                boostDiv.style.display = 'block';
-            } else { boostDiv.style.display = 'none'; }
-
-            const targetStockArea = document.getElementById('targetStockArea');
-            if (minDisplayQty > result.systemBuffer || extraStockDays > 0 || (result.systemBuffer > 0 && minDisplayQty > 0)) {
-                document.getElementById('resTargetStock').innerText = Math.ceil(result.baseDemand);
-                document.getElementById('targetStockLabel').innerText = minDisplayQty > result.systemBuffer ? `(予測数 ＋ 設定最低陳列量 ${minDisplayQty}個 確保)` : (extraStockDays > 0 ? `(予測数 ＋ ${extraStockDays}日分の売場・安全在庫を上乗せ)` : `(予測数 ＋ 安全在庫確保 ※指定陳列量はクリア)`);
-                targetStockArea.style.display = 'block';
-            } else { targetStockArea.style.display = 'none'; }
-
-            let warningTriggered = false, warningMsgText = "", stockLabel = "", stockValue = "";
-            let rawOrderQty = Math.ceil(result.baseDemand - currentStock); 
-            
-            if (freshnessHours === 14) {
-                if (diffShortageRate > 0) {
-                    warningTriggered = true; warningMsgText = shortageMsg; stockLabel = "ロス削減(廃棄マイナス)制限中"; stockValue = `-${effectiveWaste.toFixed(1)} 個`;
-                } else if (rawOrderQty > (rawOrderQty - effectiveWaste)) {
-                    warningTriggered = true; warningMsgText = "⚠️ [ロス削減] 平均廃棄数を差し引き、無駄を削りました。"; stockLabel = "平均廃棄数マイナス調整"; stockValue = "-" + effectiveWaste.toFixed(1) + " 個";
-                } else {
-                     stockLabel = "鮮度上限チェック"; stockValue = "対象外 (短鮮度)";
-                }
-            } else {
-                let maxOrderableQty = Math.max(0, Math.floor((adjustedSales * (freshnessHours / 24)) - currentStock));
-                if (result.finalOrderQty === maxOrderableQty && maxOrderableQty < (rawOrderQty - effectiveWaste)) { 
-                    warningTriggered = true; warningMsgText = "⚠️ [鮮度警告] 鮮度時間を超えるため、上限でカットしました。"; stockLabel = "販売時間に基づく理論上限"; stockValue = maxOrderableQty + " 個"; 
-                } else if (diffShortageRate > 0) {
-                    warningTriggered = true; warningMsgText = shortageMsg; stockLabel = "ロス削減(廃棄マイナス)制限中"; stockValue = `-${effectiveWaste.toFixed(1)} 個`;
-                } else if (rawOrderQty > (rawOrderQty - effectiveWaste)) { 
-                    warningTriggered = true; warningMsgText = "⚠️ [ロス削減] 平均廃棄数を差し引き、無駄を削りました。"; stockLabel = "上限内 / 廃棄削減を適用"; stockValue = "-" + effectiveWaste.toFixed(1) + " 個"; 
-                } else { 
-                    stockLabel = "鮮度上限チェック"; stockValue = "クリア (問題なし)"; 
-                }
-            }
-            
-            document.getElementById('resMaxStockLabel').innerText = stockLabel;
-            document.getElementById('resMaxStock').innerText = stockValue;
-            
-            document.getElementById('resultArea').style.display = 'block';
-            const warnArea = document.getElementById('warningArea');
-            if (warningTriggered) { document.getElementById('warningMessageText').innerHTML = warningMsgText; warnArea.style.display = 'block'; }
-            else { warnArea.style.display = 'none'; }
-
-            document.getElementById('stickyAdjSales').innerText = Math.ceil(adjustedSales);
-            document.getElementById('stickyOrderQty').innerText = result.finalOrderQty;
-            document.getElementById('stickyResultBar').classList.add('show');
-        }
-    };
-
-    State.load();
-    UI.init();
-});
+    --bg-body: #F4F5F7;       
+    --bg-card: #FFFFFF;
+    --text-main: #222222;     
+    --text-muted: #666666;
+    --border: #E0E0E0;
+    --input-bg: #F9F9F9;
+    --radius-card: 20px;
+    --radius-input: 12px;
+    --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
+    --shadow-float: 0 10px 30px rgba(0, 136, 90, 0.1);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background-color: var(--bg-body); color: var(--text-main); line-height: 1.6; -webkit-text-size-adjust: 100%; }
+
+/* 🌟 トップのブランドライン */
+body::before {
+    content: '';
+    display: block;
+    height: 6px;
+    width: 100%;
+    position: fixed;
+    top: 0; left: 0; z-index: 1000;
+    background: linear-gradient(to right, var(--seven-orange) 33.3%, var(--seven-green) 33.3%, var(--seven-green) 66.6%, var(--seven-red) 66.6%);
+}
+
+.app-wrapper { padding: 40px 16px calc(150px + var(--safe-bottom)) 16px; max-width: 680px; margin: 0 auto; }
+
+.main-title { text-align: center; font-size: 1.6rem; font-weight: 900; letter-spacing: 0.05em; color: var(--seven-green-dark); margin-bottom: 28px; }
+
+.tab-container { display: flex; background: #E5E5EA; padding: 4px; border-radius: 12px; margin-bottom: 24px; position: relative; }
+.tab-button { flex: 1; padding: 10px 0; text-align: center; font-weight: 700; font-size: 0.9rem; color: var(--text-muted); background: transparent; border: none; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; z-index: 1; position: relative; }
+.tab-button.active { color: var(--seven-green-dark); }
+.tab-active-bg { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(33.333% - 4px); background: #FFFFFF; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 0; border-bottom: 3px solid var(--seven-green); }
+[data-active-tab="simulator"] .tab-active-bg { transform: translateX(0); }
+[data-active-tab="all"] .tab-active-bg { transform: translateX(100%); }
+[data-active-tab="backup"] .tab-active-bg { transform: translateX(200%); }
+
+.tab-content { display: none; animation: scaleIn 0.3s ease forwards; opacity: 0; transform: translateY(10px); }
+.tab-content.active { display: block; }
+@keyframes scaleIn { to { opacity: 1; transform: translateY(0); } }
+
+.card { background: var(--bg-card); border-radius: var(--radius-card); padding: 28px 24px; margin-bottom: 24px; box-shadow: var(--shadow-soft); border: 1px solid rgba(0, 136, 90, 0.1); }
+
+/* 🌟 見出しに3色ラインを使用 */
+.section-title { font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+.section-title::before { content: ''; display: inline-block; width: 6px; height: 20px; border-radius: 3px; background: linear-gradient(180deg, var(--seven-orange) 33.3%, var(--seven-green) 33.3%, var(--seven-green) 66.6%, var(--seven-red) 66.6%); }
+
+label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-muted); }
+.tip-wrap { position: relative; display: inline-flex; align-items: center; margin-left: 6px; }
+.tip-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #C7C7CC; color: #FFFFFF; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.tip-icon:hover { background: var(--seven-orange); }
+.tip-box { display: none; position: absolute; bottom: 130%; right: -10px; background: #333333; border-radius: 8px; padding: 12px 16px; font-size: 0.8rem; color: #FFFFFF; width: 220px; z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-weight: 500; line-height: 1.6; pointer-events: none; }
+.tip-box::after { content: ''; position: absolute; top: 100%; right: 15px; border-width: 6px; border-style: solid; border-color: #333333 transparent transparent transparent; }
+.tip-wrap:hover .tip-box, .tip-wrap:active .tip-box { display: block; }
+
+.lecture-box { background: #FFFFFF; border-radius: 12px; margin-bottom: 24px; border: 2px solid var(--border); overflow: hidden; transition: all 0.3s ease; }
+.lecture-box summary { padding: 16px 20px; font-weight: 800; color: var(--text-main); font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; background: #F9F9F9; }
+.lecture-box summary::-webkit-details-marker { display: none; }
+.lecture-box summary::after { content: '▼'; font-size: 0.8rem; font-weight: 400; color: var(--seven-green); transition: transform 0.3s ease; }
+.lecture-box[open] summary::after { transform: rotate(180deg); }
+.lecture-content { padding: 16px; font-size: 0.85rem; color: var(--text-muted); background: #FFFFFF; }
+.step-group { background: #F4F8F6; border-radius: 8px; padding: 14px; margin-bottom: 12px; border: 1px solid rgba(0, 136, 90, 0.15); }
+.step-title { font-size: 0.95rem; font-weight: 800; color: var(--seven-green-dark); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.step-note { font-size: 0.75rem; color: var(--seven-red); background: rgba(238, 28, 37, 0.1); padding: 4px 8px; border-radius: 4px; font-weight: 700; }
+.step-flow { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-bottom: 8px; }
+.step-flow span { background: #FFFFFF; color: var(--text-main); font-size: 0.8rem; font-weight: 700; padding: 4px 8px; border-radius: 4px; border: 1px solid #D1D1D6; }
+.step-flow .arrow { color: var(--seven-green); font-size: 0.9rem; font-weight: 900; }
+.step-desc { font-size: 0.85rem; color: var(--text-main); font-weight: 600; line-height: 1.6; padding-left: 8px; border-left: 3px solid var(--seven-orange); }
+
+.flex-row { display: flex; gap: 16px; margin-bottom: 20px; }
+.flex-col { flex: 1; }
+.flex-col .form-group { margin-bottom: 0; }
+
+input[type="number"], input[type="text"], select { width: 100%; padding: 16px; font-size: 16px; font-weight: 700; border: 2px solid var(--border); border-radius: var(--radius-input); background-color: var(--input-bg); color: var(--text-main); transition: all 0.2s ease; appearance: none; -webkit-appearance: none; }
+select { cursor: pointer; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300885A' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 16px center; background-size: 16px; padding-right: 44px; }
+input:focus, select:focus { outline: none; background-color: #FFFFFF; border-color: var(--seven-green); box-shadow: 0 0 0 4px rgba(0, 136, 90, 0.15); }
+input[readonly] { background-color: rgba(0, 136, 90, 0.05); color: var(--seven-green-dark); border: 2px solid rgba(0, 136, 90, 0.2); text-align: center; }
+
+.info-box { background: rgba(245, 130, 32, 0.1); border-radius: 12px; padding: 16px; font-size: 0.85rem; color: #D66D14; margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; border: 1px solid rgba(245, 130, 32, 0.2); font-weight: 700; }
+.waste-input-box input { background-color: rgba(238, 28, 37, 0.05); color: var(--seven-red); border-color: rgba(238, 28, 37, 0.2); }
+.shortage-input-box input { background-color: rgba(245, 130, 32, 0.05); color: #D66D14; border-color: rgba(245, 130, 32, 0.3); }
+.display-input-box { display: none; }
+
+.day-ratio-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: transparent; }
+.day-ratio-box input { padding: 12px 4px; font-size: 15px; text-align: center; background-color: var(--input-bg); }
+.day-sat label { color: #007AFF !important; }
+.day-sun label { color: var(--seven-red) !important; }
+
+.weather-auto-area { background: #F9F9F9; padding: 24px; border-radius: var(--radius-card); border: 1px solid var(--border); }
+.weather-header { color: var(--text-main); font-size: 1rem; font-weight: 800; border-bottom: 2px dashed var(--border); padding-bottom: 12px; margin-bottom: 16px; }
+
+.weather-btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.btn-weather { padding: 12px 14px; background: var(--seven-green); border: none; border-radius: 8px; color: #fff; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: 0.2s; flex: 1; min-width: 140px; }
+.btn-weather:active { transform: scale(0.96); opacity: 0.9; }
+.btn-weather:disabled { background: #C7C7CC; cursor: wait; }
+
+.weather-badge { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #fff; border-radius: 8px; font-size: 1.1rem; margin: 8px 0; font-weight: 800; color: #1C1C1E; border: 2px solid var(--seven-green); }
+
+.correction-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px; }
+.corr-btn { padding: 14px 8px; border-radius: 8px; border: 2px solid var(--border); background: #FFFFFF; color: var(--text-muted); font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-align: center; }
+.corr-btn.active { border-color: var(--seven-orange); color: var(--seven-orange); background: rgba(245, 130, 32, 0.05); }
+
+/* 🌟 メインの計算ボタン */
+.calc-button { width: 100%; padding: 20px; background: var(--seven-green); color: white; border: none; border-radius: 12px; font-size: 1.2rem; font-weight: 800; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s; box-shadow: 0 6px 15px rgba(0, 136, 90, 0.3); display: flex; justify-content: center; align-items: center; gap: 10px; margin: 10px 0 30px; position: relative; overflow: hidden; }
+.calc-button::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(to right, var(--seven-orange) 33.3%, var(--seven-green) 33.3%, var(--seven-green) 66.6%, var(--seven-red) 66.6%); }
+.calc-button:active { transform: scale(0.97); box-shadow: 0 2px 8px rgba(0, 136, 90, 0.3); }
+.calc-button.loading { opacity: 0.9; cursor: wait; pointer-events: none; }
+.spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.8s ease-in-out infinite; display: none; }
+.calc-button.loading .spinner { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+
+/* 🌟 一括確認用 超高密度グリッドレイアウト（スクショ用） */
+#allResultsContainer {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* スマホ2列 */
+    gap: 4px; /* 極限まで隙間を詰める */
+}
+
+@media (min-width: 500px) {
+    #allResultsContainer {
+        grid-template-columns: repeat(3, 1fr); /* iPadは3列 */
+    }
+}
+
+.all-result-item { 
+    background: #FFFFFF; 
+    border: 1px solid var(--border); 
+    border-radius: 6px; /* 角丸を少し小さく */
+    padding: 6px 8px; /* 上下左右の余白を極限まで削る */
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-between;
+    cursor: pointer; 
+    transition: all 0.2s ease; 
+    border-left: 4px solid var(--seven-green); 
+}
+.all-result-item:active { transform: scale(0.96); background: #F9F9F9; }
+
+.all-result-cat { 
+    font-weight: 800; 
+    color: var(--text-main); 
+    font-size: 0.75rem; /* 文字を小さく */
+    margin-bottom: 2px; /* 余白を削る */
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis; /* 長い文字は「...」で省略 */
+}
+
+.all-result-numbers {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline; /* 下揃えでスッキリさせる */
+    width: 100%;
+}
+
+.all-result-forecast {
+    font-size: 0.65rem; /* 予測ラベルを極小化 */
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap; /* 「販売予測」が折り返さないようにする */
+}
+.all-result-forecast strong {
+    font-size: 0.85rem;
+    color: var(--seven-green-dark);
+    margin-left: 2px;
+}
+
+.all-result-qty { 
+    font-size: 1.15rem; /* 発注数を少し小さくしつつ目立たせる */
+    font-weight: 900; 
+    color: var(--seven-green); 
+    line-height: 1; 
+}
+.all-result-qty span { 
+    font-size: 0.65rem; 
+    color: var(--text-muted); 
+    font-weight: 700; 
+    margin-left: 1px; 
+}
+
+/* 🌟 算出結果エリア */
+.result-card { background: #FFFFFF; color: var(--text-main); border-radius: var(--radius-card); padding: 32px 24px; box-shadow: var(--shadow-float); border: 2px solid var(--seven-green); position: relative; overflow: hidden; }
+.result-card .section-title { color: var(--seven-green-dark); }
+.result-header { font-size: 1.3rem; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 16px; font-weight: 800; }
+.result-item { margin-bottom: 14px; font-size: 0.95rem; color: var(--text-muted); font-weight: 700; }
+.result-item strong { color: var(--text-main); font-size: 1.1rem; }
+
+.forecast-panel { background: #F9F9F9; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin: 24px 0; border: 1px solid var(--border); }
+.forecast-panel .f-value { font-size: 2rem; font-weight: 900; color: var(--seven-green-dark); }
+
+.order-panel { background: rgba(0, 136, 90, 0.05); border: 2px solid var(--seven-green); border-radius: 16px; padding: 36px 20px; text-align: center; margin-bottom: 24px; }
+.order-panel .o-label { font-size: 1.1rem; font-weight: 900; color: var(--seven-green-dark); margin-bottom: 16px; }
+.order-panel .o-value { font-size: 6rem; font-weight: 900; color: var(--seven-green); line-height: 1; font-feature-settings: "tnum"; }
+.order-panel .o-unit { font-size: 1.5rem; color: var(--seven-green-dark); margin-left: 8px; font-weight: 800; }
+
+.boost-breakdown { background: #F9F9F9; border-radius: 12px; padding: 20px; border: 1px dashed var(--border); }
+.boost-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 700; }
+.boost-highlight { color: var(--seven-orange); font-size: 1.1rem; font-weight: 900; }
+
+.alert-box { background: rgba(238, 28, 37, 0.05); border-left: 6px solid var(--seven-red); padding: 16px; border-radius: 8px; font-size: 0.95rem; color: var(--seven-red); margin-top: 24px; font-weight: 700; display: none; }
+
+.backup-textarea { font-family: monospace; padding: 16px; background: #F9F9F9; border: 1px solid var(--border); font-size: 12px; color: #333; border-radius: 8px; margin-bottom: 16px; line-height: 1.5; }
+.backup-btn { flex: 1; padding: 16px; border-radius: 10px; font-weight: 800; font-size: 1rem; color: #fff; border: none; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.btn-create { background: var(--text-muted); }
+.btn-restore { background: var(--seven-green); }
+.btn-create:active, .btn-restore:active, .backup-btn:active { transform: scale(0.96); }
+
+/* ▼▼▼ 追従バーのスタイル（堅牢版） ▼▼▼ */
+.sticky-result-bar {
+    position: fixed;
+    bottom: -120px; 
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: 9999; 
+    transition: bottom 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+    opacity: 0; 
+    pointer-events: none; 
+}
+
+/* ブランドカラーのライン */
+.sticky-result-bar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 4px;
+    background: linear-gradient(to right, var(--seven-orange) 33.3%, var(--seven-green) 33.3%, var(--seven-green) 66.6%, var(--seven-red) 66.6%);
+}
+
+.sticky-result-bar.show {
+    bottom: 0;
+    opacity: 1;
+    pointer-events: auto; 
+}
+
+.sticky-forecast {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.sticky-forecast span {
+    color: var(--seven-green-dark);
+    font-size: 1.5rem;
+    font-weight: 900;
+    margin-left: 6px;
+}
+
+.sticky-order {
+    font-size: 1.05rem;
+    color: var(--seven-green-dark);
+    font-weight: 900;
+    display: flex;
+    align-items: baseline;
+}
+
+.sticky-order span {
+    color: var(--seven-green);
+    font-size: 2.4rem;
+    font-weight: 900;
+    line-height: 1;
+    margin: 0 4px 0 8px;
+}
