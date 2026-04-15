@@ -477,15 +477,26 @@ document.addEventListener("DOMContentLoaded", () => {
         },
 
         getTempCoeff(catVal, maxTemp, minTemp) {
-            let tempCoeff = 1.0; let tempMessage = "";
+            let tempCoeff = 1.0; 
+            let fixedBoost = 0; 
+            let tempMessage = "";
+            
             if (catVal === "調理麺") {
-                if (maxTemp >= 35) { tempCoeff = 1.0 + 0.10 + 0.30 + 0.50 + ((maxTemp - 35) * 0.15); tempMessage = "🌋 35℃超え！調理麺が爆発的に売れる暑さです"; }
-                else if (maxTemp >= 30) { tempCoeff = 1.0 + 0.10 + 0.30 + ((maxTemp - 30) * 0.10); tempMessage = "☀️ 30℃超え！調理麺の飛躍的な売上増を予測"; }
-                else if (maxTemp >= 25) { tempCoeff = 1.0 + 0.10 + ((maxTemp - 25) * 0.06); tempMessage = "🔥 25℃超え。調理麺がよく動く気温です"; }
-                else if (maxTemp >= 20) { tempCoeff = 1.0 + ((maxTemp - 20) * 0.02); tempMessage = "🌤 20℃超え。調理麺が少しずつ動き出します"; }
-                else if (maxTemp < 10) { tempCoeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04); tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きはかなり鈍ります"; }
-                else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により調理麺予測をマイナス補正"; }
-                else { tempCoeff = 1.0; tempMessage = "☁️ 過ごしやすい気温。調理麺は通常通りの動きです"; }
+                if (maxTemp > 25) {
+                    tempCoeff = 1.0; // 係数でのアップはせず、固定数で足す
+                    let overDegrees = Math.floor(maxTemp) - 26;
+                    if(overDegrees < 0) overDegrees = 0; 
+                    fixedBoost = 10 + (overDegrees * 3);
+                    tempMessage = `🔥 25℃超え特別ブースト！猛暑需要としてダイレクトに +${fixedBoost}個 加算します`;
+                } else if (maxTemp >= 20) { 
+                    tempCoeff = 1.0 + ((maxTemp - 20) * 0.02); tempMessage = "🌤 20℃超え。調理麺が少しずつ動き出します"; 
+                } else if (maxTemp < 10) { 
+                    tempCoeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04); tempMessage = "❄️ 10℃未満の冷え込み。調理麺の動きはかなり鈍ります"; 
+                } else if (maxTemp < 15) { 
+                    tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により調理麺予測をマイナス補正"; 
+                } else { 
+                    tempCoeff = 1.0; tempMessage = "☁️ 過ごしやすい気温。調理麺は通常通りの動きです"; 
+                }
             } else if (catVal === "サラダ" || catVal === "カップデリ") {
                 if (maxTemp > 25) { tempCoeff = 1.0 + ((maxTemp - 25) * 0.03); tempMessage = "↑ 暑さにより予測をプラス補正（夏型商材）"; }
                 else if (maxTemp < 15) { tempCoeff = 1.0 - ((15 - maxTemp) * 0.02); tempMessage = "↓ 気温低下により予測をマイナス補正"; }
@@ -497,7 +508,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 else if (maxTemp < 10) { tempCoeff = 0.95; tempMessage = "↓ 極寒による客数減を考慮して微減"; }
             }
             tempCoeff = Math.max(0.3, Math.min(2.5, tempCoeff));
-            return { coeff: tempCoeff, message: tempMessage };
+            return { coeff: tempCoeff, fixedBoost: fixedBoost, message: tempMessage };
         },
 
         calculateCoreOrderQty(baseAdjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate = 0) {
@@ -583,7 +594,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const trueAvgSales = avgSales * shortageCoeff;
                     const stdDev = stdDev_raw * shortageCoeff;
                     
-                    const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+                    // 固定数アップのロジックを加算
+                    const adjustedSales = (trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost;
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
@@ -669,19 +681,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const trueAvgSales = avgSales * shortageCoeff;
             const stdDev = stdDev_raw * shortageCoeff; 
             
-            const adjustedSales = trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff;
+            // 固定数アップのロジックを加算
+            const adjustedSales = (trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
             
             const normalResult = this.calculateCoreOrderQty(avgSales, stdDev_raw, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, tempInfo.fixedBoost);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, fixedBoost) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             document.getElementById('resBaseSales').innerText = avgSales;
@@ -695,7 +708,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
             document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(2);
-            document.getElementById('resTempRatio').innerText = tempCoeff.toFixed(2);
+            
+            // 特別ブースト（固定数）がある場合の表示を更新
+            document.getElementById('resTempRatio').innerText = fixedBoost > 0 ? `${tempCoeff.toFixed(2)} (+${fixedBoost}個)` : tempCoeff.toFixed(2);
             document.getElementById('resTempMessage').innerText = tempMessage;
             
             document.getElementById('resAdjSales').innerText = Math.ceil(adjustedSales);
@@ -703,7 +718,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let boostQty = result.finalOrderQty - normalResult.finalOrderQty;
             const boostDiv = document.getElementById('boostBreakdown');
-            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0)) {
+            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0 || fixedBoost > 0)) {
                 document.getElementById('resNormalQty').innerText = normalResult.finalOrderQty;
                 document.getElementById('resBoostQty').innerText = boostQty;
                 const label = document.getElementById('boostLabelText');
@@ -711,8 +726,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     label.innerText = "🔥 欠品対策＋条件ブースト:";
                     label.style.color = "var(--warning)";
                 } else {
-                    label.innerText = tempCoeff >= 1.4 ? "🌋 超絶気温ブースト等:" : "🔥 気温・曜日ブースト等:";
-                    label.style.color = tempCoeff >= 1.4 ? "var(--danger)" : "var(--warning)";
+                    label.innerText = (tempCoeff >= 1.4 || fixedBoost > 0) ? "🌋 猛暑特別ブースト等:" : "🔥 気温・曜日ブースト等:";
+                    label.style.color = (tempCoeff >= 1.4 || fixedBoost > 0) ? "var(--danger)" : "var(--warning)";
                 }
                 boostDiv.style.display = 'block';
             } else { boostDiv.style.display = 'none'; }
