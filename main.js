@@ -166,7 +166,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         onStoreChange() {
             const s = document.getElementById('storeName').value.trim();
-            if (!s) return;
+            // 未入力、もしくは現在の店舗と同じ場合は処理をスキップ
+            if (!s || s === State.data.currentStore) return;
+
+            // ★修正ポイント：店舗を切り替える直前に、現在の入力状態を古い店舗へ強制セーブ
+            State.updateInputData();
+
             State.data.currentStore = s;
             State.ensureStore(s);
             State.save();
@@ -178,6 +183,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         onCategoryChange() {
             const cat = document.getElementById('categoryName').value;
+            // 同じ分類が選ばれた場合はスキップ
+            if (cat === State.data.currentCategory) return;
+
+            // ★修正ポイント：分類を切り替える直前に、現在の入力状態を古い分類へ強制セーブ
+            State.updateInputData();
+
             State.data.currentCategory = cat;
             State.save();
             this.updateFreshnessDisplay(cat);
@@ -483,7 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (catVal === "調理麺") {
                 if (maxTemp > 25) {
-                    tempCoeff = 1.0; // 係数でのアップはせず、固定数で足す
+                    tempCoeff = 1.0;
                     let overDegrees = Math.floor(maxTemp) - 26;
                     if(overDegrees < 0) overDegrees = 0; 
                     fixedBoost = 10 + (overDegrees * 3);
@@ -567,7 +578,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
                     
-                    // --- 新しい欠品マイルド改善ロジック ---
                     let shortageCoeff = 1.0;
                     let diffShortageRate = 0;
 
@@ -594,12 +604,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     const trueAvgSales = avgSales * shortageCoeff;
                     const stdDev = stdDev_raw * shortageCoeff;
                     
-                    // 固定数アップのロジックを加算
                     const adjustedSales = (trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost;
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
-                    // 販売予測数を算出（切り上げ）
                     const forecastQty = Math.ceil(adjustedSales);
 
                     html += `
@@ -657,7 +665,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const extraStockDays = (freshnessHours === 60) ? 0.5 : (freshnessHours === 38 ? 0.2 : 0); 
             const weatherCoeff = this.getWeatherCoeffForCategory(catVal, baseWeatherCoeff); 
 
-            // --- 新しい欠品マイルド改善ロジック(個別用) ---
             let shortageCoeff = 1.0;
             let diffShortageRate = 0;
             let shortageMsg = "";
@@ -681,7 +688,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const trueAvgSales = avgSales * shortageCoeff;
             const stdDev = stdDev_raw * shortageCoeff; 
             
-            // 固定数アップのロジックを加算
             const adjustedSales = (trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
@@ -709,7 +715,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
             document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(2);
             
-            // 特別ブースト（固定数）がある場合の表示を更新
             document.getElementById('resTempRatio').innerText = fixedBoost > 0 ? `${tempCoeff.toFixed(2)} (+${fixedBoost}個)` : tempCoeff.toFixed(2);
             document.getElementById('resTempMessage').innerText = tempMessage;
             
