@@ -88,10 +88,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
             });
 
+            // ★修正ポイント：店舗名入力欄の賢い切り替え処理
             const storeInput = document.getElementById('storeName');
+            let tempStore = ""; // 一時保存用
+            
+            storeInput.addEventListener('focus', function() { 
+                tempStore = this.value; 
+                this.value = ''; // タップ時に空にして全候補を表示させる
+            });
+            
+            storeInput.addEventListener('blur', () => { 
+                if (storeInput.value.trim() === '') {
+                    storeInput.value = tempStore; // 何も入力・選択されなかったら元の名前に戻す
+                }
+                this.onStoreChange(); 
+            });
+            
             storeInput.addEventListener('change', () => this.onStoreChange());
-            storeInput.addEventListener('blur', () => this.onStoreChange());
-            storeInput.addEventListener('focus', function() { this.select(); });
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
@@ -166,10 +179,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         onStoreChange() {
             const s = document.getElementById('storeName').value.trim();
-            // 未入力、もしくは現在の店舗と同じ場合は処理をスキップ
             if (!s || s === State.data.currentStore) return;
 
-            // ★修正ポイント：店舗を切り替える直前に、現在の入力状態を古い店舗へ強制セーブ
             State.updateInputData();
 
             State.data.currentStore = s;
@@ -183,10 +194,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         onCategoryChange() {
             const cat = document.getElementById('categoryName').value;
-            // 同じ分類が選ばれた場合はスキップ
             if (cat === State.data.currentCategory) return;
 
-            // ★修正ポイント：分類を切り替える直前に、現在の入力状態を古い分類へ強制セーブ
             State.updateInputData();
 
             State.data.currentCategory = cat;
