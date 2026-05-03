@@ -51,6 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 avgWaste: document.getElementById('avgWaste').value,
                 avgShortageRate: document.getElementById('avgShortageRate').value,
                 minDisplayQty: document.getElementById('minDisplayQty').value,
+                customCoeff: document.getElementById('customCoeff').value,
                 ratios: {
                     mon: document.getElementById('ratio_mon').value,
                     tue: document.getElementById('ratio_tue').value,
@@ -88,18 +89,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
             });
 
-            // ★修正ポイント：店舗名入力欄の賢い切り替え処理
             const storeInput = document.getElementById('storeName');
-            let tempStore = ""; // 一時保存用
+            let tempStore = ""; 
             
             storeInput.addEventListener('focus', function() { 
                 tempStore = this.value; 
-                this.value = ''; // タップ時に空にして全候補を表示させる
+                this.value = ''; 
             });
             
             storeInput.addEventListener('blur', () => { 
                 if (storeInput.value.trim() === '') {
-                    storeInput.value = tempStore; // 何も入力・選択されなかったら元の名前に戻す
+                    storeInput.value = tempStore; 
                 }
                 this.onStoreChange(); 
             });
@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
-            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
+            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'customCoeff',
                             'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
@@ -255,7 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!store || !cat) return;
             
             const defaults = {
-                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
+                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0", customCoeff: "1.0",
                 ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"}
             };
 
@@ -272,6 +272,9 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('avgWaste').value = data.avgWaste;
             document.getElementById('avgShortageRate').value = data.avgShortageRate; 
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
+            
+            const customEl = document.getElementById('customCoeff');
+            if(customEl) customEl.value = data.customCoeff || "1.0";
 
             Object.keys(data.ratios).forEach(d => {
                 let val = parseFloat(data.ratios[d]);
@@ -586,6 +589,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
                     const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
+                    const customCoeff = parseFloat(data.customCoeff) || 1.0;
                     
                     let shortageCoeff = 1.0;
                     let diffShortageRate = 0;
@@ -613,7 +617,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const trueAvgSales = avgSales * shortageCoeff;
                     const stdDev = stdDev_raw * shortageCoeff;
                     
-                    const adjustedSales = (trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost;
+                    // すべての要素に独自補正(customCoeff)を掛け合わせる
+                    const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff;
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
@@ -667,6 +672,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const baseWeatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; 
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
+            const customCoeff = parseFloat(document.getElementById('customCoeff').value) || 1.0;
 
             const dayRatio = parseFloat(document.getElementById('ratio_' + targetDay).value) || 1.0;
 
@@ -697,19 +703,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const trueAvgSales = avgSales * shortageCoeff;
             const stdDev = stdDev_raw * shortageCoeff; 
             
-            const adjustedSales = (trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost;
+            // 独自補正(customCoeff)をすべてに乗算
+            const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
             
             const normalResult = this.calculateCoreOrderQty(avgSales, stdDev_raw, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, tempInfo.fixedBoost);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, tempInfo.fixedBoost, customCoeff);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, fixedBoost) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, fixedBoost, customCoeff) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             document.getElementById('resBaseSales').innerText = avgSales;
@@ -723,6 +730,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
             document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(2);
+            document.getElementById('resCustomRatio').innerText = customCoeff.toFixed(2);
             
             document.getElementById('resTempRatio').innerText = fixedBoost > 0 ? `${tempCoeff.toFixed(2)} (+${fixedBoost}個)` : tempCoeff.toFixed(2);
             document.getElementById('resTempMessage').innerText = tempMessage;
@@ -732,11 +740,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let boostQty = result.finalOrderQty - normalResult.finalOrderQty;
             const boostDiv = document.getElementById('boostBreakdown');
-            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0 || fixedBoost > 0)) {
+            // カスタム係数による変動もブースト表示のトリガーにする
+            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0 || fixedBoost > 0 || customCoeff !== 1.0)) {
                 document.getElementById('resNormalQty').innerText = normalResult.finalOrderQty;
                 document.getElementById('resBoostQty').innerText = boostQty;
                 const label = document.getElementById('boostLabelText');
-                if (shortageCoeff > 1.0) {
+                
+                if (customCoeff > 1.0) {
+                    label.innerText = "🔥 独自設定＋条件ブースト:";
+                    label.style.color = "var(--danger)";
+                } else if (shortageCoeff > 1.0) {
                     label.innerText = "🔥 欠品対策＋条件ブースト:";
                     label.style.color = "var(--warning)";
                 } else {
