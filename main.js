@@ -273,8 +273,16 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('avgShortageRate').value = data.avgShortageRate; 
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
             
+            // プルダウン式に変更した独自補正の値を正しく復元
             const customEl = document.getElementById('customCoeff');
-            if(customEl) customEl.value = data.customCoeff || "1.0";
+            if (customEl) {
+                let val = parseFloat(data.customCoeff);
+                if (isNaN(val) || val <= 0) val = 1.0;
+                let formatted = val.toFixed(1);
+                customEl.value = formatted;
+                // もしプルダウンに存在しない数値だった場合は「1.0」に戻す安全策
+                if (customEl.value !== formatted) customEl.value = "1.0";
+            }
 
             Object.keys(data.ratios).forEach(d => {
                 let val = parseFloat(data.ratios[d]);
@@ -617,7 +625,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     const trueAvgSales = avgSales * shortageCoeff;
                     const stdDev = stdDev_raw * shortageCoeff;
                     
-                    // すべての要素に独自補正(customCoeff)を掛け合わせる
                     const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff;
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
@@ -703,7 +710,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const trueAvgSales = avgSales * shortageCoeff;
             const stdDev = stdDev_raw * shortageCoeff; 
             
-            // 独自補正(customCoeff)をすべてに乗算
             const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
@@ -740,7 +746,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let boostQty = result.finalOrderQty - normalResult.finalOrderQty;
             const boostDiv = document.getElementById('boostBreakdown');
-            // カスタム係数による変動もブースト表示のトリガーにする
             if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0 || fixedBoost > 0 || customCoeff !== 1.0)) {
                 document.getElementById('resNormalQty').innerText = normalResult.finalOrderQty;
                 document.getElementById('resBoostQty').innerText = boostQty;
