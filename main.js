@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.ensureStore(store);
             if (!this.data.stores[store].categories) this.data.stores[store].categories = {};
             
+            // ★独自補正(customCoeff)を分類ごとの保存データから除外し、全体設定に変更
             this.data.stores[store].categories[cat] = {
                 avgSales: document.getElementById('avgSales').value,
                 currentStock: document.getElementById('currentStock').value,
@@ -51,7 +52,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 avgWaste: document.getElementById('avgWaste').value,
                 avgShortageRate: document.getElementById('avgShortageRate').value,
                 minDisplayQty: document.getElementById('minDisplayQty').value,
-                customCoeff: document.getElementById('customCoeff').value,
                 ratios: {
                     mon: document.getElementById('ratio_mon').value,
                     tue: document.getElementById('ratio_tue').value,
@@ -108,7 +108,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
-            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'customCoeff',
+            // 入力時に保存と再計算を走らせるリストから customCoeff を外す
+            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
                             'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
@@ -124,9 +125,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
+            // 天候や独自補正は「全体設定」として扱う
             document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false));
             document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false));
             document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false));
+            document.getElementById('customCoeff').addEventListener('change', () => Logic.calculate(false)); // ★追加: 独自補正変更時に即時計算
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
             document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(1); });
@@ -255,7 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!store || !cat) return;
             
             const defaults = {
-                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0", customCoeff: "1.0",
+                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
                 ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"}
             };
 
@@ -273,16 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('avgShortageRate').value = data.avgShortageRate; 
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
             
-            // プルダウン式に変更した独自補正の値を正しく復元
-            const customEl = document.getElementById('customCoeff');
-            if (customEl) {
-                let val = parseFloat(data.customCoeff);
-                if (isNaN(val) || val <= 0) val = 1.0;
-                let formatted = val.toFixed(1);
-                customEl.value = formatted;
-                // もしプルダウンに存在しない数値だった場合は「1.0」に戻す安全策
-                if (customEl.value !== formatted) customEl.value = "1.0";
-            }
+            // ★独自補正のリストア処理を削除（分類を切り替えても今の値がそのまま残るようにする）
 
             Object.keys(data.ratios).forEach(d => {
                 let val = parseFloat(data.ratios[d]);
@@ -574,10 +568,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             const categoriesData = State.data.stores[storeName].categories;
+            
+            // ★全体設定（天候・気温・曜日・独自補正）をループの外で1度だけ取得
             const targetDay = document.getElementById('targetDay').value;
             const baseWeatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
+            const customCoeff = parseFloat(document.getElementById('customCoeff').value) || 1.0;
             
             let html = '';
             const order = ["おにぎり", "こだわりおにぎり", "弁当", "寿司", "チルド弁当", "サンドイッチ", "ロール", "調理麺", "カップ麺", "スパゲティパスタ", "グラタンドリア", "サラダ", "カップデリ", "惣菜"];
@@ -597,7 +594,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
                     const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
-                    const customCoeff = parseFloat(data.customCoeff) || 1.0;
+                    // ※customCoeff はループ外で一括取得したものを使用
                     
                     let shortageCoeff = 1.0;
                     let diffShortageRate = 0;
@@ -625,6 +622,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const trueAvgSales = avgSales * shortageCoeff;
                     const stdDev = stdDev_raw * shortageCoeff;
                     
+                    // すべてのカテゴリの予測数に、共通の独自補正(customCoeff)を掛け合わせる
                     const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff;
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
