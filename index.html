@@ -87,8 +87,8 @@
                     <input type="number" inputmode="numeric" id="avgSales" value="50" min="0">
                 </div>
                 <div class="flex-col">
-                    <label>
-                        現在庫 (発注時)
+                    <label id="stockLabelText">
+                        現在庫 (2便納品前)
                         <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">発注時点の在庫数を入力します。</div></div>
                     </label>
                     <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
@@ -141,6 +141,27 @@
                     <input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0">
                 </div>
                 <div class="flex-col"></div>
+            </div>
+
+            <div class="form-group" style="margin-top: 24px; margin-bottom: 0;">
+                <label style="color: var(--danger);">
+                    🔥 分類別 取り組み補正 (販売強化など)
+                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">この分類だけ重点的に発注を強化・抑制したい場合に係数を掛け合わせます。(通常=1.0)</div></div>
+                </label>
+                <div class="flex-row" style="align-items: center; margin-bottom: 0;">
+                    <div class="flex-col">
+                        <select id="categoryCoeff">
+                            <option value="0.1">0.1</option><option value="0.2">0.2</option><option value="0.3">0.3</option><option value="0.4">0.4</option><option value="0.5">0.5</option>
+                            <option value="0.6">0.6</option><option value="0.7">0.7</option><option value="0.8">0.8</option><option value="0.9">0.9</option><option value="1.0" selected>1.0 (通常)</option>
+                            <option value="1.1">1.1</option><option value="1.2">1.2</option><option value="1.3">1.3</option><option value="1.4">1.4</option><option value="1.5">1.5</option>
+                            <option value="1.6">1.6</option><option value="1.7">1.7</option><option value="1.8">1.8</option><option value="1.9">1.9</option><option value="2.0">2.0</option>
+                            <option value="2.1">2.1</option><option value="2.2">2.2</option><option value="2.3">2.3</option><option value="2.4">2.4</option><option value="2.5">2.5</option>
+                            <option value="2.6">2.6</option><option value="2.7">2.7</option><option value="2.8">2.8</option><option value="2.9">2.9</option><option value="3.0">3.0</option>
+                            <option value="4.0">4.0</option><option value="5.0">5.0</option>
+                        </select>
+                    </div>
+                    <div style="font-weight: 800; color: var(--text-muted); width: 100px;">倍</div>
+                </div>
             </div>
         </div>
 
@@ -277,8 +298,8 @@
 
             <div class="form-group" style="margin-top: 24px;">
                 <label style="color: var(--primary-dark);">
-                    独自補正 (年末年始・GW・イベント・特殊要因)
-                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">店舗独自の要因(GWの客数減、地域行事の特需など)による売上変動を係数で掛け合わせます。(通常=1.0)</div></div>
+                    全体 独自補正 (年末年始・GW・特需など)
+                    <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">店舗独自の要因(GWの客数減、地域行事の特需など)による売上変動を全分類に一括で掛け合わせます。(通常=1.0)</div></div>
                 </label>
                 <div class="flex-row" style="align-items: center; margin-bottom: 0;">
                     <div class="flex-col">
@@ -310,7 +331,7 @@
             </div>
             
             <div class="result-item" style="font-size: 0.85rem; margin-bottom: 10px;">
-                (内訳: 基本 <span id="resBaseSales"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 天候 <span id="resWeatherRatio"></span> × 気温 <span id="resTempRatio"></span> × 独自 <span id="resCustomRatio" style="color:var(--primary-dark); font-weight:bold;"></span>)
+                (内訳: 基本 <span id="resBaseSales"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 天候 <span id="resWeatherRatio"></span> × 気温 <span id="resTempRatio"></span> × 独自 <span id="resCustomRatio" style="color:var(--primary-dark); font-weight:bold;"></span> × 取組 <span id="resCatRatio" style="color:var(--danger); font-weight:bold;"></span>)
             </div>
             <div class="result-item" id="resTempMessage" style="color: var(--warning); font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
             
