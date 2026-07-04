@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.ensureStore(store);
             if (!this.data.stores[store].categories) this.data.stores[store].categories = {};
             
-            // ★独自補正(customCoeff)を分類ごとの保存データから除外し、全体設定に変更
+            // ★分類ごとに保存するデータに、新しく追加した取り組み補正(categoryCoeff)を含める
             this.data.stores[store].categories[cat] = {
                 avgSales: document.getElementById('avgSales').value,
                 currentStock: document.getElementById('currentStock').value,
@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 avgWaste: document.getElementById('avgWaste').value,
                 avgShortageRate: document.getElementById('avgShortageRate').value,
                 minDisplayQty: document.getElementById('minDisplayQty').value,
+                categoryCoeff: document.getElementById('categoryCoeff').value,
                 ratios: {
                     mon: document.getElementById('ratio_mon').value,
                     tue: document.getElementById('ratio_tue').value,
@@ -108,8 +109,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
-            // 入力時に保存と再計算を走らせるリストから customCoeff を外す
-            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty',
+            // 入力時に保存と再計算を走らせるリストに categoryCoeff を追加
+            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'categoryCoeff',
                             'ratio_mon', 'ratio_tue', 'ratio_wed', 'ratio_thu', 'ratio_fri', 'ratio_sat', 'ratio_sun'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
@@ -125,11 +126,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // 天候や独自補正は「全体設定」として扱う
+            // 天候や独自補正は「全体設定」
             document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false));
             document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false));
             document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false));
-            document.getElementById('customCoeff').addEventListener('change', () => Logic.calculate(false)); // ★追加: 独自補正変更時に即時計算
+            document.getElementById('customCoeff').addEventListener('change', () => Logic.calculate(false));
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
             document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(1); });
@@ -223,6 +224,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const display = document.getElementById('freshnessDisplay');
             const hiddenVal = document.getElementById('freshnessTime');
             const displayInputArea = document.getElementById('displayInputArea');
+            const stockLabel = document.getElementById('stockLabelText');
+
+            // ★カテゴリに応じて在庫ラベルを動的に変更
+            if (stockLabel) {
+                if (category === "ロール") {
+                    stockLabel.innerHTML = `現在庫 (1便納品前) <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">発注時点の在庫数を入力します。</div></div>`;
+                } else {
+                    stockLabel.innerHTML = `現在庫 (2便納品前) <div class="tip-wrap"><span class="tip-icon">?</span><div class="tip-box">発注時点の在庫数を入力します。</div></div>`;
+                }
+            }
 
             switch(category) {
                 case "おにぎり": case "こだわりおにぎり": case "弁当":
@@ -258,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!store || !cat) return;
             
             const defaults = {
-                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0",
+                avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0", categoryCoeff: "1.0",
                 ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"}
             };
 
@@ -276,7 +287,15 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('avgShortageRate').value = data.avgShortageRate; 
             document.getElementById('minDisplayQty').value = data.minDisplayQty;
             
-            // ★独自補正のリストア処理を削除（分類を切り替えても今の値がそのまま残るようにする）
+            // 取り組み補正のリストア
+            const catCoeffEl = document.getElementById('categoryCoeff');
+            if (catCoeffEl) {
+                let val = parseFloat(data.categoryCoeff);
+                if (isNaN(val) || val <= 0) val = 1.0;
+                let formatted = val.toFixed(1);
+                catCoeffEl.value = formatted;
+                if (catCoeffEl.value !== formatted) catCoeffEl.value = "1.0";
+            }
 
             Object.keys(data.ratios).forEach(d => {
                 let val = parseFloat(data.ratios[d]);
@@ -568,8 +587,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             const categoriesData = State.data.stores[storeName].categories;
-            
-            // ★全体設定（天候・気温・曜日・独自補正）をループの外で1度だけ取得
             const targetDay = document.getElementById('targetDay').value;
             const baseWeatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
@@ -594,7 +611,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const minDisplayQty = (freshnessHours === 14 || freshnessHours === 23) ? (parseFloat(data.minDisplayQty) || 0) : 0;
                     
                     const dayRatio = parseFloat(data.ratios[targetDay]) || 1.0;
-                    // ※customCoeff はループ外で一括取得したものを使用
+                    // ★分類ごとの取り組み補正を適用
+                    const categoryCoeff = parseFloat(data.categoryCoeff) || 1.0;
                     
                     let shortageCoeff = 1.0;
                     let diffShortageRate = 0;
@@ -622,8 +640,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const trueAvgSales = avgSales * shortageCoeff;
                     const stdDev = stdDev_raw * shortageCoeff;
                     
-                    // すべてのカテゴリの予測数に、共通の独自補正(customCoeff)を掛け合わせる
-                    const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff;
+                    // 全体補正 × 分類補正 を両方とも掛け合わせる
+                    const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff * categoryCoeff;
 
                     const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
                     
@@ -677,7 +695,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const baseWeatherCoeff = parseFloat(document.getElementById('weatherCoeff').value) || 1.0; 
             const maxTemp = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minTemp = parseFloat(document.getElementById('minTemp').value) || 15;
+            
             const customCoeff = parseFloat(document.getElementById('customCoeff').value) || 1.0;
+            // ★分類ごとの取り組み補正を取得
+            const categoryCoeff = parseFloat(document.getElementById('categoryCoeff').value) || 1.0;
 
             const dayRatio = parseFloat(document.getElementById('ratio_' + targetDay).value) || 1.0;
 
@@ -708,19 +729,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const trueAvgSales = avgSales * shortageCoeff;
             const stdDev = stdDev_raw * shortageCoeff; 
             
-            const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff;
+            // 全体補正 × 分類補正
+            const adjustedSales = ((trueAvgSales * dayRatio * weatherCoeff * tempInfo.coeff) + tempInfo.fixedBoost) * customCoeff * categoryCoeff;
             
             const result = this.calculateCoreOrderQty(adjustedSales, stdDev, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, diffShortageRate);
             
             const normalResult = this.calculateCoreOrderQty(avgSales, stdDev_raw, extraStockDays, minDisplayQty, currentStock, avgWaste, freshnessHours, 0);
 
             if(!silent) {
-                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, tempInfo.fixedBoost, customCoeff);
+                this.renderResult(catSelect.options[catSelect.selectedIndex].text, result, normalResult, tempInfo.coeff, tempInfo.message, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, result.effectiveWaste, diffShortageRate, shortageMsg, tempInfo.fixedBoost, customCoeff, categoryCoeff);
             }
             return true;
         },
 
-        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, fixedBoost, customCoeff) {
+        renderResult(catName, result, normalResult, tempCoeff, tempMessage, adjustedSales, currentStock, avgSales, dayRatio, weatherCoeff, minDisplayQty, extraStockDays, freshnessHours, avgWaste, shortageCoeff, effectiveWaste, diffShortageRate, shortageMsg, fixedBoost, customCoeff, categoryCoeff) {
             document.getElementById('resCategory').innerText = catName;
             document.getElementById('resFreshnessText').innerText = document.getElementById('freshnessDisplay').value;
             document.getElementById('resBaseSales').innerText = avgSales;
@@ -735,6 +757,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('resDayRatio').innerText = dayRatio.toFixed(2);
             document.getElementById('resWeatherRatio').innerText = weatherCoeff.toFixed(2);
             document.getElementById('resCustomRatio').innerText = customCoeff.toFixed(2);
+            document.getElementById('resCatRatio').innerText = categoryCoeff.toFixed(2);
             
             document.getElementById('resTempRatio').innerText = fixedBoost > 0 ? `${tempCoeff.toFixed(2)} (+${fixedBoost}個)` : tempCoeff.toFixed(2);
             document.getElementById('resTempMessage').innerText = tempMessage;
@@ -744,13 +767,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let boostQty = result.finalOrderQty - normalResult.finalOrderQty;
             const boostDiv = document.getElementById('boostBreakdown');
-            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0 || fixedBoost > 0 || customCoeff !== 1.0)) {
+            if (boostQty > 0 && (tempCoeff > 1.0 || shortageCoeff > 1.0 || dayRatio > 1.0 || fixedBoost > 0 || customCoeff !== 1.0 || categoryCoeff !== 1.0)) {
                 document.getElementById('resNormalQty').innerText = normalResult.finalOrderQty;
                 document.getElementById('resBoostQty').innerText = boostQty;
                 const label = document.getElementById('boostLabelText');
                 
-                if (customCoeff > 1.0) {
-                    label.innerText = "🔥 独自設定＋条件ブースト:";
+                if (categoryCoeff > 1.0) {
+                    label.innerText = "🔥 分類強化＋条件ブースト:";
+                    label.style.color = "var(--danger)";
+                } else if (customCoeff > 1.0) {
+                    label.innerText = "🔥 独自全体設定＋条件ブースト:";
                     label.style.color = "var(--danger)";
                 } else if (shortageCoeff > 1.0) {
                     label.innerText = "🔥 欠品対策＋条件ブースト:";
