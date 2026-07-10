@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // 都道府県リスト・曜日UI生成
-    const prefs = {"016000":"北海道","020000":"青森県","030000":"岩手県","040000":"宮城県","130000":"東京都","140000":"神奈川県","230000":"愛知県","270000":"大阪府","400000":"福岡県","471000":"沖縄県"}; // 主要を抜粋 (適宜追加可)
+    const prefs = {"016000":"北海道","020000":"青森県","030000":"岩手県","040000":"宮城県","130000":"東京都","140000":"神奈川県","230000":"愛知県","270000":"大阪府","400000":"福岡県","471000":"沖縄県"}; // 主要を抜粋
     const prefSelect = document.getElementById('prefecture');
     if(prefSelect) {
         prefSelect.innerHTML = '<option value="">-- 都道府県 --</option>';
@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- UI制御 ---
     const UI = {
         init() {
-            initializeDateAndTime(); // 11時判定の実行
+            initializeDateAndTime();
             this.renderStoreDatalist();
             if (State.data.currentCategory) {
                 document.getElementById('categoryName').value = State.data.currentCategory;
@@ -177,6 +177,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('btn-learn').addEventListener('click', () => Logic.executeLearning());
             document.getElementById('btn-refresh-all').addEventListener('click', () => Logic.calculateAll());
+            
+            // ★ 画像化・共有ボタンのイベント追加
+            const btnShare = document.getElementById('btn-share-image');
+            if (btnShare) {
+                btnShare.addEventListener('click', () => {
+                    Logic.shareScreenshot();
+                });
+            }
+
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
         },
@@ -219,7 +228,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const displayInputArea = document.getElementById('displayInputArea'); const stockLabel = document.getElementById('stockLabelText');
             const stockInput = document.getElementById('currentStock');
             
-            // ★ 在庫ラベルの太字・カラー強調表示
             if (stockLabel) {
                 if (cat === "ロール") {
                     stockLabel.innerHTML = `現在庫 <span style="background: rgba(0,161,233,0.1); color: var(--seven-blue); padding: 4px 8px; border-radius: 6px; font-weight: 900; font-size: 0.95rem;">(1便納品前)</span>`;
@@ -312,7 +320,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
                 const data = await res.json();
 
-                const tDateStr = document.getElementById('targetDateInput').value; // 入力された日付を基準にする
+                const tDateStr = document.getElementById('targetDateInput').value; 
 
                 let minT = "", maxT = "", weatherText = "不明", pop = "0";
                 const getArea = (series) => series.areas.find(a => a.area.code === areaCode) || series.areas[0];
@@ -524,7 +532,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('stickyResultBar').classList.add('show');
         },
         
-        // ★ スクショ対応：美しいリスト形式に整形
         calculateAll() {
             const store = State.data.currentStore; if(!store || !State.data.stores[store]) return;
             const cats = Object.keys(State.data.stores[store].categories);
@@ -542,7 +549,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const container = document.getElementById('allResultsContainer');
             
-            // スタッフ用スクリーンショットに最適化したUI (白背景、太字、無駄な余白の排除)
             let html = `
                 <div class="screenshot-header">
                     <div style="font-size: 1.2rem; font-weight: 900; color: var(--primary-dark); margin-bottom: 4px;">${store}</div>
@@ -563,6 +569,66 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             
             container.innerHTML = html;
+        },
+
+        // ★ 新機能：スクショ自動生成・共有機能
+        async shareScreenshot() {
+            const target = document.getElementById('screenshotTargetArea');
+            if (!target || typeof html2canvas === 'undefined') {
+                return alert("画像生成ツールがまだ読み込まれていません。少し待ってから再度お試しください。");
+            }
+
+            const btn = document.getElementById('btn-share-image');
+            const originalText = btn.innerText;
+            btn.innerText = "⏳ 画像生成中...";
+            btn.disabled = true;
+
+            try {
+                // html2canvasで対象エリアをCanvas化 (高画質設定)
+                const canvas = await html2canvas(target, {
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: "#ffffff"
+                });
+
+                // CanvasをBlob（画像データ）に変換
+                canvas.toBlob(async (blob) => {
+                    if (!blob) throw new Error("画像データの作成に失敗しました");
+                    
+                    const dateStr = document.getElementById('targetDateInput').value || "未定";
+                    const fileName = `発注目安_${dateStr}.png`;
+                    const file = new File([blob], fileName, { type: "image/png" });
+                    
+                    // iPad等のネイティブシェア機能（LINE・AirDrop等）を呼び出す
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({
+                                title: '本日の発注目安',
+                                files: [file]
+                            });
+                        } catch (shareErr) {
+                            console.log("シェアがキャンセルされました", shareErr);
+                        }
+                    } else {
+                        // シェア機能が使えないブラウザの場合は、自動ダウンロードにフォールバック
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    }
+                    
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }, "image/png");
+
+            } catch (err) {
+                console.error("Screenshot error:", err);
+                alert("画像の生成に失敗しました。");
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         }
     };
 
