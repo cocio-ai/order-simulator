@@ -93,7 +93,11 @@
         <div class="card">
             <h3 class="section-title">外部変動要因</h3>
             <div class="form-group">
-                <label style="color: var(--seven-green-dark);">📅 発注対象日 <span style="font-size:0.75rem; color:#888; font-weight:normal;">(11時で翌/翌々日切替)</span></label>
+                <!-- ★ 発注対象日のはみ出し防止修正 (綺麗に2段になるようにレイアウト) -->
+                <label style="color: var(--seven-green-dark); display: flex; flex-direction: column; gap: 2px;">
+                    <div style="font-size: 0.95rem;">📅 発注対象日</div>
+                    <div style="font-size: 0.75rem; color: #888; font-weight: normal;">(11時で翌日/翌々日に自動切替)</div>
+                </label>
                 <input type="date" id="targetDateInput" style="font-weight: 800; color: var(--primary-dark);">
                 <div id="calendarBadge" style="display:none; background:var(--seven-red); color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold; width: fit-content; margin-top: 8px;"></div>
             </div>
@@ -176,7 +180,6 @@
                 対象: <strong id="learnTargetCategory" style="font-size: 1.05rem; color: var(--primary-dark);">未選択</strong>
             </p>
             
-            <!-- ★ 履歴プルダウンを追加 -->
             <div class="form-group" style="background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 8px;">
                 <label style="color: var(--primary-dark);">📅 対象の予測日（直近7日）</label>
                 <select id="learnDateSelect" style="font-weight: bold; font-size: 1rem; color: var(--primary-dark);"></select>
