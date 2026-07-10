@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#f2f2f7">
     <title>ORDER SIMULATOR - AI Bese</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="main.js" defer></script>
 </head>
 <body>
@@ -186,12 +187,15 @@
     </div>
 
     <div id="tab-all" class="tab-content">
-        <div class="card" style="padding: 0; overflow: hidden; border: 1px solid #ccc;">
+        <div id="screenshotTargetArea" class="card" style="padding: 0; overflow: hidden; border: 1px solid #ccc; background: #fff;">
             <div id="allResultsContainer" class="screenshot-container">
                 <div style="padding: 20px; text-align: center; color: #888;">計算を実行してください</div>
             </div>
         </div>
-        <button id="btn-refresh-all" class="calc-button" style="background: var(--primary-dark); margin-top: 0;">🔄 最新情報で一括更新</button>
+        <div class="flex-row" style="margin-top: 12px; gap: 12px;">
+            <button id="btn-refresh-all" class="calc-button" style="background: var(--primary-dark); margin-top: 0;">🔄 最新情報で更新</button>
+            <button id="btn-share-image" class="calc-button" style="background: var(--seven-red); margin-top: 0;">📷 画像で共有・保存</button>
+        </div>
     </div>
 
     <div id="tab-backup" class="tab-content">
