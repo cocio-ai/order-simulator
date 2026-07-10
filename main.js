@@ -1,5 +1,39 @@
 document.addEventListener("DOMContentLoaded", () => {
     
+    // --- 【完全復活】全国47都道府県 気象庁地域コード網羅 ---
+    const prefs = {
+        "016000":"北海道","020000":"青森県","030000":"岩手県","040000":"宮城県","050000":"秋田県",
+        "060000":"山形県","070000":"福島県","080000":"茨城県","090000":"栃木県","100000":"群馬県",
+        "110000":"埼玉県","120000":"千葉県","130000":"東京都","140000":"神奈川県","150000":"新潟県",
+        "160000":"富山県","170000":"石川県","180000":"福井県","190000":"山梨県","200000":"長野県",
+        "210000":"岐阜県","220000":"静岡県","230000":"愛知県","240000":"三重県","250000":"滋賀県",
+        "260000":"京都府","270000":"大阪府","280000":"兵庫県","290000":"奈良県","300000":"和歌山県",
+        "310000":"鳥取県","320000":"島根県","330000":"岡山県","340000":"広島県","350000":"山口県",
+        "360000":"徳島県","370000":"香川県","380000":"愛媛県","390000":"高知県","400000":"福岡県",
+        "410000":"佐賀県","420000":"長崎県","430000":"熊本県","440000":"大分県","450000":"宮崎県",
+        "460000":"鹿児島県","471000":"沖縄県"
+    };
+
+    const prefSelect = document.getElementById('prefecture');
+    if(prefSelect) {
+        prefSelect.innerHTML = '<option value="">-- 都道府県 --</option>';
+        Object.keys(prefs).forEach(k => { prefSelect.appendChild(new Option(prefs[k], k)); });
+    }
+
+    // 曜日UI生成
+    const daysArr = ['mon','tue','wed','thu','fri','sat','sun'];
+    const daysLabel = ['月','火','水','木','金','土','日'];
+    const drContainer = document.getElementById('dayRatioBoxes');
+    if(drContainer) {
+        drContainer.innerHTML = '';
+        daysArr.forEach((d, i) => {
+            let html = `<div class="day-ratio-box ${d==='sat'?'day-sat':(d==='sun'?'day-sun':'')}"><label>${daysLabel[i]}</label><select id="ratio_${d}">`;
+            for(let v=0.5; v<=2.0; v+=0.1) html += `<option value="${v.toFixed(1)}"${v.toFixed(1)==='1.0'?' selected':''}>${v.toFixed(1)}</option>`;
+            html += `</select></div>`;
+            drContainer.innerHTML += html;
+        });
+    }
+
     // --- 11時判定・日付初期化ロジック ---
     const initializeDateAndTime = () => {
         const now = new Date();
@@ -17,28 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // 都道府県リスト・曜日UI生成
-    const prefs = {"016000":"北海道","020000":"青森県","030000":"岩手県","040000":"宮城県","130000":"東京都","140000":"神奈川県","230000":"愛知県","270000":"大阪府","400000":"福岡県","471000":"沖縄県"}; // 主要を抜粋
-    const prefSelect = document.getElementById('prefecture');
-    if(prefSelect) {
-        prefSelect.innerHTML = '<option value="">-- 都道府県 --</option>';
-        Object.keys(prefs).forEach(k => { prefSelect.appendChild(new Option(prefs[k], k)); });
-    }
-
-    const daysArr = ['mon','tue','wed','thu','fri','sat','sun'];
-    const daysLabel = ['月','火','水','木','金','土','日'];
-    const drContainer = document.getElementById('dayRatioBoxes');
-    if(drContainer) {
-        drContainer.innerHTML = '';
-        daysArr.forEach((d, i) => {
-            let html = `<div class="day-ratio-box ${d==='sat'?'day-sat':(d==='sun'?'day-sun':'')}"><label>${daysLabel[i]}</label><select id="ratio_${d}">`;
-            for(let v=0.5; v<=2.0; v+=0.1) html += `<option value="${v.toFixed(1)}"${v.toFixed(1)==='1.0'?' selected':''}>${v.toFixed(1)}</option>`;
-            html += `</select></div>`;
-            drContainer.innerHTML += html;
-        });
-    }
-
-    // --- 状態管理 (データ救出ロジック含む) ---
+    // --- 状態管理 ---
     const State = {
         data: { version: 2, currentStore: "", currentCategory: "", stores: {} },
         load() {
@@ -178,12 +191,9 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('btn-learn').addEventListener('click', () => Logic.executeLearning());
             document.getElementById('btn-refresh-all').addEventListener('click', () => Logic.calculateAll());
             
-            // ★ 画像化・共有ボタンのイベント追加
             const btnShare = document.getElementById('btn-share-image');
             if (btnShare) {
-                btnShare.addEventListener('click', () => {
-                    Logic.shareScreenshot();
-                });
+                btnShare.addEventListener('click', () => { Logic.shareScreenshot(); });
             }
 
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
@@ -571,7 +581,6 @@ document.addEventListener("DOMContentLoaded", () => {
             container.innerHTML = html;
         },
 
-        // ★ 新機能：スクショ自動生成・共有機能
         async shareScreenshot() {
             const target = document.getElementById('screenshotTargetArea');
             if (!target || typeof html2canvas === 'undefined') {
@@ -584,14 +593,12 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.disabled = true;
 
             try {
-                // html2canvasで対象エリアをCanvas化 (高画質設定)
                 const canvas = await html2canvas(target, {
                     scale: 2, 
                     useCORS: true, 
                     backgroundColor: "#ffffff"
                 });
 
-                // CanvasをBlob（画像データ）に変換
                 canvas.toBlob(async (blob) => {
                     if (!blob) throw new Error("画像データの作成に失敗しました");
                     
@@ -599,7 +606,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     const fileName = `発注目安_${dateStr}.png`;
                     const file = new File([blob], fileName, { type: "image/png" });
                     
-                    // iPad等のネイティブシェア機能（LINE・AirDrop等）を呼び出す
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         try {
                             await navigator.share({
@@ -610,7 +616,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             console.log("シェアがキャンセルされました", shareErr);
                         }
                     } else {
-                        // シェア機能が使えないブラウザの場合は、自動ダウンロードにフォールバック
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
