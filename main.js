@@ -38,13 +38,10 @@ document.addEventListener("DOMContentLoaded", () => {
         data: { version: 2, currentStore: "", currentCategory: "", stores: {} },
         load() {
             try {
-                // v1とv2のデータを両方取得
                 const rawV1 = localStorage.getItem('oms_unified_state_v1');
                 const rawV2 = localStorage.getItem('oms_unified_state_v2');
-                
                 let v2HasData = false;
 
-                // v2が存在するか、そして中身（店舗データ）が実際に入っているか確認
                 if (rawV2) {
                     const parsedV2 = JSON.parse(rawV2);
                     if (parsedV2 && parsedV2.stores && Object.keys(parsedV2.stores).length > 0) {
@@ -53,14 +50,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                // ★データお引越し：v2が空っぽで、かつv1にデータが残っている場合のみ強制復元
                 if (!v2HasData && rawV1) {
                     const parsedV1 = JSON.parse(rawV1);
                     if (parsedV1 && parsedV1.stores && Object.keys(parsedV1.stores).length > 0) {
                         this.data = parsedV1;
-                        this.data.version = 2; // バージョンを2に更新
+                        this.data.version = 2; 
 
-                        // 古いデータに新しいPRO版の項目を初期値として追加
                         Object.keys(this.data.stores).forEach(storeName => {
                             const store = this.data.stores[storeName];
                             if (store.categories) {
@@ -73,9 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         });
                         
-                        this.save(); // すぐにv2として保存
-                        alert("【復元成功】過去のデータを検出し、PRO版への引き継ぎが完了しました！");
-                        return;
+                        this.save();
                     }
                 }
             } catch(e) { console.error("Load Error", e); }
@@ -121,7 +114,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- UI制御 ---
     const UI = {
         init() {
-            if (State.data.currentStore) document.getElementById('storeName').value = State.data.currentStore;
             this.renderStoreDatalist();
             if (State.data.currentCategory) {
                 document.getElementById('categoryName').value = State.data.currentCategory;
@@ -137,10 +129,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
             });
 
-            const storeInput = document.getElementById('storeName'); let tempStore = ""; 
-            storeInput.addEventListener('focus', function() { tempStore = this.value; this.value = ''; });
-            storeInput.addEventListener('blur', () => { if (storeInput.value.trim() === '') storeInput.value = tempStore; this.onStoreChange(); });
-            storeInput.addEventListener('change', () => this.onStoreChange());
+            // ★ 店舗選択のプルダウン処理
+            const storeSelect = document.getElementById('storeNameSelect');
+            storeSelect.addEventListener('change', () => {
+                if (storeSelect.value === '__NEW__') {
+                    // 新規店舗追加処理
+                    const newStore = prompt("新しい店舗名を入力してください\n(例: 2号店)");
+                    if (newStore && newStore.trim() !== "") {
+                        State.data.currentStore = newStore.trim();
+                        State.ensureStore(State.data.currentStore);
+                        State.save();
+                        this.renderStoreDatalist();
+                        this.restoreCategoryInputs();
+                        Weather.restoreStoreWeather();
+                        Logic.calculate(true);
+                    } else {
+                        // キャンセルした場合は元の店舗に戻す
+                        storeSelect.value = State.data.currentStore || "";
+                    }
+                } else {
+                    // 既存店舗の切り替え処理
+                    State.data.currentStore = storeSelect.value;
+                    State.save();
+                    this.restoreCategoryInputs();
+                    Weather.restoreStoreWeather();
+                    Logic.calculate(true);
+                }
+            });
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
 
@@ -192,13 +207,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        onStoreChange() {
-            const s = document.getElementById('storeName').value.trim();
-            if (!s || s === State.data.currentStore) return;
-            State.updateInputData(); State.data.currentStore = s; State.ensureStore(s); State.save();
-            this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Logic.calculate(true);
-        },
-
         onCategoryChange() {
             const cat = document.getElementById('categoryName').value;
             if (cat === State.data.currentCategory) return;
@@ -207,10 +215,28 @@ document.addEventListener("DOMContentLoaded", () => {
         },
 
         renderStoreDatalist() {
-            const dataList = document.getElementById('storeList'); dataList.innerHTML = '';
+            const select = document.getElementById('storeNameSelect');
+            select.innerHTML = '<option value="" disabled>店舗を選択してください</option>';
+            
+            // 保存されている店舗をオプションに追加
             Object.keys(State.data.stores).filter(s => s.trim() !== "").forEach(s => {
-                let opt = document.createElement('option'); opt.value = s; dataList.appendChild(opt);
+                let opt = document.createElement('option');
+                opt.value = s;
+                opt.text = s;
+                if (s === State.data.currentStore) opt.selected = true;
+                select.appendChild(opt);
             });
+            
+            // 最後に「＋ 新規店舗を追加...」を追加
+            let optNew = document.createElement('option');
+            optNew.value = '__NEW__';
+            optNew.text = '＋ 新規店舗を追加...';
+            select.appendChild(optNew);
+
+            // 選択されていない場合の初期表示
+            if (!State.data.currentStore) {
+                select.value = "";
+            }
         },
 
         updateFreshnessDisplay(cat) {
@@ -407,8 +433,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const pred = parseFloat(document.getElementById('fbPredicted').value);
             if (!act || !pred || pred <= 0) return alert("予測数と実際の販売数を正しく入力してください。");
             
-            const store = State.data.currentStore; const cat = State.data.currentCategory;
-            if (!store || !cat) return;
+            // ★ storeNameSelect から現在の店舗を取得するように変更
+            const storeSelect = document.getElementById('storeNameSelect');
+            const store = storeSelect.value;
+            const cat = State.data.currentCategory;
+            if (!store || store === "__NEW__" || !cat) return;
             
             let currentL = State.data.stores[store].categories[cat].learnedCoeff || 1.0;
             let ratio = act / pred;
@@ -427,9 +456,13 @@ document.addEventListener("DOMContentLoaded", () => {
         },
 
         calculate(silent = false) {
-            const store = document.getElementById('storeName').value; const cat = document.getElementById('categoryName').value;
+            // ★ storeNameSelect から現在の店舗を取得するように変更
+            const storeSelect = document.getElementById('storeNameSelect');
+            const store = storeSelect.value; 
+            const cat = document.getElementById('categoryName').value;
             const fHours = parseFloat(document.getElementById('freshnessTime').value);
-            if (!store || !cat || fHours === 0) return false;
+            
+            if (!store || store === "__NEW__" || !cat || fHours === 0) return false;
 
             // 基礎データ
             const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
