@@ -542,6 +542,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('stickyResultBar').classList.add('show');
         },
         
+        // ★ スクショ対応：販売予測数と発注目安数のラベルを明確化
         calculateAll() {
             const store = State.data.currentStore; if(!store || !State.data.stores[store]) return;
             const cats = Object.keys(State.data.stores[store].categories);
@@ -570,9 +571,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 html += `
                     <div class="screenshot-item" onclick="document.getElementById('categoryName').value='${r.cat}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
                         <div class="screenshot-cat">${r.cat}</div>
-                        <div class="screenshot-data">
-                            <span class="screenshot-pred">予測: ${r.pred}</span>
-                            <span class="screenshot-order">${r.order} <span style="font-size:0.9rem; font-weight:normal;">個</span></span>
+                        <div class="screenshot-data" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                            <div style="font-size: 0.85rem; color: #666;">販売予測数: <span style="font-weight: bold; color: #333; font-size: 1rem;">${r.pred}</span></div>
+                            <div style="font-size: 0.95rem; font-weight: 800; color: var(--seven-green-dark);">発注目安数: <span style="font-size: 1.6rem; font-weight: 900;">${r.order}</span> <span style="font-size:0.85rem; font-weight:normal;">個</span></div>
                         </div>
                     </div>
                 `;
