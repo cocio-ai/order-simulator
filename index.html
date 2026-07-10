@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#F4F5F7">
+    <meta name="theme-color" content="#f2f2f7">
     <title>ORDER SIMULATOR - AI Bese</title>
     <link rel="stylesheet" href="style.css">
     <script src="main.js" defer></script>
@@ -11,47 +11,37 @@
 <body>
 
 <div class="app-wrapper">
-    <h2 class="main-title">ORDER SIMULATOR <span style="font-size: 0.5em; background: var(--seven-green); padding: 2px 6px; border-radius: 4px; color: #fff;">PRO</span></h2>
+    <h2 class="main-title">ORDER SIMULATOR <span style="font-size: 0.5em; background: var(--seven-green); padding: 3px 8px; border-radius: 6px; color: #fff; vertical-align: middle;">PRO</span></h2>
 
     <div class="tab-container" id="tabContainer" data-active-tab="simulator">
         <div class="tab-active-bg"></div>
         <button id="tabBtn-simulator" class="tab-button active" data-tab="simulator">個別計算</button>
-        <button id="tabBtn-learning" class="tab-button" data-tab="learning" style="color: var(--danger);">AI学習</button>
-        <button id="tabBtn-all" class="tab-button" data-tab="all">一括確認</button>
-        <button id="tabBtn-backup" class="tab-button" data-tab="backup">データ引継</button>
+        <button id="tabBtn-learning" class="tab-button" data-tab="learning" style="color: var(--seven-red);">AI学習</button>
+        <button id="tabBtn-all" class="tab-button" data-tab="all">一括画面</button>
+        <button id="tabBtn-backup" class="tab-button" data-tab="backup">データ</button>
     </div>
     
     <div id="tab-simulator" class="tab-content active">
         <div class="card">
             <h3 class="section-title">システム設定</h3>
             <div class="form-group">
-                <label><span>店舗選択</span> <span id="saveIndicator" style="color: var(--success); font-size: 0.8rem;"></span></label>
-                <select id="storeNameSelect" style="font-weight: bold; color: var(--primary-dark);">
-                    </select>
+                <label>店舗選択 <span id="saveIndicator" style="color: var(--success); font-size: 0.8rem; float: right;"></span></label>
+                <select id="storeNameSelect" style="font-weight: 800; color: var(--primary-dark);"></select>
             </div>
-            
             <div class="form-group" style="margin-bottom: 0;">
                 <label>対象分類</label>
                 <select id="categoryName">
                     <option value="" disabled selected>分類を選択してください</option>
-                    <option value="おにぎり">おにぎり</option>
-                    <option value="こだわりおにぎり">こだわりおにぎり</option>
-                    <option value="弁当">弁当（常温・短鮮度）</option>
-                    <option value="寿司">寿司</option>
-                    <option value="チルド弁当">チルド弁当</option>
-                    <option value="サンドイッチ">サンドイッチ</option>
-                    <option value="ロール">ロール</option>
-                    <option value="調理麺">調理麺（冷たい麺）</option>
-                    <option value="カップ麺">カップ麺</option>
-                    <option value="スパゲティパスタ">スパゲティパスタ</option>
-                    <option value="グラタンドリア">グラタンドリア</option>
-                    <option value="サラダ">サラダ</option>
-                    <option value="カップデリ">カップデリ</option>
-                    <option value="惣菜">惣菜</option>
+                    <option value="おにぎり">おにぎり</option><option value="こだわりおにぎり">こだわりおにぎり</option>
+                    <option value="弁当">弁当（常温・短鮮度）</option><option value="寿司">寿司</option>
+                    <option value="チルド弁当">チルド弁当</option><option value="サンドイッチ">サンドイッチ</option>
+                    <option value="ロール">ロール</option><option value="調理麺">調理麺（冷たい麺）</option>
+                    <option value="カップ麺">カップ麺</option><option value="スパゲティパスタ">スパゲティパスタ</option>
+                    <option value="グラタンドリア">グラタンドリア</option><option value="サラダ">サラダ</option>
+                    <option value="カップデリ">カップデリ</option><option value="惣菜">惣菜</option>
                 </select>
             </div>
-            
-            <div class="form-group" style="margin-top: 16px; margin-bottom: 0;">
+            <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
                 <input type="text" id="freshnessDisplay" value="上の分類を選択してください" readonly tabindex="-1">
                 <input type="hidden" id="freshnessTime" value="0">
             </div>
@@ -59,22 +49,15 @@
 
         <div class="card">
             <h3 class="section-title">販売・在庫データ</h3>
-
             <div class="flex-row">
-                <div class="flex-col">
-                    <label>4週平均 販売数</label>
-                    <input type="number" inputmode="numeric" id="avgSales" value="50" min="0">
-                </div>
-                <div class="flex-col">
-                    <label style="color: var(--seven-red);">📈 直近3日間 平均 <span style="font-size:0.75rem;">(トレンド)</span></label>
-                    <input type="number" inputmode="numeric" id="recentSales" value="" placeholder="空欄=平均同等" min="0">
-                </div>
+                <div class="flex-col"><label>4週平均 販売数</label><input type="number" inputmode="numeric" id="avgSales" value="50" min="0"></div>
+                <div class="flex-col"><label style="color: var(--seven-red);">直近3日間 平均</label><input type="number" inputmode="numeric" id="recentSales" value="" placeholder="空欄=平均同等" min="0"></div>
             </div>
 
-            <div class="flex-row" style="margin-top: 8px;">
+            <div class="flex-row" style="margin-top: 12px;">
                 <div class="flex-col" style="flex: 2;">
-                    <label id="stockLabelText">現在庫 (2便納品前)</label>
-                    <input type="number" inputmode="numeric" id="currentStock" value="15" min="0">
+                    <label id="stockLabelText">現在庫</label>
+                    <input type="number" inputmode="numeric" id="currentStock" value="15" min="0" style="font-weight: 800; font-size: 1.2rem;">
                 </div>
             </div>
 
@@ -85,15 +68,15 @@
             </div>
 
             <div class="flex-row" style="margin-top: 16px; margin-bottom: 0;">
-                <div class="flex-col waste-input-box"><label style="color: var(--danger);">平均廃棄数</label><input type="number" inputmode="numeric" id="avgWaste" value="3" min="0"></div>
-                <div class="flex-col shortage-input-box"><label style="color: var(--warning);">平均欠品率 (%)</label><input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100"></div>
+                <div class="flex-col"><label style="color: var(--danger);">平均廃棄数</label><input type="number" inputmode="numeric" id="avgWaste" value="3" min="0"></div>
+                <div class="flex-col"><label style="color: var(--warning);">平均欠品率 (%)</label><input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100"></div>
             </div>
 
-            <div class="flex-row display-input-box" id="displayInputArea" style="margin-top: 20px; margin-bottom: 0;">
+            <div class="flex-row" id="displayInputArea" style="margin-top: 16px; margin-bottom: 0;">
                 <div class="flex-col"><label style="color: var(--primary);">最低陳列量</label><input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0"></div><div class="flex-col"></div>
             </div>
 
-            <div class="form-group" style="margin-top: 24px; margin-bottom: 0;">
+            <div class="form-group" style="margin-top: 24px; margin-bottom: 0; padding-top: 16px; border-top: 1px dashed #eee;">
                 <label style="color: var(--danger);">🔥 分類別 取り組み補正 (販売強化など)</label>
                 <div class="flex-row" style="align-items: center; margin-bottom: 0;">
                     <div class="flex-col">
@@ -101,147 +84,129 @@
                             <option value="0.8">0.8</option><option value="0.9">0.9</option><option value="1.0" selected>1.0 (通常)</option>
                             <option value="1.1">1.1</option><option value="1.2">1.2</option><option value="1.3">1.3</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
                         </select>
-                    </div>
-                    <div style="font-weight: 800; color: var(--text-muted); width: 100px;">倍</div>
+                    </div><div style="font-weight: 800; color: var(--text-muted); width: 60px;">倍</div>
                 </div>
             </div>
         </div>
 
         <div class="card">
             <h3 class="section-title">外部変動要因</h3>
-            
             <div class="form-group">
-                <label style="color: var(--seven-green-dark);">📅 カレンダー自動補正用 対象日</label>
-                <div class="flex-row" style="margin-bottom: 12px;">
-                    <input type="date" id="targetDateInput" style="width: 100%; font-size: 1.1rem; padding: 10px;">
-                </div>
-                <div id="calendarBadge" style="display:none; background:var(--seven-red); color:white; padding:4px 8px; border-radius:4px; font-size:0.85rem; font-weight:bold; width: fit-content;"></div>
+                <label style="color: var(--seven-green-dark);">📅 発注対象日 <span style="font-size:0.75rem; color:#888; font-weight:normal;">(11時で翌/翌々日切替)</span></label>
+                <input type="date" id="targetDateInput" style="font-weight: 800; color: var(--primary-dark);">
+                <div id="calendarBadge" style="display:none; background:var(--seven-red); color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold; width: fit-content; margin-top: 8px;"></div>
             </div>
-
             <div class="form-group">
                 <label>対象曜日</label>
                 <select id="targetDay">
                     <option value="mon">月曜日</option><option value="tue">火曜日</option><option value="wed">水曜日</option><option value="thu">木曜日</option><option value="fri">金曜日</option><option value="sat">土曜日</option><option value="sun">日曜日</option>
                 </select>
             </div>
-
             <div class="form-group">
-                <label>曜日ごとの販売指数（係数）</label>
+                <label>曜日ごとの販売指数</label>
                 <div class="day-ratio-container" id="dayRatioBoxes"></div>
             </div>
 
-            <hr style="border: none; border-top: 1px solid var(--border); margin: 32px 0;">
+            <hr>
 
-            <div class="form-group weather-auto-area">
-                <label class="weather-header"><span>📍 気象庁データ 自動取得</span></label>
+            <div class="form-group">
+                <label>📍 気象庁データ 自動取得</label>
                 <div class="flex-row" style="margin-bottom: 12px;">
-                    <div class="flex-col"><select id="prefecture" style="background-color: #fff;"></select></div>
-                    <div class="flex-col"><select id="cityArea" style="background-color: #fff;"><option value="">-- エリア --</option></select></div>
+                    <div class="flex-col"><select id="prefecture"></select></div>
+                    <div class="flex-col"><select id="cityArea"><option value="">-- エリア --</option></select></div>
                 </div>
-
                 <div class="weather-btn-group">
-                    <button id="btn-weather-tmw" class="btn-weather" onclick="Weather.fetchWeather(1)">明日の予報を取得</button>
-                    <button id="btn-weather-dat" class="btn-weather" onclick="Weather.fetchWeather(2)">明後日の予報を取得</button>
+                    <button id="btn-weather-tmw" class="btn-weather" onclick="Weather.fetchWeather(1)">明日の予報</button>
+                    <button id="btn-weather-dat" class="btn-weather" onclick="Weather.fetchWeather(2)">明後日の予報</button>
                 </div>
-                <div id="weather-display" class="weather-badge" style="display:none; margin-top:12px;"></div>
+                <div id="weather-display" style="display:none; margin-top:12px; font-weight:bold; background:#e6f0fa; color:var(--primary-dark); padding:8px; border-radius:6px; text-align:center;"></div>
             </div>
 
             <div class="flex-row" style="align-items: center; margin-bottom: 16px;">
-                <div class="flex-col">
-                    <label style="color: var(--seven-blue);">降水確率 (%)</label>
-                    <input type="number" inputmode="numeric" id="popRate" value="0" min="0" max="100" step="10">
-                </div>
-                <div class="flex-col">
-                    <label>自動天候補正</label>
-                    <input type="text" id="weatherCoeffDisplay" value="1.0" readonly style="background:#eee; font-weight:bold;">
-                    <input type="hidden" id="weatherCoeff" value="1.0">
-                </div>
+                <div class="flex-col"><label style="color: var(--seven-blue);">降水確率 (%)</label><input type="number" inputmode="numeric" id="popRate" value="0" min="0" max="100" step="10"></div>
+                <div class="flex-col"><label>自動天候補正</label><input type="text" id="weatherCoeffDisplay" value="1.0" readonly><input type="hidden" id="weatherCoeff" value="1.0"></div>
             </div>
-            
             <div class="flex-row">
                 <div class="flex-col"><label style="color: var(--danger);">予想最高気温 (℃)</label><input type="number" inputmode="numeric" id="maxTemp" value="25"></div>
                 <div class="flex-col"><label style="color: var(--primary);">予想最低気温 (℃)</label><input type="number" inputmode="numeric" id="minTemp" value="15"></div>
             </div>
 
-            <div class="form-group" style="margin-top: 24px;">
-                <label style="color: var(--primary-dark);">全体 独自補正 (年末年始・GW・特需など)</label>
+            <div class="form-group" style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed #eee;">
+                <label style="color: var(--primary-dark);">全体 独自補正 (GW・特需など)</label>
                 <div class="flex-row" style="align-items: center; margin-bottom: 0;">
                     <div class="flex-col">
                         <select id="customCoeff">
                             <option value="0.5">0.5</option><option value="0.8">0.8</option><option value="0.9">0.9</option><option value="1.0" selected>1.0 (通常)</option>
                             <option value="1.1">1.1</option><option value="1.2">1.2</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
                         </select>
-                    </div>
-                    <div style="font-weight: 800; color: var(--text-muted); width: 100px;">倍</div>
+                    </div><div style="font-weight: 800; color: var(--text-muted); width: 60px;">倍</div>
                 </div>
             </div>
         </div>
 
-        <button id="btn-calculate" class="calc-button"><span class="spinner"></span><span id="btn-calc-text">⚡ AI 発注シミュレーション実行</span></button>
+        <button id="btn-calculate" class="calc-button"><span id="btn-calc-text">⚡ シミュレーション実行</span></button>
 
-        <div id="resultArea" class="result-card" style="display: none;">
-            <h3 class="section-title">算出結果</h3>
+        <div id="resultArea" class="result-card card" style="display: none; margin-top: 24px;">
             <div class="result-header"><strong id="resCategory"></strong> <span id="resFreshnessText" style="font-size:0.85rem; color:#666; font-weight:normal; margin-left:10px;"></span></div>
-            
-            <div class="result-item" style="font-size: 0.85rem; margin-bottom: 10px; line-height: 1.4;">
-                (内訳: 基本 <span id="resBaseSales"></span> <span id="resTrendBoost" style="color:var(--seven-red); font-weight:bold;"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 天候/カレンダー等係数 <span id="resMultipliers" style="color:var(--primary-dark); font-weight:bold;"></span>)
+            <div class="result-item" style="font-size: 0.85rem; margin-bottom: 12px; line-height: 1.5; color: #555;">
+                (内訳: 基本 <span id="resBaseSales"></span> <span id="resTrendBoost" style="color:var(--seven-red); font-weight:bold;"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 各種係数 <span id="resMultipliers" style="color:var(--primary-dark); font-weight:bold;"></span>)
             </div>
-            <div class="result-item" id="resTempMessage" style="color: var(--warning); font-size: 0.95rem; margin-bottom: 12px; font-weight: 700;"></div>
-            <div class="result-item" id="resLearningMessage" style="color: var(--seven-green-dark); font-size: 0.95rem; margin-bottom: 24px; font-weight: 700;"></div>
-            
-            <div id="targetStockArea" style="display: none; margin-bottom: 24px;">
-                <div class="result-item" style="color: var(--success); font-weight: 600; font-size: 1.05rem;">売場目標在庫数: <strong id="resTargetStock" style="font-size: 1.4rem;"></strong> 個</div>
-                <div class="result-item" style="font-size: 0.85rem;" id="targetStockLabel"></div>
-            </div>
-            <div class="result-item" style="font-size: 0.95rem; color: var(--danger);"><span id="resMaxStockLabel"></span>: <strong id="resMaxStock"></strong></div>
+            <div id="resTempMessage" style="color: var(--warning); font-size: 0.9rem; margin-bottom: 12px; font-weight: 700;"></div>
+            <div id="resLearningMessage" style="color: var(--seven-green-dark); font-size: 0.9rem; margin-bottom: 20px; font-weight: 700;"></div>
             
             <div class="forecast-panel">
-                <div style="font-size: 0.95rem; font-weight: bold; color: var(--primary-dark);">📊 1日の販売予測</div>
-                <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; color: var(--primary-dark);">個</span></div>
+                <div style="font-size: 0.95rem; font-weight: 700; color: #555;">1日の販売予測</div>
+                <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; font-weight: bold; color: #555;">個</span></div>
             </div>
 
             <div class="order-panel">
-                <div class="o-label">✅ 最終 発注目安数</div>
-                <div><span class="o-value" id="resOrderQty"></span><span class="o-unit">個</span></div>
+                <div class="o-label">最終 発注目安数</div>
+                <div><span class="o-value" id="resOrderQty"></span><span style="font-size: 1.2rem; font-weight: bold; color: var(--seven-green-dark);">個</span></div>
             </div>
         </div>
-        <div id="warningArea" class="alert-box"><span id="warningMessageText"></span></div>
     </div>
 
     <div id="tab-learning" class="tab-content">
-        <div class="card" style="border: 2px solid var(--seven-green);">
-            <h3 class="section-title" style="color: var(--seven-green-dark);">🧠 AI 予実学習システム</h3>
-            <p style="font-size: 0.85rem; color: #555; margin-bottom: 16px;">
-                予測と実際の結果にズレがあった場合、AIに結果をフィードバックすることで、次回から自店舗特有のクセを考慮して予測精度が自動向上します。<br>
-                <strong>対象: <span id="learnTargetCategory" style="font-size: 1rem; font-weight: bold; color: var(--primary);">未選択</span></strong>
+        <div class="card" style="border: 2px solid var(--seven-red);">
+            <h3 class="section-title" style="color: var(--seven-red);">🧠 AI 予実学習</h3>
+            <p style="font-size: 0.85rem; color: #555; margin-bottom: 16px; line-height: 1.5;">
+                予測と実際の結果のズレをフィードバックし、自店舗のクセを自動学習させます。<br>
+                対象: <strong id="learnTargetCategory" style="font-size: 1.05rem; color: var(--primary-dark);">未選択</strong>
             </p>
-            
             <div class="flex-row">
-                <div class="flex-col">
-                    <label>前回の予測数</label>
-                    <input type="number" inputmode="numeric" id="fbPredicted" value="" placeholder="例: 50">
-                </div>
-                <div class="flex-col">
-                    <label style="color: var(--seven-red);">実際の販売数</label>
-                    <input type="number" inputmode="numeric" id="fbActual" value="" placeholder="例: 55">
-                </div>
+                <div class="flex-col"><label>前回の予測数</label><input type="number" inputmode="numeric" id="fbPredicted" placeholder="例: 50"></div>
+                <div class="flex-col"><label style="color: var(--seven-red);">実際の販売数</label><input type="number" inputmode="numeric" id="fbActual" placeholder="例: 55"></div>
             </div>
-            
-            <div style="font-size: 0.85rem; margin-top: 10px; color: var(--text-muted);">
-                現在のAI学習補正値: <strong id="currentLearnedCoeffText">1.00</strong> 倍
+            <div style="font-size: 0.85rem; margin-top: 10px; color: var(--text-muted); text-align: right;">
+                現在の補正値: <strong id="currentLearnedCoeffText" style="font-size: 1.2rem; color: #333;">1.00</strong> 倍
             </div>
-            
-            <button id="btn-learn" class="calc-button" style="background: var(--seven-green-dark); margin-top: 16px;">
-                <span>🧠 AIに学習させる</span>
-            </button>
-            <div id="learnSuccessMsg" style="color: var(--success); font-weight: bold; text-align: center; margin-top: 10px; display: none;">✅ AIが学習しました！</div>
+            <button id="btn-learn" class="calc-button" style="background: var(--seven-red); margin-top: 16px;">AIに学習させる</button>
+            <div id="learnSuccessMsg" style="color: var(--success); font-weight: bold; text-align: center; margin-top: 12px; display: none;">✅ AIが学習しました！</div>
         </div>
     </div>
 
-    <div id="tab-all" class="tab-content"><div class="card"><h3 class="section-title">一括発注目安</h3><div id="allResultsContainer"></div><button id="btn-refresh-all" class="calc-button">🔄 最新情報で一括更新</button></div></div>
-    <div id="tab-backup" class="tab-content"><div class="card"><h3 class="section-title">💾 データ引継ぎ</h3><textarea id="backupCode" class="backup-textarea" rows="4"></textarea><div class="flex-row"><button id="btn-export" class="backup-btn">コード作成</button><button id="btn-import" class="backup-btn btn-restore">復元</button></div></div></div>
+    <div id="tab-all" class="tab-content">
+        <div class="card" style="padding: 0; overflow: hidden; border: 1px solid #ccc;">
+            <div id="allResultsContainer" class="screenshot-container">
+                <div style="padding: 20px; text-align: center; color: #888;">計算を実行してください</div>
+            </div>
+        </div>
+        <button id="btn-refresh-all" class="calc-button" style="background: var(--primary-dark); margin-top: 0;">🔄 最新情報で一括更新</button>
+    </div>
+
+    <div id="tab-backup" class="tab-content">
+        <div class="card">
+            <h3 class="section-title">💾 データ引継ぎ</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 12px;">別の端末にデータを移す際のコードです。</p>
+            <textarea id="backupCode" style="width: 100%; height: 80px; padding: 10px; font-size: 0.8rem; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 12px;"></textarea>
+            <div class="flex-row">
+                <button id="btn-export" class="calc-button" style="background: #6c757d; padding: 10px; margin-top: 0;">コード作成</button>
+                <button id="btn-import" class="calc-button" style="background: var(--seven-blue); padding: 10px; margin-top: 0;">貼付して復元</button>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div id="stickyResultBar" class="sticky-result-bar"><div class="sticky-forecast">予測: <span id="stickyAdjSales">-</span>個</div><div class="sticky-order">発注: <span id="stickyOrderQty">-</span>個</div></div>
+<div id="stickyResultBar" class="sticky-result-bar"><div style="font-size: 0.9rem; color: #555; font-weight: bold;">予測: <span id="stickyAdjSales">-</span>個</div><div class="sticky-order">発注: <span id="stickyOrderQty" style="font-size: 1.5rem;">-</span> 個</div></div>
 </body>
 </html>
