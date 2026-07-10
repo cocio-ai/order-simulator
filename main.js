@@ -38,25 +38,29 @@ document.addEventListener("DOMContentLoaded", () => {
         data: { version: 2, currentStore: "", currentCategory: "", stores: {} },
         load() {
             try {
-                // まず新しいv2のデータを読み込みにいく
+                // v1とv2のデータを両方取得
+                const rawV1 = localStorage.getItem('oms_unified_state_v1');
                 const rawV2 = localStorage.getItem('oms_unified_state_v2');
-                if (rawV2) { 
-                    const parsed = JSON.parse(rawV2); 
-                    if (parsed && parsed.stores) {
-                        this.data = parsed;
-                        return; // v2が存在すればここで完了
+                
+                let v2HasData = false;
+
+                // v2が存在するか、そして中身（店舗データ）が実際に入っているか確認
+                if (rawV2) {
+                    const parsedV2 = JSON.parse(rawV2);
+                    if (parsedV2 && parsedV2.stores && Object.keys(parsedV2.stores).length > 0) {
+                        v2HasData = true;
+                        this.data = parsedV2;
                     }
                 }
 
-                // ★データお引越し機能：v2が無い場合、過去のv1データを探して引き継ぐ
-                const rawV1 = localStorage.getItem('oms_unified_state_v1');
-                if (rawV1) {
+                // ★データお引越し：v2が空っぽで、かつv1にデータが残っている場合のみ強制復元
+                if (!v2HasData && rawV1) {
                     const parsedV1 = JSON.parse(rawV1);
-                    if (parsedV1 && parsedV1.stores) {
+                    if (parsedV1 && parsedV1.stores && Object.keys(parsedV1.stores).length > 0) {
                         this.data = parsedV1;
                         this.data.version = 2; // バージョンを2に更新
 
-                        // 古いデータに新しいPRO版の項目（学習値など）を初期値として追加
+                        // 古いデータに新しいPRO版の項目を初期値として追加
                         Object.keys(this.data.stores).forEach(storeName => {
                             const store = this.data.stores[storeName];
                             if (store.categories) {
@@ -69,9 +73,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         });
                         
-                        console.log("過去のデータを復元し、PRO版にアップグレードしました");
-                        this.save(); // すぐにv2として保存し直す
-                        alert("過去の保存データを検出しました。PRO版(v2)へのデータ引き継ぎが完了しました！");
+                        this.save(); // すぐにv2として保存
+                        alert("【復元成功】過去のデータを検出し、PRO版への引き継ぎが完了しました！");
+                        return;
                     }
                 }
             } catch(e) { console.error("Load Error", e); }
@@ -90,7 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.ensureStore(store);
             if (!this.data.stores[store].categories) this.data.stores[store].categories = {};
             
-            // 既存の学習係数は維持する
             const existingLearned = (this.data.stores[store].categories[cat] && this.data.stores[store].categories[cat].learnedCoeff) ? this.data.stores[store].categories[cat].learnedCoeff : 1.0;
 
             this.data.stores[store].categories[cat] = {
