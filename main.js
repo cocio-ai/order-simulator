@@ -38,8 +38,42 @@ document.addEventListener("DOMContentLoaded", () => {
         data: { version: 2, currentStore: "", currentCategory: "", stores: {} },
         load() {
             try {
-                const raw = localStorage.getItem('oms_unified_state_v2');
-                if (raw) { const parsed = JSON.parse(raw); if (parsed && parsed.stores) this.data = parsed; }
+                // まず新しいv2のデータを読み込みにいく
+                const rawV2 = localStorage.getItem('oms_unified_state_v2');
+                if (rawV2) { 
+                    const parsed = JSON.parse(rawV2); 
+                    if (parsed && parsed.stores) {
+                        this.data = parsed;
+                        return; // v2が存在すればここで完了
+                    }
+                }
+
+                // ★データお引越し機能：v2が無い場合、過去のv1データを探して引き継ぐ
+                const rawV1 = localStorage.getItem('oms_unified_state_v1');
+                if (rawV1) {
+                    const parsedV1 = JSON.parse(rawV1);
+                    if (parsedV1 && parsedV1.stores) {
+                        this.data = parsedV1;
+                        this.data.version = 2; // バージョンを2に更新
+
+                        // 古いデータに新しいPRO版の項目（学習値など）を初期値として追加
+                        Object.keys(this.data.stores).forEach(storeName => {
+                            const store = this.data.stores[storeName];
+                            if (store.categories) {
+                                Object.keys(store.categories).forEach(catName => {
+                                    const cat = store.categories[catName];
+                                    if (typeof cat.recentSales === 'undefined') cat.recentSales = "";
+                                    if (typeof cat.learnedCoeff === 'undefined') cat.learnedCoeff = 1.0;
+                                    if (typeof cat.categoryCoeff === 'undefined') cat.categoryCoeff = "1.0";
+                                });
+                            }
+                        });
+                        
+                        console.log("過去のデータを復元し、PRO版にアップグレードしました");
+                        this.save(); // すぐにv2として保存し直す
+                        alert("過去の保存データを検出しました。PRO版(v2)へのデータ引き継ぎが完了しました！");
+                    }
+                }
             } catch(e) { console.error("Load Error", e); }
         },
         save() {
@@ -61,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             this.data.stores[store].categories[cat] = {
                 avgSales: document.getElementById('avgSales').value,
-                recentSales: document.getElementById('recentSales').value, // 新追加: 直近トレンド
+                recentSales: document.getElementById('recentSales').value,
                 currentStock: document.getElementById('currentStock').value,
                 maxSales: document.getElementById('maxSales').value,
                 minSales: document.getElementById('minSales').value,
@@ -69,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 avgShortageRate: document.getElementById('avgShortageRate').value,
                 minDisplayQty: document.getElementById('minDisplayQty').value,
                 categoryCoeff: document.getElementById('categoryCoeff').value,
-                learnedCoeff: existingLearned, // 学習データ
+                learnedCoeff: existingLearned, 
                 ratios: {
                     mon: document.getElementById('ratio_mon').value, tue: document.getElementById('ratio_tue').value,
                     wed: document.getElementById('ratio_wed').value, thu: document.getElementById('ratio_thu').value,
@@ -414,7 +448,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // 学習係数
             const learnR = (State.data.stores[store] && State.data.stores[store].categories[cat]) ? (State.data.stores[store].categories[cat].learnedCoeff || 1.0) : 1.0;
 
-            // 1. 直近トレンドブースト (平均より10%以上売れている場合、その勢いを加味)
+            // 1. 直近トレンドブースト
             let baseDemand = avgSales;
             let trendBoostVal = 0;
             if (!isNaN(recentSales) && recentSales > (avgSales * 1.1)) {
@@ -485,7 +519,6 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         
         calculateAll() {
-            // 省略せず、タブ一括計算のロジックも簡潔に実装
             const store = State.data.currentStore; if(!store || !State.data.stores[store]) return;
             const cats = Object.keys(State.data.stores[store].categories);
             let html = "";
