@@ -1,8 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // --- 【完全復活】全国47都道府県 気象庁地域コード網羅 ---
+    // --- ★【修正】全国47都道府県 気象庁地域コード網羅（特殊コード対応済み） ---
     const prefs = {
-        "016000":"北海道","020000":"青森県","030000":"岩手県","040000":"宮城県","050000":"秋田県",
+        "016000":"北海道(札幌周辺)","011000":"北海道(宗谷)","012000":"北海道(上川・留萌)","013000":"北海道(網走・北見・紋別)","014100":"北海道(十勝)","014030":"北海道(釧路・根室)","015000":"北海道(胆振・日高)","017000":"北海道(渡島・檜山)",
+        "020000":"青森県","030000":"岩手県","040000":"宮城県","050000":"秋田県",
         "060000":"山形県","070000":"福島県","080000":"茨城県","090000":"栃木県","100000":"群馬県",
         "110000":"埼玉県","120000":"千葉県","130000":"東京都","140000":"神奈川県","150000":"新潟県",
         "160000":"富山県","170000":"石川県","180000":"福井県","190000":"山梨県","200000":"長野県",
@@ -11,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "310000":"鳥取県","320000":"島根県","330000":"岡山県","340000":"広島県","350000":"山口県",
         "360000":"徳島県","370000":"香川県","380000":"愛媛県","390000":"高知県","400000":"福岡県",
         "410000":"佐賀県","420000":"長崎県","430000":"熊本県","440000":"大分県","450000":"宮崎県",
-        "460000":"鹿児島県","471000":"沖縄県"
+        "460100":"鹿児島県","460040":"鹿児島県(奄美)","471000":"沖縄県(本島)","472000":"沖縄県(石垣)","473000":"沖縄県(宮古)","474000":"沖縄県(大東島)"
     };
 
     const prefSelect = document.getElementById('prefecture');
@@ -73,7 +74,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                     if (typeof cat.recentSales === 'undefined') cat.recentSales = "";
                                     if (typeof cat.learnedCoeff === 'undefined') cat.learnedCoeff = 1.0;
                                     if (typeof cat.categoryCoeff === 'undefined') cat.categoryCoeff = "1.0";
-                                    // ★ 過去データの互換性用
                                     if (typeof cat.history === 'undefined') cat.history = {};
                                 });
                             }
@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 minDisplayQty: document.getElementById('minDisplayQty').value,
                 categoryCoeff: document.getElementById('categoryCoeff').value,
                 learnedCoeff: existingLearned, 
-                history: existingHistory, // ★ 履歴を維持
+                history: existingHistory,
                 ratios: {
                     mon: document.getElementById('ratio_mon').value, tue: document.getElementById('ratio_tue').value,
                     wed: document.getElementById('ratio_wed').value, thu: document.getElementById('ratio_thu').value,
@@ -119,7 +119,6 @@ document.addEventListener("DOMContentLoaded", () => {
             };
             this.save();
         },
-        // ★ 予測履歴を保存する関数
         saveHistory(dateStr, predQty) {
             if(!dateStr || isNaN(predQty)) return;
             const store = this.data.currentStore; const cat = this.data.currentCategory;
@@ -128,10 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if(!this.data.stores[store].categories[cat]) return;
             if(!this.data.stores[store].categories[cat].history) this.data.stores[store].categories[cat].history = {};
             
-            // 日付をキーにして予測数を記録
             this.data.stores[store].categories[cat].history[dateStr] = predQty;
-            
-            // 履歴を最新7件に保つ
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
             if (keys.length > 7) {
                 keys.slice(7).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
@@ -184,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     el.addEventListener('input', (e) => { 
                         State.updateInputData(); 
                         if(id === 'popRate') Logic.calcWeatherCoeff();
-                        Logic.calculate(false, false); // 入力途中は履歴保存しない
+                        Logic.calculate(false, false);
                     });
                     if(el.type === 'number') el.addEventListener('focus', function() { this.select(); });
                 }
@@ -203,7 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
             document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(1); });
 
-            // ★ 計算ボタンを押した時は履歴を確定保存する
             document.getElementById('btn-calculate').addEventListener('click', () => {
                 if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
                 Logic.calculate(false, true); 
@@ -218,9 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 btnShare.addEventListener('click', () => { Logic.shareScreenshot(); });
             }
 
-            // ★ 学習履歴プルダウンのイベント
             document.getElementById('learnDateSelect').addEventListener('change', () => this.onChangeLearnDate());
-
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
         },
@@ -236,21 +229,17 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabId === 'learning') {
                 document.getElementById('learnTargetCategory').innerText = State.data.currentCategory || "未選択";
                 document.getElementById('learnSuccessMsg').style.display = 'none';
-                this.updateLearnHistoryUI(); // ★ タブを開いた時に履歴を更新
+                this.updateLearnHistoryUI();
             }
         },
 
-        // ★ AI学習用の履歴UIの構築
         updateLearnHistoryUI() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
             if(!store || !cat || !select) return;
             
             select.innerHTML = '';
-            // 該当分類の履歴データを取得
             const history = (State.data.stores[store].categories && State.data.stores[store].categories[cat] && State.data.stores[store].categories[cat].history) ? State.data.stores[store].categories[cat].history : {};
-            
-            // 日付を降順（新しい順）にソート
             const dates = Object.keys(history).sort((a,b) => b.localeCompare(a));
             
             if(dates.length === 0) {
@@ -263,10 +252,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 select.appendChild(new Option("過去の予測を手動で入力する...", "manual"));
             }
-            this.onChangeLearnDate(); // 初期値をセット
+            this.onChangeLearnDate();
         },
 
-        // ★ プルダウン変更時に予測入力欄を自動セット
         onChangeLearnDate() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
@@ -281,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 const history = State.data.stores[store].categories[cat].history || {};
                 predInput.readOnly = true;
-                predInput.style.backgroundColor = "#e3e3e8"; // 入力不可を視覚的にアピール
+                predInput.style.backgroundColor = "#e3e3e8";
                 predInput.value = history[select.value] || "";
             }
         },
@@ -384,13 +372,18 @@ document.addEventListener("DOMContentLoaded", () => {
         async fetchAreaList(prefCode, targetCityCode) {
             try {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
+                if (!res.ok) throw new Error("気象庁データの取得に失敗しました");
                 const data = await res.json();
                 const areaSelect = document.getElementById('cityArea'); areaSelect.innerHTML = '';
                 (data[0].timeSeries[0].areas || []).forEach(a => {
                     let opt = document.createElement('option'); opt.value = a.area.code; opt.text = a.area.name; areaSelect.appendChild(opt);
                 });
                 if (targetCityCode) areaSelect.value = targetCityCode;
-            } catch(e) { console.error("Area Error"); }
+            } catch(e) { 
+                console.error("Area Error:", e);
+                const areaSelect = document.getElementById('cityArea');
+                areaSelect.innerHTML = '<option value="">エリア取得失敗 (都道府県を選び直してください)</option>';
+            }
         },
         async fetchWeather(offset) {
             const prefCode = document.getElementById('prefecture').value; const areaCode = document.getElementById('cityArea').value;
@@ -401,6 +394,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
+                if (!res.ok) throw new Error("天気データ取得失敗");
                 const data = await res.json();
                 const tDateStr = document.getElementById('targetDateInput').value; 
 
@@ -445,7 +439,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,15)} / 降水確率: ${pop}%`;
                 
                 Logic.calcWeatherCoeff(); Logic.calculate(false, false);
-            } catch (e) { alert("天気取得失敗"); } 
+            } catch (e) { 
+                console.error(e);
+                alert("気象庁サーバーからの取得に失敗しました。時間をおいて再試行してください。"); 
+            } 
             finally { btn.innerText = originalText; btn.disabled = false; }
         }
     };
@@ -521,7 +518,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.calculate(false, false);
         },
 
-        // ★ 引数に「saveHist」を追加（ボタン押下時のみ履歴に保存）
         calculate(silent = false, saveHist = false) {
             const storeSelect = document.getElementById('storeNameSelect');
             const store = storeSelect.value; 
@@ -588,7 +584,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, trendBoostVal, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo);
             
-            // ★ 明示的に保存指示があった場合のみ履歴に残す
             if(saveHist) {
                 State.saveHistory(dateStr, Math.ceil(finalDemandRaw));
             }
@@ -631,7 +626,6 @@ document.addEventListener("DOMContentLoaded", () => {
             cats.forEach(c => {
                 document.getElementById('categoryName').value = c;
                 UI.onCategoryChange();
-                // ★ 一括更新時にも各分類の履歴を保存する
                 let res = this.calculate(true, true);
                 if(res) results.push(res);
             });
