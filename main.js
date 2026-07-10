@@ -20,7 +20,6 @@ document.addEventListener("DOMContentLoaded", () => {
         Object.keys(prefs).forEach(k => { prefSelect.appendChild(new Option(prefs[k], k)); });
     }
 
-    // 曜日UI生成
     const daysArr = ['mon','tue','wed','thu','fri','sat','sun'];
     const daysLabel = ['月','火','水','木','金','土','日'];
     const drContainer = document.getElementById('dayRatioBoxes');
@@ -34,11 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- 11時判定・日付初期化ロジック ---
     const initializeDateAndTime = () => {
         const now = new Date();
         const target = new Date(now);
-        // 11時以降なら翌々日(2日後)、11時前なら翌日(1日後)
         const offset = (now.getHours() >= 11) ? 2 : 1;
         target.setDate(now.getDate() + offset);
         
@@ -76,6 +73,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                     if (typeof cat.recentSales === 'undefined') cat.recentSales = "";
                                     if (typeof cat.learnedCoeff === 'undefined') cat.learnedCoeff = 1.0;
                                     if (typeof cat.categoryCoeff === 'undefined') cat.categoryCoeff = "1.0";
+                                    // ★ 過去データの互換性用
+                                    if (typeof cat.history === 'undefined') cat.history = {};
                                 });
                             }
                         });
@@ -95,7 +94,9 @@ document.addEventListener("DOMContentLoaded", () => {
             this.ensureStore(store);
             if (!this.data.stores[store].categories) this.data.stores[store].categories = {};
             
-            const existingLearned = (this.data.stores[store].categories[cat] && this.data.stores[store].categories[cat].learnedCoeff) ? this.data.stores[store].categories[cat].learnedCoeff : 1.0;
+            const existingCat = this.data.stores[store].categories[cat] || {};
+            const existingLearned = existingCat.learnedCoeff ? existingCat.learnedCoeff : 1.0;
+            const existingHistory = existingCat.history || {};
 
             this.data.stores[store].categories[cat] = {
                 avgSales: document.getElementById('avgSales').value,
@@ -108,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 minDisplayQty: document.getElementById('minDisplayQty').value,
                 categoryCoeff: document.getElementById('categoryCoeff').value,
                 learnedCoeff: existingLearned, 
+                history: existingHistory, // ★ 履歴を維持
                 ratios: {
                     mon: document.getElementById('ratio_mon').value, tue: document.getElementById('ratio_tue').value,
                     wed: document.getElementById('ratio_wed').value, thu: document.getElementById('ratio_thu').value,
@@ -115,6 +117,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     sun: document.getElementById('ratio_sun').value
                 }
             };
+            this.save();
+        },
+        // ★ 予測履歴を保存する関数
+        saveHistory(dateStr, predQty) {
+            if(!dateStr || isNaN(predQty)) return;
+            const store = this.data.currentStore; const cat = this.data.currentCategory;
+            if (!store || !cat) return;
+            this.ensureStore(store);
+            if(!this.data.stores[store].categories[cat]) return;
+            if(!this.data.stores[store].categories[cat].history) this.data.stores[store].categories[cat].history = {};
+            
+            // 日付をキーにして予測数を記録
+            this.data.stores[store].categories[cat].history[dateStr] = predQty;
+            
+            // 履歴を最新7件に保つ
+            const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
+            if (keys.length > 7) {
+                keys.slice(7).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
+            }
             this.save();
         }
     };
@@ -144,13 +165,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     const newStore = prompt("新しい店舗名を入力してください");
                     if (newStore && newStore.trim() !== "") {
                         State.data.currentStore = newStore.trim(); State.ensureStore(State.data.currentStore); State.save();
-                        this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Logic.calculate(true);
+                        this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Logic.calculate(false, false);
                     } else {
                         storeSelect.value = State.data.currentStore || "";
                     }
                 } else {
                     State.data.currentStore = storeSelect.value; State.save();
-                    this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Logic.calculate(true);
+                    this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Logic.calculate(false, false);
                 }
             });
 
@@ -163,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     el.addEventListener('input', (e) => { 
                         State.updateInputData(); 
                         if(id === 'popRate') Logic.calcWeatherCoeff();
-                        Logic.calculate(false); 
+                        Logic.calculate(false, false); // 入力途中は履歴保存しない
                     });
                     if(el.type === 'number') el.addEventListener('focus', function() { this.select(); });
                 }
@@ -172,19 +193,20 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('targetDateInput').addEventListener('input', (e) => {
                 const d = new Date(e.target.value);
                 if(!isNaN(d)) { document.getElementById('targetDay').value = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()]; }
-                Logic.updateDateUI(); Logic.calculate(false);
+                Logic.updateDateUI(); Logic.calculate(false, false);
             });
-            document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false));
-            document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false));
-            document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false));
-            document.getElementById('customCoeff').addEventListener('change', () => Logic.calculate(false));
+            document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false, false));
+            document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false, false));
+            document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false, false));
+            document.getElementById('customCoeff').addEventListener('change', () => Logic.calculate(false, false));
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
             document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(1); });
 
+            // ★ 計算ボタンを押した時は履歴を確定保存する
             document.getElementById('btn-calculate').addEventListener('click', () => {
                 if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-                Logic.calculate(false); 
+                Logic.calculate(false, true); 
                 setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
             });
 
@@ -196,6 +218,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 btnShare.addEventListener('click', () => { Logic.shareScreenshot(); });
             }
 
+            // ★ 学習履歴プルダウンのイベント
+            document.getElementById('learnDateSelect').addEventListener('change', () => this.onChangeLearnDate());
+
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
         },
@@ -206,10 +231,58 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            
             if (tabId === 'all') Logic.calculateAll();
             if (tabId === 'learning') {
                 document.getElementById('learnTargetCategory').innerText = State.data.currentCategory || "未選択";
                 document.getElementById('learnSuccessMsg').style.display = 'none';
+                this.updateLearnHistoryUI(); // ★ タブを開いた時に履歴を更新
+            }
+        },
+
+        // ★ AI学習用の履歴UIの構築
+        updateLearnHistoryUI() {
+            const store = State.data.currentStore; const cat = State.data.currentCategory;
+            const select = document.getElementById('learnDateSelect');
+            if(!store || !cat || !select) return;
+            
+            select.innerHTML = '';
+            // 該当分類の履歴データを取得
+            const history = (State.data.stores[store].categories && State.data.stores[store].categories[cat] && State.data.stores[store].categories[cat].history) ? State.data.stores[store].categories[cat].history : {};
+            
+            // 日付を降順（新しい順）にソート
+            const dates = Object.keys(history).sort((a,b) => b.localeCompare(a));
+            
+            if(dates.length === 0) {
+                select.appendChild(new Option("記録がありません (手動入力)", "manual"));
+            } else {
+                dates.forEach(d => {
+                    const dObj = new Date(d);
+                    const dStr = isNaN(dObj) ? d : `${dObj.getMonth()+1}月${dObj.getDate()}日`;
+                    select.appendChild(new Option(`${dStr} の予測: ${history[d]}個`, d));
+                });
+                select.appendChild(new Option("過去の予測を手動で入力する...", "manual"));
+            }
+            this.onChangeLearnDate(); // 初期値をセット
+        },
+
+        // ★ プルダウン変更時に予測入力欄を自動セット
+        onChangeLearnDate() {
+            const store = State.data.currentStore; const cat = State.data.currentCategory;
+            const select = document.getElementById('learnDateSelect');
+            const predInput = document.getElementById('fbPredicted');
+            if(!store || !cat || !select || !predInput) return;
+            
+            if(select.value === 'manual') {
+                predInput.readOnly = false;
+                predInput.style.backgroundColor = "#fafafa";
+                predInput.value = "";
+                predInput.placeholder = "手動入力";
+            } else {
+                const history = State.data.stores[store].categories[cat].history || {};
+                predInput.readOnly = true;
+                predInput.style.backgroundColor = "#e3e3e8"; // 入力不可を視覚的にアピール
+                predInput.value = history[select.value] || "";
             }
         },
 
@@ -217,7 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const cat = document.getElementById('categoryName').value;
             if (cat === State.data.currentCategory) return;
             State.updateInputData(); State.data.currentCategory = cat; State.save();
-            this.updateFreshnessDisplay(cat); this.restoreCategoryInputs(); Logic.calculate(true);
+            this.updateFreshnessDisplay(cat); this.restoreCategoryInputs(); Logic.calculate(false, false);
         },
 
         renderStoreDatalist() {
@@ -329,7 +402,6 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
                 const data = await res.json();
-
                 const tDateStr = document.getElementById('targetDateInput').value; 
 
                 let minT = "", maxT = "", weatherText = "不明", pop = "0";
@@ -338,7 +410,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (data[0] && data[0].timeSeries) {
                     let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     let pSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].pops); 
-                    
                     if (wSeries) {
                         let idx = wSeries.timeDefines.findIndex(t => t.startsWith(tDateStr));
                         if (idx === -1) idx = offset; 
@@ -373,7 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const disp = document.getElementById('weather-display'); disp.style.display = 'block';
                 disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,15)} / 降水確率: ${pop}%`;
                 
-                Logic.calcWeatherCoeff(); Logic.calculate(false);
+                Logic.calcWeatherCoeff(); Logic.calculate(false, false);
             } catch (e) { alert("天気取得失敗"); } 
             finally { btn.innerText = originalText; btn.disabled = false; }
         }
@@ -428,7 +499,7 @@ document.addEventListener("DOMContentLoaded", () => {
         executeLearning() {
             const act = parseFloat(document.getElementById('fbActual').value);
             const pred = parseFloat(document.getElementById('fbPredicted').value);
-            if (!act || !pred || pred <= 0) return alert("予測数と実際の販売数を入力してください。");
+            if (!act || !pred || pred <= 0) return alert("予測数と実際の販売数を正しく入力してください。");
             
             const storeSelect = document.getElementById('storeNameSelect');
             const store = storeSelect.value;
@@ -447,14 +518,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const msg = document.getElementById('learnSuccessMsg');
             msg.style.display = 'block'; setTimeout(() => msg.style.display='none', 3000);
             
-            this.calculate(false);
+            this.calculate(false, false);
         },
 
-        calculate(silent = false) {
+        // ★ 引数に「saveHist」を追加（ボタン押下時のみ履歴に保存）
+        calculate(silent = false, saveHist = false) {
             const storeSelect = document.getElementById('storeNameSelect');
             const store = storeSelect.value; 
             const cat = document.getElementById('categoryName').value;
             const fHours = parseFloat(document.getElementById('freshnessTime').value);
+            const dateStr = document.getElementById('targetDateInput').value;
             
             if (!store || store === "__NEW__" || !cat || fHours === 0) {
                 document.getElementById('resultArea').style.display = 'none';
@@ -470,7 +543,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const dayR = parseFloat(document.getElementById('ratio_' + document.getElementById('targetDay').value).value) || 1.0;
             const weathR = parseFloat(document.getElementById('weatherCoeff').value) || 1.0;
-            const calR = this.getCalendarCoeff(document.getElementById('targetDateInput').value);
+            const calR = this.getCalendarCoeff(dateStr);
             const customR = parseFloat(document.getElementById('customCoeff').value) || 1.0;
             const catR = parseFloat(document.getElementById('categoryCoeff').value) || 1.0;
             const maxT = parseFloat(document.getElementById('maxTemp').value) || 25;
@@ -515,6 +588,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, trendBoostVal, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo);
             
+            // ★ 明示的に保存指示があった場合のみ履歴に残す
+            if(saveHist) {
+                State.saveHistory(dateStr, Math.ceil(finalDemandRaw));
+            }
+
             return { cat: cat, pred: Math.ceil(finalDemandRaw), order: finalOrder };
         },
 
@@ -542,7 +620,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('stickyResultBar').classList.add('show');
         },
         
-        // ★ スクショ対応：販売予測数と発注目安数のラベルを明確化
         calculateAll() {
             const store = State.data.currentStore; if(!store || !State.data.stores[store]) return;
             const cats = Object.keys(State.data.stores[store].categories);
@@ -554,7 +631,8 @@ document.addEventListener("DOMContentLoaded", () => {
             cats.forEach(c => {
                 document.getElementById('categoryName').value = c;
                 UI.onCategoryChange();
-                let res = this.calculate(true);
+                // ★ 一括更新時にも各分類の履歴を保存する
+                let res = this.calculate(true, true);
                 if(res) results.push(res);
             });
 
