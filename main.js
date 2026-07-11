@@ -256,7 +256,6 @@ document.addEventListener("DOMContentLoaded", () => {
             Events.renderList();
             this.setupEventListeners();
 
-            // ★ PWA（ホーム画面追加）判定と案内バナーの表示
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
             if (!isStandalone) {
                 const prompt = document.getElementById('pwaPrompt');
@@ -264,7 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     prompt.style.display = 'flex';
                     document.getElementById('pwaClose').addEventListener('click', () => {
                         prompt.style.display = 'none';
-                        localStorage.setItem('pwaPromptDismissed', 'true'); // 一度消したら次回から表示しない
+                        localStorage.setItem('pwaPromptDismissed', 'true');
                     });
                 }
             }
@@ -337,6 +336,39 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('learnDateSelect').addEventListener('change', () => this.onChangeLearnDate());
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
+
+            // ★ 新規追加：アプリの強制更新（キャッシュ削除）ボタンの処理
+            const btnForceUpdate = document.getElementById('btn-force-update');
+            if (btnForceUpdate) {
+                btnForceUpdate.addEventListener('click', async () => {
+                    const originalText = btnForceUpdate.innerText;
+                    btnForceUpdate.innerText = "更新中...";
+                    btnForceUpdate.disabled = true;
+
+                    try {
+                        // 1. Service Workerの登録解除
+                        if ('serviceWorker' in navigator) {
+                            const registrations = await navigator.serviceWorker.getRegistrations();
+                            for (let registration of registrations) {
+                                await registration.unregister();
+                            }
+                        }
+                        // 2. キャッシュの完全削除
+                        if ('caches' in window) {
+                            const cacheNames = await caches.keys();
+                            await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+                        }
+                        // 3. ページをリロード（サーバーから最新を取得）
+                        alert("アプリを最新の状態に更新します。");
+                        window.location.reload(true);
+                    } catch (err) {
+                        console.error("更新エラー:", err);
+                        alert("更新に失敗しました。少し時間をおいて再度お試しください。");
+                        btnForceUpdate.innerText = originalText;
+                        btnForceUpdate.disabled = false;
+                    }
+                });
+            }
         },
 
         switchTab(tabId) {
