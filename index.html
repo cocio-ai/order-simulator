@@ -20,7 +20,7 @@
 <body>
 
 <div class="app-wrapper">
-    <!-- ★ ホーム画面追加＆引継ぎ案内バナー -->
+    <!-- ホーム画面追加＆引継ぎ案内バナー -->
     <div id="pwaPrompt" class="pwa-prompt" style="display: none;">
         <div class="pwa-content">
             <strong>📱 ホーム画面に追加してアプリ化！</strong>
@@ -169,11 +169,11 @@
             <h3 class="section-title">🎁 イベント・キャンペーン設定</h3>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">指定した日付・分類に自動で倍率を掛けます（例: おにぎりセール等）</p>
             <div class="event-box">
-                <div class="flex-row" style="align-items: stretch; margin-bottom: 10px;">
+                <div class="flex-row" style="margin-bottom: 10px;">
                     <div class="flex-col" style="flex: 1.2;"><input type="date" id="evDate"></div>
                     <div class="flex-col" style="flex: 2;"><input type="text" id="evName" placeholder="名前 (例: おにぎり特売)"></div>
                 </div>
-                <div class="flex-row" style="align-items: center; margin-bottom: 0;">
+                <div class="flex-row" style="margin-bottom: 0;">
                     <div class="flex-col" style="flex: 2;">
                         <select id="evCategory">
                             <option value="ALL">全分類 (全体底上げ)</option>
@@ -189,7 +189,7 @@
                     <div class="flex-col" style="flex: 1;">
                         <input type="number" id="evCoeff" value="1.5" min="0.1" step="0.1">
                     </div>
-                    <button id="btn-add-event" class="calc-button" style="margin-top: 0; padding: 0; width: 60px; height: 42px; font-size: 0.95rem;">追加</button>
+                    <button id="btn-add-event" class="calc-button" style="margin-top: 0; padding: 0; width: 64px; height: 42px; font-size: 0.95rem; border-radius: 8px;">追加</button>
                 </div>
             </div>
             <div id="eventListContainer" style="margin-top: 12px;"></div>
