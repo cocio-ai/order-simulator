@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // --- ★【修正】全国47都道府県 気象庁地域コード網羅（特殊コード対応済み） ---
+    // --- ★全国47都道府県 気象庁地域コード網羅 ---
     const prefs = {
         "016000":"北海道(札幌周辺)","011000":"北海道(宗谷)","012000":"北海道(上川・留萌)","013000":"北海道(網走・北見・紋別)","014100":"北海道(十勝)","014030":"北海道(釧路・根室)","015000":"北海道(胆振・日高)","017000":"北海道(渡島・檜山)",
         "020000":"青森県","030000":"岩手県","040000":"宮城県","050000":"秋田県",
@@ -67,26 +67,31 @@ document.addEventListener("DOMContentLoaded", () => {
                     const parsedV1 = JSON.parse(rawV1);
                     if (parsedV1 && parsedV1.stores && Object.keys(parsedV1.stores).length > 0) {
                         this.data = parsedV1; this.data.version = 2; 
-                        Object.keys(this.data.stores).forEach(s => {
-                            if (this.data.stores[s].categories) {
-                                Object.keys(this.data.stores[s].categories).forEach(c => {
-                                    let cat = this.data.stores[s].categories[c];
-                                    if (typeof cat.recentSales === 'undefined') cat.recentSales = "";
-                                    if (typeof cat.learnedCoeff === 'undefined') cat.learnedCoeff = 1.0;
-                                    if (typeof cat.categoryCoeff === 'undefined') cat.categoryCoeff = "1.0";
-                                    if (typeof cat.history === 'undefined') cat.history = {};
-                                });
-                            }
-                        });
-                        this.save();
                     }
                 }
+                // データ構造の保証（過去のデータにも events を追加）
+                if (this.data && this.data.stores) {
+                    Object.keys(this.data.stores).forEach(s => {
+                        if (!this.data.stores[s].events) this.data.stores[s].events = [];
+                        if (this.data.stores[s].categories) {
+                            Object.keys(this.data.stores[s].categories).forEach(c => {
+                                let cat = this.data.stores[s].categories[c];
+                                if (typeof cat.recentSales === 'undefined') cat.recentSales = "";
+                                if (typeof cat.learnedCoeff === 'undefined') cat.learnedCoeff = 1.0;
+                                if (typeof cat.categoryCoeff === 'undefined') cat.categoryCoeff = "1.0";
+                                if (typeof cat.history === 'undefined') cat.history = {};
+                            });
+                        }
+                    });
+                }
+                this.save();
             } catch(e) { console.error("Load Error"); }
         },
         save() { try { localStorage.setItem('oms_unified_state_v2', JSON.stringify(this.data)); UI.showSaveIndicator(); } catch(e){} },
         ensureStore(storeName) {
             if (!storeName) return;
-            if (!this.data.stores[storeName]) this.data.stores[storeName] = { prefecture: "230000", cityArea: "", categories: {} };
+            if (!this.data.stores[storeName]) this.data.stores[storeName] = { prefecture: "230000", cityArea: "", categories: {}, events: [] };
+            if (!this.data.stores[storeName].events) this.data.stores[storeName].events = [];
         },
         updateInputData() {
             const store = this.data.currentStore; const cat = this.data.currentCategory;
@@ -136,6 +141,69 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
+    // --- 新規：イベント・キャンペーン管理 ---
+    const Events = {
+        add() {
+            const store = State.data.currentStore;
+            if(!store || store === "__NEW__") return alert("店舗を選択してください");
+            
+            const date = document.getElementById('evDate').value;
+            const name = document.getElementById('evName').value.trim();
+            const cat = document.getElementById('evCategory').value;
+            const coeff = parseFloat(document.getElementById('evCoeff').value);
+            
+            if(!date || !name || isNaN(coeff)) return alert("日付、名前、倍率をすべて入力してください");
+            
+            State.ensureStore(store);
+            State.data.stores[store].events.push({ id: Date.now(), date, name, category: cat, coeff });
+            State.save();
+            
+            document.getElementById('evName').value = ""; // 名前だけクリアして連続登録しやすくする
+            this.renderList();
+            Logic.calculate(false, false);
+        },
+        remove(id) {
+            const store = State.data.currentStore;
+            if(!store) return;
+            State.data.stores[store].events = State.data.stores[store].events.filter(e => e.id !== id);
+            State.save();
+            this.renderList();
+            Logic.calculate(false, false);
+        },
+        renderList() {
+            const store = State.data.currentStore;
+            const container = document.getElementById('eventListContainer');
+            if(!store || !State.data.stores[store] || !State.data.stores[store].events || State.data.stores[store].events.length === 0) {
+                container.innerHTML = '<div style="color:#888; font-size:0.85rem; text-align:center; padding: 10px;">登録されているイベントはありません</div>';
+                return;
+            }
+            
+            let html = '';
+            // 日付順にソート
+            const sorted = [...State.data.stores[store].events].sort((a,b) => a.date.localeCompare(b.date));
+            
+            sorted.forEach(e => {
+                const d = new Date(e.date);
+                const dStr = isNaN(d) ? e.date : `${d.getMonth()+1}/${d.getDate()}`;
+                const catLabel = e.category === "ALL" ? "全分類" : e.category;
+                
+                html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 12px; border-radius:8px; margin-bottom:8px; font-size:0.9rem; border-left: 4px solid var(--seven-red); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div>
+                            <strong style="color:var(--seven-red); margin-right:8px;">${dStr}</strong> 
+                            <span style="font-weight: bold; color: #333;">${e.name}</span> 
+                            <span style="color:#666; font-size: 0.8rem; margin-left: 4px;">(${catLabel})</span> 
+                            <strong style="color:var(--primary-dark); margin-left: 8px;">×${e.coeff.toFixed(1)}</strong>
+                        </div>
+                        <button onclick="Events.remove(${e.id})" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer; padding: 0 8px;">×</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+    };
+    window.Events = Events;
+
     // --- UI制御 ---
     const UI = {
         init() {
@@ -147,6 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 this.restoreCategoryInputs(); 
             }
             Weather.restoreStoreWeather();
+            Events.renderList();
             this.setupEventListeners();
         },
 
@@ -161,13 +230,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     const newStore = prompt("新しい店舗名を入力してください");
                     if (newStore && newStore.trim() !== "") {
                         State.data.currentStore = newStore.trim(); State.ensureStore(State.data.currentStore); State.save();
-                        this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Logic.calculate(false, false);
+                        this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Events.renderList(); Logic.calculate(false, false);
                     } else {
                         storeSelect.value = State.data.currentStore || "";
                     }
                 } else {
                     State.data.currentStore = storeSelect.value; State.save();
-                    this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Logic.calculate(false, false);
+                    this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Events.renderList(); Logic.calculate(false, false);
                 }
             });
 
@@ -205,6 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
             });
 
+            document.getElementById('btn-add-event').addEventListener('click', () => Events.add());
             document.getElementById('btn-learn').addEventListener('click', () => Logic.executeLearning());
             document.getElementById('btn-refresh-all').addEventListener('click', () => Logic.calculateAll());
             
@@ -493,6 +563,21 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: Math.max(0.3, Math.min(2.5, coeff)), fixedBoost: fixed, message: msg };
         },
 
+        // イベント係数の取得
+        getEventCoeff(dateStr, catVal, store) {
+            let coeff = 1.0; 
+            let msgs = [];
+            if(!store || !State.data.stores[store] || !State.data.stores[store].events) return { coeff, msg: "" };
+            
+            State.data.stores[store].events.forEach(e => {
+                if(e.date === dateStr && (e.category === "ALL" || e.category === catVal)) {
+                    coeff *= e.coeff;
+                    msgs.push(`🎁 イベント適用: ${e.name} (×${e.coeff.toFixed(1)})`);
+                }
+            });
+            return { coeff, msg: msgs.join(" / ") };
+        },
+
         executeLearning() {
             const act = parseFloat(document.getElementById('fbActual').value);
             const pred = parseFloat(document.getElementById('fbPredicted').value);
@@ -546,6 +631,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const minT = parseFloat(document.getElementById('minTemp').value) || 15;
             
             const learnR = (State.data.stores[store] && State.data.stores[store].categories[cat]) ? (State.data.stores[store].categories[cat].learnedCoeff || 1.0) : 1.0;
+            
+            // イベント補正の取得
+            const evInfo = this.getEventCoeff(dateStr, cat, store);
+            const eventR = evInfo.coeff;
 
             let baseDemand = avgSales;
             let trendBoostVal = 0;
@@ -565,7 +654,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const minS = parseFloat(document.getElementById('minSales').value) || 0;
             const stdDev = (Math.max(maxS, minS) - Math.min(maxS, minS)) / 4 * shortR;
             
-            let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR;
+            // 全ての係数にイベント倍率(eventR)を追加
+            let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR * eventR;
             let finalDemandRaw = (baseDemand * shortR * multiplier) + tInfo.fixedBoost;
             
             const extraDays = fHours===60 ? 0.5 : (fHours===38 ? 0.2 : 0);
@@ -582,7 +672,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (finalOrder > limit) finalOrder = limit;
             }
 
-            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, trendBoostVal, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo);
+            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, trendBoostVal, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo);
             
             if(saveHist) {
                 State.saveHistory(dateStr, Math.ceil(finalDemandRaw));
@@ -591,7 +681,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return { cat: cat, pred: Math.ceil(finalDemandRaw), order: finalOrder };
         },
 
-        renderUI(cat, predRaw, order, base, trend, shortR, day, weather, cal, custom, catR, learn, temp) {
+        renderUI(cat, predRaw, order, base, trend, shortR, day, weather, cal, custom, catR, learn, temp, evInfo) {
             document.getElementById('resCategory').innerText = cat;
             document.getElementById('resBaseSales').innerText = base.toFixed(1);
             document.getElementById('resTrendBoost').innerText = trend > 0 ? `(+トレンド ${trend.toFixed(1)})` : '';
@@ -600,6 +690,15 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('resDayRatio').innerText = day.toFixed(2);
             let multStr = `[天候${weather.toFixed(2)} / 気温${temp.coeff.toFixed(2)} / 学習${learn.toFixed(2)} / 独自${custom.toFixed(2)} / 分類${catR.toFixed(2)}]`;
             document.getElementById('resMultipliers').innerText = multStr;
+            
+            // イベント適用メッセージの表示切替
+            const evMsgEl = document.getElementById('resEventMessage');
+            if (evInfo.msg) {
+                evMsgEl.innerText = evInfo.msg;
+                evMsgEl.style.display = 'block';
+            } else {
+                evMsgEl.style.display = 'none';
+            }
             
             if(learn !== 1.0) document.getElementById('resLearningMessage').innerText = `🧠 店舗独自のAI学習補正 (×${learn.toFixed(2)}) 適用中`;
             else document.getElementById('resLearningMessage').innerText = "";
