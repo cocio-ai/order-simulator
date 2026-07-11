@@ -167,7 +167,7 @@
 
         <div class="card">
             <h3 class="section-title">🎁 イベント・キャンペーン設定</h3>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">指定した日付・分類に自動で倍率を掛けます（例: おにぎりセール等）</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">指定した日付・分類に自動で倍率を掛けます</p>
             <div class="event-box">
                 <div class="flex-row" style="margin-bottom: 10px;">
                     <div class="flex-col" style="flex: 1.2;"><input type="date" id="evDate"></div>
@@ -265,13 +265,23 @@
 
     <!-- データ引継タブ -->
     <div id="tab-backup" class="tab-content">
+        <!-- ★ 新規追加：アプリの更新（キャッシュクリア）枠 -->
+        <div class="card" style="border: 2px solid var(--seven-blue);">
+            <h3 class="section-title" style="color: var(--seven-blue);">🔄 アプリの更新</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+                新機能が追加された際や、レイアウトがおかしい場合は、定期的にこのボタンを押して最新の状態に更新してください。<br>
+                <span style="color: var(--danger); font-weight: bold;">※入力済みの設定やデータは消えません。</span>
+            </p>
+            <button id="btn-force-update" class="calc-button" style="background: var(--seven-blue); margin-top: 0;">最新バージョンに更新</button>
+        </div>
+
         <div class="card">
             <h3 class="section-title">💾 データ引継ぎ</h3>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">別の端末にデータを移す際や、ホーム画面への追加時にこれまでのデータを復元するためのコードです。</p>
             <textarea id="backupCode" style="width: 100%; height: 100px; padding: 10px; font-size: 0.8rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; background: #fafafa; color: var(--text);"></textarea>
             <div class="flex-row">
                 <button id="btn-export" class="calc-button" style="background: #6c757d; padding: 10px; margin-top: 0;">コード作成 (コピー)</button>
-                <button id="btn-import" class="calc-button" style="background: var(--seven-blue); padding: 10px; margin-top: 0;">貼付して復元</button>
+                <button id="btn-import" class="calc-button" style="background: var(--seven-green-dark); padding: 10px; margin-top: 0;">貼付して復元</button>
             </div>
         </div>
     </div>
