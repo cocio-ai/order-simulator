@@ -14,13 +14,21 @@
 
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- Chart.jsの追加 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="main.js" defer></script>
 </head>
 <body>
 
 <div class="app-wrapper">
+    <!-- ★ ホーム画面追加＆引継ぎ案内バナー -->
+    <div id="pwaPrompt" class="pwa-prompt" style="display: none;">
+        <div class="pwa-content">
+            <strong>📱 ホーム画面に追加してアプリ化！</strong>
+            <p>Safariの「共有」ボタンから「ホーム画面に追加」すると全画面で快適に使えます。<br><span style="color: #ffeba1; font-weight: 800;">💡 移行時は「データ」タブのコードを使うとスムーズに引き継げます！</span></p>
+        </div>
+        <button id="pwaClose" class="pwa-close">✕</button>
+    </div>
+
     <h2 class="main-title">ORDER SIMULATOR <span style="font-size: 0.5em; background: var(--seven-green); padding: 3px 8px; border-radius: 6px; color: #fff; vertical-align: middle;">PRO</span></h2>
 
     <div class="tab-container" id="tabContainer" data-active-tab="simulator">
@@ -86,7 +94,7 @@
                 <div class="flex-col"><label style="color: var(--primary);">最低陳列量</label><input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0"></div><div class="flex-col"></div>
             </div>
 
-            <div class="form-group" style="margin-top: 24px; margin-bottom: 0; padding-top: 16px; border-top: 1px dashed #eee;">
+            <div class="form-group" style="margin-top: 24px; margin-bottom: 0; padding-top: 16px; border-top: 1px dashed var(--border);">
                 <label style="color: var(--danger);">🔥 分類別 取り組み補正 (販売強化など)</label>
                 <div class="flex-row" style="align-items: center; margin-bottom: 0;">
                     <div class="flex-col">
@@ -144,7 +152,7 @@
                 <div class="flex-col"><label style="color: var(--primary);">予想最低気温 (℃)</label><input type="number" inputmode="numeric" id="minTemp" value="15"></div>
             </div>
 
-            <div class="form-group" style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed #eee;">
+            <div class="form-group" style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border);">
                 <label style="color: var(--primary-dark);">全体 独自補正 (GW・特需など)</label>
                 <div class="flex-row" style="align-items: center; margin-bottom: 0;">
                     <div class="flex-col">
@@ -159,10 +167,10 @@
 
         <div class="card">
             <h3 class="section-title">🎁 イベント・キャンペーン設定</h3>
-            <p style="font-size: 0.8rem; color: #666; margin-bottom: 12px;">指定した日付・分類に自動で倍率を掛けます（例: おにぎりセール、近隣の運動会など）</p>
-            <div class="form-group" style="background: rgba(238,114,0,0.05); padding: 12px; border: 1px solid rgba(238,114,0,0.2); border-radius: 8px;">
-                <div class="flex-row" style="align-items: center; margin-bottom: 8px;">
-                    <div class="flex-col" style="flex: 1.5;"><input type="date" id="evDate"></div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">指定した日付・分類に自動で倍率を掛けます（例: おにぎりセール等）</p>
+            <div class="event-box">
+                <div class="flex-row" style="align-items: stretch; margin-bottom: 10px;">
+                    <div class="flex-col" style="flex: 1.2;"><input type="date" id="evDate"></div>
                     <div class="flex-col" style="flex: 2;"><input type="text" id="evName" placeholder="名前 (例: おにぎり特売)"></div>
                 </div>
                 <div class="flex-row" style="align-items: center; margin-bottom: 0;">
@@ -181,15 +189,15 @@
                     <div class="flex-col" style="flex: 1;">
                         <input type="number" id="evCoeff" value="1.5" min="0.1" step="0.1">
                     </div>
-                    <button id="btn-add-event" class="calc-button" style="margin-top: 0; padding: 10px; width: 60px; font-size: 0.9rem;">追加</button>
+                    <button id="btn-add-event" class="calc-button" style="margin-top: 0; padding: 0; width: 60px; height: 42px; font-size: 0.95rem;">追加</button>
                 </div>
             </div>
             <div id="eventListContainer" style="margin-top: 12px;"></div>
         </div>
 
-        <button id="btn-calculate" class="calc-button"><span id="btn-calc-text">⚡ シミュレーション実行</span></button>
+        <button id="btn-calculate" class="calc-button" style="margin-bottom: 16px;"><span id="btn-calc-text">⚡ シミュレーション実行</span></button>
 
-        <div id="resultArea" class="result-card card" style="display: none; margin-top: 24px;">
+        <div id="resultArea" class="result-card card" style="display: none; margin-top: 12px;">
             <div class="result-header"><strong id="resCategory"></strong> <span id="resFreshnessText" style="font-size:0.85rem; color:#666; font-weight:normal; margin-left:10px;"></span></div>
             <div class="result-item" style="font-size: 0.85rem; margin-bottom: 12px; line-height: 1.5; color: #555;">
                 (内訳: 基本 <span id="resBaseSales"></span> <span id="resTrendBoost" style="color:var(--seven-red); font-weight:bold;"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 各種係数 <span id="resMultipliers" style="color:var(--primary-dark); font-weight:bold;"></span>)
@@ -200,8 +208,8 @@
             <div id="resLearningMessage" style="color: var(--seven-green-dark); font-size: 0.9rem; margin-bottom: 20px; font-weight: 700;"></div>
             
             <div class="forecast-panel">
-                <div style="font-size: 0.95rem; font-weight: 700; color: #555;">1日の販売予測</div>
-                <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; font-weight: bold; color: #555;">個</span></div>
+                <div style="font-size: 0.95rem; font-weight: 700; color: var(--text);">1日の販売予測</div>
+                <div><span class="f-value" id="resAdjSales"></span> <span style="font-size: 1rem; font-weight: bold; color: var(--text);">個</span></div>
             </div>
 
             <div class="order-panel">
@@ -215,17 +223,16 @@
     <div id="tab-learning" class="tab-content">
         <div class="card" style="border: 2px solid var(--seven-red);">
             <h3 class="section-title" style="color: var(--seven-red);">🧠 AI 予実学習</h3>
-            <p style="font-size: 0.85rem; color: #555; margin-bottom: 16px; line-height: 1.5;">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
                 過去の予測と実際の結果のズレをフィードバックし、自店舗のクセを自動学習させます。<br>
                 対象: <strong id="learnTargetCategory" style="font-size: 1.05rem; color: var(--primary-dark);">未選択</strong>
             </p>
             
-            <!-- Chart.js グラフ描画エリア -->
-            <div style="background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #eee;">
+            <div class="chart-container">
                 <canvas id="learningChart" style="max-height: 200px; width: 100%;"></canvas>
             </div>
 
-            <div class="form-group" style="background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 8px;">
+            <div class="form-group event-box">
                 <label style="color: var(--primary-dark);">📅 対象の予測日（直近7日）</label>
                 <select id="learnDateSelect" style="font-weight: bold; font-size: 1rem; color: var(--primary-dark);"></select>
             </div>
@@ -236,7 +243,7 @@
             </div>
             
             <div style="font-size: 0.85rem; margin-top: 10px; color: var(--text-muted); text-align: right;">
-                現在の補正値: <strong id="currentLearnedCoeffText" style="font-size: 1.2rem; color: #333;">1.00</strong> 倍
+                現在の補正値: <strong id="currentLearnedCoeffText" style="font-size: 1.2rem; color: var(--text);">1.00</strong> 倍
             </div>
             <button id="btn-learn" class="calc-button" style="background: var(--seven-red); margin-top: 16px;">AIに学習させる</button>
             <div id="learnSuccessMsg" style="color: var(--success); font-weight: bold; text-align: center; margin-top: 12px; display: none;">✅ AIが学習しました！</div>
@@ -245,9 +252,9 @@
 
     <!-- スクショ用一括確認タブ -->
     <div id="tab-all" class="tab-content">
-        <div id="screenshotTargetArea" class="card" style="padding: 0; overflow: hidden; border: 1px solid #ccc; background: #fff;">
+        <div id="screenshotTargetArea" class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--border); background: var(--card-bg);">
             <div id="allResultsContainer" class="screenshot-container">
-                <div style="padding: 20px; text-align: center; color: #888;">計算を実行してください</div>
+                <div style="padding: 20px; text-align: center; color: var(--text-muted);">計算を実行してください</div>
             </div>
         </div>
         <div class="flex-row" style="margin-top: 12px; gap: 12px;">
@@ -260,10 +267,10 @@
     <div id="tab-backup" class="tab-content">
         <div class="card">
             <h3 class="section-title">💾 データ引継ぎ</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-bottom: 12px;">別の端末にデータを移す際のコードです。</p>
-            <textarea id="backupCode" style="width: 100%; height: 80px; padding: 10px; font-size: 0.8rem; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 12px;"></textarea>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">別の端末にデータを移す際や、ホーム画面への追加時にこれまでのデータを復元するためのコードです。</p>
+            <textarea id="backupCode" style="width: 100%; height: 100px; padding: 10px; font-size: 0.8rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; background: #fafafa; color: var(--text);"></textarea>
             <div class="flex-row">
-                <button id="btn-export" class="calc-button" style="background: #6c757d; padding: 10px; margin-top: 0;">コード作成</button>
+                <button id="btn-export" class="calc-button" style="background: #6c757d; padding: 10px; margin-top: 0;">コード作成 (コピー)</button>
                 <button id="btn-import" class="calc-button" style="background: var(--seven-blue); padding: 10px; margin-top: 0;">貼付して復元</button>
             </div>
         </div>
