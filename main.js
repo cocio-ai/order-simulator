@@ -711,4 +711,13 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     State.load(); UI.init();
+
+    // --- PWA（Service Worker）の登録 ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('PWA登録成功！', reg.scope))
+                .catch(err => console.log('PWA登録失敗:', err));
+        });
+    }
 });
