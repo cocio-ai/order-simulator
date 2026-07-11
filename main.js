@@ -121,15 +121,25 @@ document.addEventListener("DOMContentLoaded", () => {
             };
             this.save();
         },
-        saveHistory(dateStr, predQty) {
-            if(!dateStr || isNaN(predQty)) return;
+        // ★ 修正反映：発注日と販売日（ターゲット日）をセットで保存
+        saveHistory(targetDateStr, predQty) {
+            if(!targetDateStr || isNaN(predQty)) return;
             const store = this.data.currentStore; const cat = this.data.currentCategory;
             if (!store || !cat) return;
             this.ensureStore(store);
             if(!this.data.stores[store].categories[cat]) return;
             if(!this.data.stores[store].categories[cat].history) this.data.stores[store].categories[cat].history = {};
             
-            this.data.stores[store].categories[cat].history[dateStr] = predQty;
+            // 発注日として本日の日付を記録
+            const now = new Date();
+            const orderDateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0');
+            
+            // 単なる数値ではなく、予測数と発注日をセットで保存
+            this.data.stores[store].categories[cat].history[targetDateStr] = {
+                pred: predQty,
+                orderDate: orderDateStr
+            };
+            
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
             if (keys.length > 7) {
                 keys.slice(7).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
@@ -199,6 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Events = Events;
 
+    // ★ 修正反映：グラフの軸を2段書きにして発注日・販売日の関係を明示
     const ChartModule = {
         chart: null,
         render(history) {
@@ -208,11 +219,28 @@ document.addEventListener("DOMContentLoaded", () => {
             const dates = Object.keys(history).sort((a, b) => a.localeCompare(b));
             
             const labels = dates.map(d => {
-                const date = new Date(d);
-                return isNaN(date) ? d : `${date.getMonth()+1}/${date.getDate()}`;
+                const targetDate = new Date(d);
+                const salesStr = isNaN(targetDate) ? d : `${targetDate.getMonth()+1}/${targetDate.getDate()}`;
+                
+                let histItem = history[d];
+                let orderDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
+                
+                let orderStr = "";
+                if (orderDateStr) {
+                    const oDate = new Date(orderDateStr);
+                    orderStr = `${oDate.getMonth()+1}/${oDate.getDate()}`;
+                } else {
+                    const oDate = new Date(targetDate);
+                    oDate.setDate(oDate.getDate() - 1); 
+                    orderStr = `${oDate.getMonth()+1}/${oDate.getDate()}`;
+                }
+                return [`${orderStr} 発注`, `↓`, `${salesStr} 販売`];
             });
             
-            const predData = dates.map(d => history[d]);
+            const predData = dates.map(d => {
+                let val = history[d];
+                return typeof val === 'object' ? val.pred : val;
+            });
 
             if (this.chart) this.chart.destroy();
             this.chart = new Chart(ctx, {
@@ -235,7 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     maintainAspectRatio: false,
                     scales: {
                         y: { beginAtZero: false, ticks: { color: '#888' } },
-                        x: { ticks: { color: '#888' } }
+                        x: { ticks: { color: '#888', font: { size: 10 } } }
                     },
                     plugins: { legend: { labels: { color: '#888' } } }
                 }
@@ -337,7 +365,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
 
-            // アプリの強制更新ボタン
             const btnForceUpdate = document.getElementById('btn-force-update');
             if (btnForceUpdate) {
                 btnForceUpdate.addEventListener('click', async () => {
@@ -389,6 +416,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
+        // ★ 修正反映：プルダウンの表記を発注日と販売日のセット表示に変更
         updateLearnHistoryUI() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
@@ -403,8 +431,24 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 dates.forEach(d => {
                     const dObj = new Date(d);
-                    const dStr = isNaN(dObj) ? d : `${dObj.getMonth()+1}月${dObj.getDate()}日`;
-                    select.appendChild(new Option(`${dStr} 販売分 (予測: ${history[d]}個)`, d));
+                    const salesStr = isNaN(dObj) ? d : `${dObj.getMonth()+1}月${dObj.getDate()}日`;
+                    
+                    let histItem = history[d];
+                    let predVal = typeof histItem === 'object' ? histItem.pred : histItem;
+                    let orderDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
+                    
+                    let label = "";
+                    if(orderDateStr) {
+                        const oObj = new Date(orderDateStr);
+                        const orderStr = `${oObj.getMonth()+1}月${oObj.getDate()}日`;
+                        label = `【販売日】${salesStr} (${orderStr} 発注分 / 予測: ${predVal}個)`;
+                    } else {
+                        const oObj = new Date(dObj);
+                        oObj.setDate(oObj.getDate() - 1);
+                        const orderStr = `${oObj.getMonth()+1}月${oObj.getDate()}日`;
+                        label = `【販売日】${salesStr} (${orderStr} 頃発注 / 予測: ${predVal}個)`;
+                    }
+                    select.appendChild(new Option(label, d));
                 });
                 select.appendChild(new Option("手動で過去の日付・予測を入力する...", "manual"));
             }
@@ -424,9 +468,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 predInput.placeholder = "手動入力";
             } else {
                 const history = State.data.stores[store].categories[cat].history || {};
+                const histItem = history[select.value];
+                const predVal = typeof histItem === 'object' ? histItem.pred : histItem;
+                
                 predInput.readOnly = true;
                 predInput.style.backgroundColor = "var(--border)";
-                predInput.value = history[select.value] || "";
+                predInput.value = predVal || "";
             }
         },
 
@@ -541,7 +588,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // ★ 全国・全離島対応：気象庁解析ロジック完全強化版
+        // 天気予報完全強化版も維持
         async fetchWeather(offset) {
             const now = new Date();
             const target = new Date(now);
@@ -573,18 +620,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 for (let block of data) {
                     if (!block.timeSeries) continue;
                     for (let ts of block.timeSeries) {
-                        // 全国対応：指定エリアのデータ、または配列の0番目をフォールバック
                         let aData = ts.areas.find(a => a.area.code === areaCode) || ts.areas[0];
                         if (!aData) continue;
 
                         let idx = ts.timeDefines.findIndex(t => t.startsWith(tDateStr));
                         
-                        // 1. 天気テキスト
                         if (idx !== -1 && aData.weathers && aData.weathers[idx] && weatherText === "不明") {
                             weatherText = aData.weathers[idx];
                         }
 
-                        // 2. 降水確率（対象日の全時間枠から最大値を正確にスキャン）
                         if (aData.pops) {
                             ts.timeDefines.forEach((t, i) => {
                                 if (t.startsWith(tDateStr) && aData.pops[i]) {
@@ -594,13 +638,11 @@ document.addEventListener("DOMContentLoaded", () => {
                             });
                         }
 
-                        // 3. 週間天気ブロックからの気温スキャン
                         if (idx !== -1) {
                             if (aData.tempsMax && aData.tempsMax[idx]) { maxT = aData.tempsMax[idx]; tempFound = true; }
                             if (aData.tempsMin && aData.tempsMin[idx]) { minT = aData.tempsMin[idx]; tempFound = true; }
                         }
 
-                        // 4. 短期予報ブロックからの気温スキャン（北海道や一部地域、離島などの1日数回発表データに対応）
                         if (aData.temps && !tempFound) {
                             let dayTemps = [];
                             ts.timeDefines.forEach((t, i) => {
@@ -618,7 +660,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                // 画面への反映
                 if (tempFound) {
                     if (minT) document.getElementById('minTemp').value = Math.round(parseFloat(minT));
                     if (maxT) document.getElementById('maxTemp').value = Math.round(parseFloat(maxT));
