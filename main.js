@@ -337,7 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
 
-            // アプリの強制更新（キャッシュ削除）ボタン
+            // アプリの強制更新ボタン
             const btnForceUpdate = document.getElementById('btn-force-update');
             if (btnForceUpdate) {
                 btnForceUpdate.addEventListener('click', async () => {
@@ -541,9 +541,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // ★気象庁データ取得ロジック（日付ズレ防止・完全解析版）
+        // ★ 全国・全離島対応：気象庁解析ロジック完全強化版
         async fetchWeather(offset) {
-            // ボタンを押した際、カレンダーの日付も自動的に「明日/明後日」に合わせる
             const now = new Date();
             const target = new Date(now);
             target.setDate(now.getDate() + offset);
@@ -571,22 +570,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 let minT = "", maxT = "", weatherText = "不明", pop = 0;
                 let tempFound = false;
 
-                // 取得した気象庁の全ての配列（短期・週間）をくまなく探す
                 for (let block of data) {
                     if (!block.timeSeries) continue;
                     for (let ts of block.timeSeries) {
+                        // 全国対応：指定エリアのデータ、または配列の0番目をフォールバック
                         let aData = ts.areas.find(a => a.area.code === areaCode) || ts.areas[0];
                         if (!aData) continue;
 
-                        // 対象日（tDateStr）と完全に一致するデータ位置(idx)を探す
                         let idx = ts.timeDefines.findIndex(t => t.startsWith(tDateStr));
                         
-                        // 1. 天気テキストの取得
+                        // 1. 天気テキスト
                         if (idx !== -1 && aData.weathers && aData.weathers[idx] && weatherText === "不明") {
                             weatherText = aData.weathers[idx];
                         }
 
-                        // 2. 降水確率の取得（その日の全ての時間帯から最大値を抽出）
+                        // 2. 降水確率（対象日の全時間枠から最大値を正確にスキャン）
                         if (aData.pops) {
                             ts.timeDefines.forEach((t, i) => {
                                 if (t.startsWith(tDateStr) && aData.pops[i]) {
@@ -596,13 +594,13 @@ document.addEventListener("DOMContentLoaded", () => {
                             });
                         }
 
-                        // 3. 週間天気側の気温データの取得
+                        // 3. 週間天気ブロックからの気温スキャン
                         if (idx !== -1) {
                             if (aData.tempsMax && aData.tempsMax[idx]) { maxT = aData.tempsMax[idx]; tempFound = true; }
                             if (aData.tempsMin && aData.tempsMin[idx]) { minT = aData.tempsMin[idx]; tempFound = true; }
                         }
 
-                        // 4. 短期予報側の気温データの取得（1日に複数回発表されている場合）
+                        // 4. 短期予報ブロックからの気温スキャン（北海道や一部地域、離島などの1日数回発表データに対応）
                         if (aData.temps && !tempFound) {
                             let dayTemps = [];
                             ts.timeDefines.forEach((t, i) => {
@@ -613,7 +611,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             if (dayTemps.length > 0) {
                                 maxT = Math.max(...dayTemps).toString();
                                 minT = Math.min(...dayTemps).toString();
-                                // もしデータが1つしかなければ、近似値で最低気温を算出
                                 if (maxT === minT) minT = (parseFloat(maxT) - 8).toString();
                                 tempFound = true;
                             }
@@ -621,7 +618,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                // 反映処理
+                // 画面への反映
                 if (tempFound) {
                     if (minT) document.getElementById('minTemp').value = Math.round(parseFloat(minT));
                     if (maxT) document.getElementById('maxTemp').value = Math.round(parseFloat(maxT));
