@@ -69,7 +69,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         this.data = parsedV1; this.data.version = 2; 
                     }
                 }
-                // データ構造の保証（過去のデータにも events を追加）
                 if (this.data && this.data.stores) {
                     Object.keys(this.data.stores).forEach(s => {
                         if (!this.data.stores[s].events) this.data.stores[s].events = [];
@@ -158,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
             State.data.stores[store].events.push({ id: Date.now(), date, name, category: cat, coeff });
             State.save();
             
-            document.getElementById('evName').value = ""; // 名前だけクリアして連続登録しやすくする
+            document.getElementById('evName').value = "";
             this.renderList();
             Logic.calculate(false, false);
         },
@@ -179,7 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             let html = '';
-            // 日付順にソート
             const sorted = [...State.data.stores[store].events].sort((a,b) => a.date.localeCompare(b.date));
             
             sorted.forEach(e => {
@@ -203,6 +201,49 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     window.Events = Events;
+
+    // --- 新規：Chart.js グラフ描画ロジック ---
+    const ChartModule = {
+        chart: null,
+        render(history) {
+            const canvas = document.getElementById('learningChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dates = Object.keys(history).sort((a, b) => a.localeCompare(b));
+            
+            const labels = dates.map(d => {
+                const date = new Date(d);
+                return isNaN(date) ? d : `${date.getMonth()+1}/${date.getDate()}`;
+            });
+            
+            const predData = dates.map(d => history[d]);
+
+            if (this.chart) this.chart.destroy();
+            this.chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '予測数',
+                        data: predData,
+                        borderColor: '#ee7200',
+                        backgroundColor: 'rgba(238, 114, 0, 0.1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#ee7200',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
+        }
+    };
 
     // --- UI制御 ---
     const UI = {
@@ -300,6 +341,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById('learnTargetCategory').innerText = State.data.currentCategory || "未選択";
                 document.getElementById('learnSuccessMsg').style.display = 'none';
                 this.updateLearnHistoryUI();
+                
+                // ★ グラフの描画呼び出し
+                const store = State.data.currentStore;
+                const cat = State.data.currentCategory;
+                if (store && cat && State.data.stores[store] && State.data.stores[store].categories[cat]) {
+                    ChartModule.render(State.data.stores[store].categories[cat].history || {});
+                }
             }
         },
 
@@ -601,6 +649,9 @@ document.addEventListener("DOMContentLoaded", () => {
             msg.style.display = 'block'; setTimeout(() => msg.style.display='none', 3000);
             
             this.calculate(false, false);
+            
+            // 学習実行後、グラフも更新する
+            ChartModule.render(State.data.stores[store].categories[cat].history || {});
         },
 
         calculate(silent = false, saveHist = false) {
@@ -632,7 +683,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const learnR = (State.data.stores[store] && State.data.stores[store].categories[cat]) ? (State.data.stores[store].categories[cat].learnedCoeff || 1.0) : 1.0;
             
-            // イベント補正の取得
             const evInfo = this.getEventCoeff(dateStr, cat, store);
             const eventR = evInfo.coeff;
 
@@ -654,7 +704,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const minS = parseFloat(document.getElementById('minSales').value) || 0;
             const stdDev = (Math.max(maxS, minS) - Math.min(maxS, minS)) / 4 * shortR;
             
-            // 全ての係数にイベント倍率(eventR)を追加
             let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR * eventR;
             let finalDemandRaw = (baseDemand * shortR * multiplier) + tInfo.fixedBoost;
             
@@ -691,7 +740,6 @@ document.addEventListener("DOMContentLoaded", () => {
             let multStr = `[天候${weather.toFixed(2)} / 気温${temp.coeff.toFixed(2)} / 学習${learn.toFixed(2)} / 独自${custom.toFixed(2)} / 分類${catR.toFixed(2)}]`;
             document.getElementById('resMultipliers').innerText = multStr;
             
-            // イベント適用メッセージの表示切替
             const evMsgEl = document.getElementById('resEventMessage');
             if (evInfo.msg) {
                 evMsgEl.innerText = evInfo.msg;
