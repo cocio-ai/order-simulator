@@ -95,3 +95,53 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 .screenshot-order { font-size: 1.5rem; font-weight: 900; color: var(--text); }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- ダークモード（夜勤対応） --- */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background: #000000; /* iOSネイティブの真の黒 */
+        --card-bg: #1c1c1e;    /* 少し浮き上がらせるダークグレー */
+        --text: #ffffff;
+        --text-muted: #ebebf5; 
+        --border: #38383a;
+    }
+
+    /* 全体・カードの背景反転 */
+    body { background-color: var(--background); color: var(--text); }
+    .card { background: var(--card-bg); border-color: var(--border); box-shadow: none; }
+    .result-card { background: linear-gradient(to bottom, #1c1c1e, #2c2c2e); border: 2px solid var(--seven-blue); }
+    .result-header { background-color: #000000; border-left: 4px solid var(--seven-blue); color: #fff;}
+    .section-title { color: var(--seven-blue); border-bottom: 2px solid var(--border); }
+
+    /* 入力フォームのダーク化 */
+    input[type="text"], input[type="number"], select, input[type="date"] {
+        background-color: #2c2c2e; color: #fff; border: 1px solid #38383a;
+    }
+    input:focus, select:focus { background-color: #3a3a3c; box-shadow: 0 0 0 3px rgba(0,161,233,0.15); border-color: var(--seven-blue); }
+    input[readonly] { background-color: #1c1c1e; color: #8e8e93; }
+
+    /* 各種パネルや細かい部分の調整 */
+    .forecast-panel, .order-panel { background: #2c2c2e; border-color: var(--border); }
+    .order-panel { background: rgba(0, 165, 79, 0.15); border-color: var(--seven-green); }
+    .f-value, .o-label { color: #fff; }
+    .form-group label { color: #e0e0e0; }
+    .day-ratio-container { background: #2c2c2e; }
+    .day-ratio-box label { color: #e0e0e0; }
+    .tab-container { background: #2c2c2e; }
+    .tab-active-bg { background: #48484a; }
+    .tab-button.active { color: #fff; }
+    
+    /* 下部固定バー */
+    .sticky-result-bar { background: rgba(28, 28, 30, 0.95); border-top: 1px solid #38383a; }
+    .sticky-result-bar div, .sticky-order { color: #fff !important; }
+    .sticky-order span { color: var(--seven-green) !important; }
+    
+    /* 一括画面タブの調整 */
+    #screenshotTargetArea { background: var(--background) !important; border-color: var(--border) !important; }
+    .screenshot-container { background: var(--background); }
+    .screenshot-header { background: var(--card-bg); border-bottom: 2px solid var(--seven-green); }
+    .screenshot-header div { color: #fff !important; }
+    .screenshot-item { border-bottom: 1px dashed var(--border); }
+    .screenshot-cat, .screenshot-pred { color: #fff !important; }
+    .screenshot-data div, .screenshot-data span { color: #e0e0e0 !important; }
+}
