@@ -337,7 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
 
-            // ★ 新規追加：アプリの強制更新（キャッシュ削除）ボタンの処理
+            // アプリの強制更新（キャッシュ削除）ボタン
             const btnForceUpdate = document.getElementById('btn-force-update');
             if (btnForceUpdate) {
                 btnForceUpdate.addEventListener('click', async () => {
@@ -346,19 +346,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     btnForceUpdate.disabled = true;
 
                     try {
-                        // 1. Service Workerの登録解除
                         if ('serviceWorker' in navigator) {
                             const registrations = await navigator.serviceWorker.getRegistrations();
                             for (let registration of registrations) {
                                 await registration.unregister();
                             }
                         }
-                        // 2. キャッシュの完全削除
                         if ('caches' in window) {
                             const cacheNames = await caches.keys();
                             await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
                         }
-                        // 3. ページをリロード（サーバーから最新を取得）
                         alert("アプリを最新の状態に更新します。");
                         window.location.reload(true);
                     } catch (err) {
@@ -407,9 +404,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 dates.forEach(d => {
                     const dObj = new Date(d);
                     const dStr = isNaN(dObj) ? d : `${dObj.getMonth()+1}月${dObj.getDate()}日`;
-                    select.appendChild(new Option(`${dStr} の予測: ${history[d]}個`, d));
+                    // ★ ここを「販売分」という表記に変更
+                    select.appendChild(new Option(`${dStr} 販売分 (予測: ${history[d]}個)`, d));
                 });
-                select.appendChild(new Option("過去の予測を手動で入力する...", "manual"));
+                select.appendChild(new Option("手動で過去の日付・予測を入力する...", "manual"));
             }
             this.onChangeLearnDate();
         },
