@@ -34,20 +34,36 @@ body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica
 .card { background: var(--card-bg); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.02); }
 .section-title { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 
-/* 入力フォーム */
+/* 入力フォーム共通（ズレ・飛び出し防止） */
 .form-group { margin-bottom: 14px; }
 .form-group label { display: block; font-weight: 600; font-size: 0.85rem; color: var(--text); margin-bottom: 6px; }
 
 input[type="text"], input[type="number"], select, input[type="date"], textarea {
-    width: 100%; padding: 8px 12px; font-size: 1rem; border: 1px solid #d1d1d6;
-    border-radius: 8px; background-color: #fafafa; color: var(--text); transition: all 0.2s;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box; /* iOSでの幅の飛び出しを防止 */
+    padding: 8px 12px; 
+    font-size: 1rem; 
+    border: 1px solid #d1d1d6;
+    border-radius: 8px; 
+    background-color: #fafafa; 
+    color: var(--text); 
+    transition: all 0.2s;
 }
+
 input[type="text"], input[type="number"], select, input[type="date"] { height: 42px; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--seven-green); background-color: #fff; box-shadow: 0 0 0 3px rgba(0,165,79,0.15); }
 input[readonly] { background-color: #f2f2f7; color: #8e8e93; font-weight: 600; border-color: transparent; }
 
-.flex-row { display: flex; gap: 10px; margin-bottom: 12px; }
-.flex-col { flex: 1; display: flex; flex-direction: column; }
+/* 日付フォーム特有のiOSスタイルリセット */
+input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Flexboxの重なり防止 */
+.flex-row { display: flex; gap: 10px; margin-bottom: 12px; width: 100%; align-items: center; }
+.flex-col { flex: 1; display: flex; flex-direction: column; min-width: 0; } /* min-width: 0 がフォームの重なりを防ぎます */
 .flex-col label { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; margin-bottom: 6px; color: var(--text); }
 
 /* イベント・グラフ枠用 */
