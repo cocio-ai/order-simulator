@@ -14,6 +14,8 @@
 
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Chart.jsの追加 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="main.js" defer></script>
 </head>
 <body>
@@ -155,7 +157,6 @@
             </div>
         </div>
 
-        <!-- 🎁 新規追加：イベント・キャンペーン管理 -->
         <div class="card">
             <h3 class="section-title">🎁 イベント・キャンペーン設定</h3>
             <p style="font-size: 0.8rem; color: #666; margin-bottom: 12px;">指定した日付・分類に自動で倍率を掛けます（例: おにぎりセール、近隣の運動会など）</p>
@@ -219,6 +220,11 @@
                 対象: <strong id="learnTargetCategory" style="font-size: 1.05rem; color: var(--primary-dark);">未選択</strong>
             </p>
             
+            <!-- Chart.js グラフ描画エリア -->
+            <div style="background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #eee;">
+                <canvas id="learningChart" style="max-height: 200px; width: 100%;"></canvas>
+            </div>
+
             <div class="form-group" style="background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 8px;">
                 <label style="color: var(--primary-dark);">📅 対象の予測日（直近7日）</label>
                 <select id="learnDateSelect" style="font-weight: bold; font-size: 1rem; color: var(--primary-dark);"></select>
