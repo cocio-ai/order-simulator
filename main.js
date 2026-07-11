@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // --- ★全国47都道府県 気象庁地域コード網羅 ---
     const prefs = {
         "016000":"北海道(札幌周辺)","011000":"北海道(宗谷)","012000":"北海道(上川・留萌)","013000":"北海道(網走・北見・紋別)","014100":"北海道(十勝)","014030":"北海道(釧路・根室)","015000":"北海道(胆振・日高)","017000":"北海道(渡島・檜山)",
         "020000":"青森県","030000":"岩手県","040000":"宮城県","050000":"秋田県",
@@ -49,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- 状態管理 ---
     const State = {
         data: { version: 2, currentStore: "", currentCategory: "", stores: {} },
         load() {
@@ -140,7 +138,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- 新規：イベント・キャンペーン管理 ---
     const Events = {
         add() {
             const store = State.data.currentStore;
@@ -173,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const store = State.data.currentStore;
             const container = document.getElementById('eventListContainer');
             if(!store || !State.data.stores[store] || !State.data.stores[store].events || State.data.stores[store].events.length === 0) {
-                container.innerHTML = '<div style="color:#888; font-size:0.85rem; text-align:center; padding: 10px;">登録されているイベントはありません</div>';
+                container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding: 10px;">登録されているイベントはありません</div>';
                 return;
             }
             
@@ -186,11 +183,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 const catLabel = e.category === "ALL" ? "全分類" : e.category;
                 
                 html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px 12px; border-radius:8px; margin-bottom:8px; font-size:0.9rem; border-left: 4px solid var(--seven-red); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); padding:10px 12px; border-radius:8px; margin-bottom:8px; font-size:0.9rem; border-left: 4px solid var(--seven-red); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                         <div>
                             <strong style="color:var(--seven-red); margin-right:8px;">${dStr}</strong> 
-                            <span style="font-weight: bold; color: #333;">${e.name}</span> 
-                            <span style="color:#666; font-size: 0.8rem; margin-left: 4px;">(${catLabel})</span> 
+                            <span style="font-weight: bold; color: var(--text);">${e.name}</span> 
+                            <span style="color:var(--text-muted); font-size: 0.8rem; margin-left: 4px;">(${catLabel})</span> 
                             <strong style="color:var(--primary-dark); margin-left: 8px;">×${e.coeff.toFixed(1)}</strong>
                         </div>
                         <button onclick="Events.remove(${e.id})" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer; padding: 0 8px;">×</button>
@@ -202,7 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Events = Events;
 
-    // --- 新規：Chart.js グラフ描画ロジック ---
     const ChartModule = {
         chart: null,
         render(history) {
@@ -238,14 +234,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     responsive: true, 
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: false }
-                    }
+                        y: { beginAtZero: false, ticks: { color: '#888' } },
+                        x: { ticks: { color: '#888' } }
+                    },
+                    plugins: { legend: { labels: { color: '#888' } } }
                 }
             });
         }
     };
 
-    // --- UI制御 ---
     const UI = {
         init() {
             initializeDateAndTime();
@@ -258,6 +255,19 @@ document.addEventListener("DOMContentLoaded", () => {
             Weather.restoreStoreWeather();
             Events.renderList();
             this.setupEventListeners();
+
+            // ★ PWA（ホーム画面追加）判定と案内バナーの表示
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            if (!isStandalone) {
+                const prompt = document.getElementById('pwaPrompt');
+                if (prompt && !localStorage.getItem('pwaPromptDismissed')) {
+                    prompt.style.display = 'flex';
+                    document.getElementById('pwaClose').addEventListener('click', () => {
+                        prompt.style.display = 'none';
+                        localStorage.setItem('pwaPromptDismissed', 'true'); // 一度消したら次回から表示しない
+                    });
+                }
+            }
         },
 
         setupEventListeners() {
@@ -342,7 +352,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById('learnSuccessMsg').style.display = 'none';
                 this.updateLearnHistoryUI();
                 
-                // ★ グラフの描画呼び出し
                 const store = State.data.currentStore;
                 const cat = State.data.currentCategory;
                 if (store && cat && State.data.stores[store] && State.data.stores[store].categories[cat]) {
@@ -387,7 +396,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 const history = State.data.stores[store].categories[cat].history || {};
                 predInput.readOnly = true;
-                predInput.style.backgroundColor = "#e3e3e8";
+                predInput.style.backgroundColor = "var(--border)";
                 predInput.value = history[select.value] || "";
             }
         },
@@ -460,17 +469,16 @@ document.addEventListener("DOMContentLoaded", () => {
         },
 
         showSaveIndicator() { const ind = document.getElementById('saveIndicator'); if(ind) { ind.innerText = "✓ 保存済"; setTimeout(() => ind.innerText = "", 2000); } },
-        exportBackup() { document.getElementById('backupCode').value = btoa(unescape(encodeURIComponent(JSON.stringify(State.data)))); alert("コードを作成しました"); },
+        exportBackup() { document.getElementById('backupCode').value = btoa(unescape(encodeURIComponent(JSON.stringify(State.data)))); alert("コードを作成しました！これをコピーして引き継ぎ先の端末で貼り付けてください。"); },
         importBackup() {
             try {
                 const parsed = JSON.parse(decodeURIComponent(escape(atob(document.getElementById('backupCode').value.trim()))));
-                if (parsed && parsed.stores) { State.data = parsed; State.save(); this.init(); alert("復元に成功しました！"); }
-            } catch(e) { alert("コードエラー"); }
+                if (parsed && parsed.stores) { State.data = parsed; State.save(); this.init(); alert("データの復元に成功しました！"); }
+            } catch(e) { alert("コードが正しくありません。"); }
         }
     };
     window.UI = UI; 
 
-    // --- 気象庁・外部データ連携 ---
     const Weather = {
         restoreStoreWeather() {
             const store = State.data.currentStore; if (!store) return; State.ensureStore(store);
@@ -566,7 +574,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Weather = Weather; 
 
-    // --- メイン計算ロジック ---
     const Logic = {
         calcWeatherCoeff() {
             const pop = parseFloat(document.getElementById('popRate').value) || 0;
@@ -611,7 +618,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff: Math.max(0.3, Math.min(2.5, coeff)), fixedBoost: fixed, message: msg };
         },
 
-        // イベント係数の取得
         getEventCoeff(dateStr, catVal, store) {
             let coeff = 1.0; 
             let msgs = [];
@@ -649,8 +655,6 @@ document.addEventListener("DOMContentLoaded", () => {
             msg.style.display = 'block'; setTimeout(() => msg.style.display='none', 3000);
             
             this.calculate(false, false);
-            
-            // 学習実行後、グラフも更新する
             ChartModule.render(State.data.stores[store].categories[cat].history || {});
         },
 
@@ -859,7 +863,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     State.load(); UI.init();
 
-    // --- PWA（Service Worker）の登録 ---
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
