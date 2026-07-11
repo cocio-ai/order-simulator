@@ -404,7 +404,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 dates.forEach(d => {
                     const dObj = new Date(d);
                     const dStr = isNaN(dObj) ? d : `${dObj.getMonth()+1}月${dObj.getDate()}日`;
-                    // ★ ここを「販売分」という表記に変更
                     select.appendChild(new Option(`${dStr} 販売分 (予測: ${history[d]}個)`, d));
                 });
                 select.appendChild(new Option("手動で過去の日付・予測を入力する...", "manual"));
@@ -541,6 +540,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 areaSelect.innerHTML = '<option value="">エリア取得失敗 (都道府県を選び直してください)</option>';
             }
         },
+        // ★ 気象庁データ取得ロジックの完全強化・バグ修正
         async fetchWeather(offset) {
             const prefCode = document.getElementById('prefecture').value; const areaCode = document.getElementById('cityArea').value;
             if (!prefCode || !areaCode) return alert("エリアを選択してください");
@@ -557,6 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 let minT = "", maxT = "", weatherText = "不明", pop = "0";
                 const getArea = (series) => series.areas.find(a => a.area.code === areaCode) || series.areas[0];
 
+                // 1. 天気と降水確率の抽出
                 if (data[0] && data[0].timeSeries) {
                     let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
                     let pSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].pops); 
@@ -570,20 +571,50 @@ document.addEventListener("DOMContentLoaded", () => {
                         if(idx !== -1) { let pData = getArea(pSeries); if(pData && pData.pops[idx]) pop = pData.pops[idx]; }
                     }
                 }
+
+                // 2. 気温データの厳密な探索ロジック（バグ修正箇所）
+                let tempFound = false;
                 if (data[1] && data[1].timeSeries) {
-                    let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax);
+                    // 全てのタイムシリーズから気温情報を持つ（tempsMax または temps）データ枠を走査
+                    let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax) || 
+                                  data[1].timeSeries.find(ts => ts.areas && ts.areas[0].temps);
                     if (tSeries) {
                         let idx = tSeries.timeDefines.findIndex(t => t.startsWith(tDateStr));
                         if(idx !== -1) {
                             let aData = getArea(tSeries);
                             if (aData.tempsMin && aData.tempsMin[idx]) minT = aData.tempsMin[idx];
                             if (aData.tempsMax && aData.tempsMax[idx]) maxT = aData.tempsMax[idx];
+                            if (minT || maxT) tempFound = true;
                         }
                     }
                 }
 
-                if (minT) document.getElementById('minTemp').value = minT;
-                if (maxT) document.getElementById('maxTemp').value = maxT;
+                // 3. 短期予報側（data[0]）にしか気温がないイレギュラーパターンの救済措置
+                if (!tempFound && data[0] && data[0].timeSeries) {
+                    let tSeriesShort = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].temps);
+                    if (tSeriesShort) {
+                        let idx = tSeriesShort.timeDefines.findIndex(t => t.startsWith(tDateStr));
+                        if (idx !== -1) {
+                            let aData = getArea(tSeriesShort);
+                            if (aData.temps && aData.temps[idx]) {
+                                // 短鮮度用に暫定値をマッピング（気象庁の短期は1段階の気温データのみの場合があるため）
+                                maxT = aData.temps[idx];
+                                minT = (parseFloat(maxT) - 8).toString(); // 最低気温の近似値を作成
+                                tempFound = true;
+                            }
+                        }
+                    }
+                }
+
+                // 反映と警告表示
+                if (tempFound) {
+                    if (minT) document.getElementById('minTemp').value = Math.round(parseFloat(minT));
+                    if (maxT) document.getElementById('maxTemp').value = Math.round(parseFloat(maxT));
+                } else {
+                    // 気象庁にデータがない場合、ユーザーに手動入力を促すアラート
+                    alert(`【お知らせ】\n気象庁から発注対象日（${tDateStr}）の予測気温データがまだ配信されていません。\n恐れ入りますが、気温欄は手動でご入力ください。`);
+                }
+                
                 if (pop) document.getElementById('popRate').value = pop.replace('%','');
                 
                 let icon = '⛅';
