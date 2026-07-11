@@ -155,6 +155,37 @@
             </div>
         </div>
 
+        <!-- 🎁 新規追加：イベント・キャンペーン管理 -->
+        <div class="card">
+            <h3 class="section-title">🎁 イベント・キャンペーン設定</h3>
+            <p style="font-size: 0.8rem; color: #666; margin-bottom: 12px;">指定した日付・分類に自動で倍率を掛けます（例: おにぎりセール、近隣の運動会など）</p>
+            <div class="form-group" style="background: rgba(238,114,0,0.05); padding: 12px; border: 1px solid rgba(238,114,0,0.2); border-radius: 8px;">
+                <div class="flex-row" style="align-items: center; margin-bottom: 8px;">
+                    <div class="flex-col" style="flex: 1.5;"><input type="date" id="evDate"></div>
+                    <div class="flex-col" style="flex: 2;"><input type="text" id="evName" placeholder="名前 (例: おにぎり特売)"></div>
+                </div>
+                <div class="flex-row" style="align-items: center; margin-bottom: 0;">
+                    <div class="flex-col" style="flex: 2;">
+                        <select id="evCategory">
+                            <option value="ALL">全分類 (全体底上げ)</option>
+                            <option value="おにぎり">おにぎり</option><option value="こだわりおにぎり">こだわりおにぎり</option>
+                            <option value="弁当">弁当（常温・短鮮度）</option><option value="寿司">寿司</option>
+                            <option value="チルド弁当">チルド弁当</option><option value="サンドイッチ">サンドイッチ</option>
+                            <option value="ロール">ロール</option><option value="調理麺">調理麺（冷たい麺）</option>
+                            <option value="カップ麺">カップ麺</option><option value="スパゲティパスタ">スパゲティパスタ</option>
+                            <option value="グラタンドリア">グラタンドリア</option><option value="サラダ">サラダ</option>
+                            <option value="カップデリ">カップデリ</option><option value="惣菜">惣菜</option>
+                        </select>
+                    </div>
+                    <div class="flex-col" style="flex: 1;">
+                        <input type="number" id="evCoeff" value="1.5" min="0.1" step="0.1">
+                    </div>
+                    <button id="btn-add-event" class="calc-button" style="margin-top: 0; padding: 10px; width: 60px; font-size: 0.9rem;">追加</button>
+                </div>
+            </div>
+            <div id="eventListContainer" style="margin-top: 12px;"></div>
+        </div>
+
         <button id="btn-calculate" class="calc-button"><span id="btn-calc-text">⚡ シミュレーション実行</span></button>
 
         <div id="resultArea" class="result-card card" style="display: none; margin-top: 24px;">
@@ -162,6 +193,8 @@
             <div class="result-item" style="font-size: 0.85rem; margin-bottom: 12px; line-height: 1.5; color: #555;">
                 (内訳: 基本 <span id="resBaseSales"></span> <span id="resTrendBoost" style="color:var(--seven-red); font-weight:bold;"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 各種係数 <span id="resMultipliers" style="color:var(--primary-dark); font-weight:bold;"></span>)
             </div>
+            
+            <div id="resEventMessage" style="color: var(--seven-red); font-size: 0.95rem; margin-bottom: 12px; font-weight: 800; display: none;"></div>
             <div id="resTempMessage" style="color: var(--warning); font-size: 0.9rem; margin-bottom: 12px; font-weight: 700;"></div>
             <div id="resLearningMessage" style="color: var(--seven-green-dark); font-size: 0.9rem; margin-bottom: 20px; font-weight: 700;"></div>
             
