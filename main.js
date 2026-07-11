@@ -540,82 +540,96 @@ document.addEventListener("DOMContentLoaded", () => {
                 areaSelect.innerHTML = '<option value="">エリア取得失敗 (都道府県を選び直してください)</option>';
             }
         },
-        // ★ 気象庁データ取得ロジックの完全強化・バグ修正
+
+        // ★気象庁データ取得ロジック（日付ズレ防止・完全解析版）
         async fetchWeather(offset) {
-            const prefCode = document.getElementById('prefecture').value; const areaCode = document.getElementById('cityArea').value;
-            if (!prefCode || !areaCode) return alert("エリアを選択してください");
+            // ボタンを押した際、カレンダーの日付も自動的に「明日/明後日」に合わせる
+            const now = new Date();
+            const target = new Date(now);
+            target.setDate(now.getDate() + offset);
             
+            const tDateStr = target.toISOString().split('T')[0];
+            document.getElementById('targetDateInput').value = tDateStr;
+            const days = ['sun','mon','tue','wed','thu','fri','sat'];
+            document.getElementById('targetDay').value = days[target.getDay()];
+            Logic.updateDateUI();
+            
+            const prefCode = document.getElementById('prefecture').value; 
+            const areaCode = document.getElementById('cityArea').value;
+            if (!prefCode || !areaCode) return alert("エリアを選択してください");
+
             const btn = offset === 1 ? document.getElementById('btn-weather-tmw') : document.getElementById('btn-weather-dat');
-            const originalText = btn.innerText; btn.innerText = "取得中..."; btn.disabled = true;
+            const originalText = btn.innerText; 
+            btn.innerText = "取得中..."; 
+            btn.disabled = true;
 
             try {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
                 if (!res.ok) throw new Error("天気データ取得失敗");
                 const data = await res.json();
-                const tDateStr = document.getElementById('targetDateInput').value; 
 
-                let minT = "", maxT = "", weatherText = "不明", pop = "0";
-                const getArea = (series) => series.areas.find(a => a.area.code === areaCode) || series.areas[0];
-
-                // 1. 天気と降水確率の抽出
-                if (data[0] && data[0].timeSeries) {
-                    let wSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].weathers);
-                    let pSeries = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].pops); 
-                    if (wSeries) {
-                        let idx = wSeries.timeDefines.findIndex(t => t.startsWith(tDateStr));
-                        if (idx === -1) idx = offset; 
-                        let aData = getArea(wSeries); if (aData && aData.weathers[idx]) weatherText = aData.weathers[idx];
-                    }
-                    if (pSeries) {
-                        let idx = pSeries.timeDefines.findIndex(t => t.startsWith(tDateStr));
-                        if(idx !== -1) { let pData = getArea(pSeries); if(pData && pData.pops[idx]) pop = pData.pops[idx]; }
-                    }
-                }
-
-                // 2. 気温データの厳密な探索ロジック（バグ修正箇所）
+                let minT = "", maxT = "", weatherText = "不明", pop = 0;
                 let tempFound = false;
-                if (data[1] && data[1].timeSeries) {
-                    // 全てのタイムシリーズから気温情報を持つ（tempsMax または temps）データ枠を走査
-                    let tSeries = data[1].timeSeries.find(ts => ts.areas && ts.areas[0].tempsMax) || 
-                                  data[1].timeSeries.find(ts => ts.areas && ts.areas[0].temps);
-                    if (tSeries) {
-                        let idx = tSeries.timeDefines.findIndex(t => t.startsWith(tDateStr));
-                        if(idx !== -1) {
-                            let aData = getArea(tSeries);
-                            if (aData.tempsMin && aData.tempsMin[idx]) minT = aData.tempsMin[idx];
-                            if (aData.tempsMax && aData.tempsMax[idx]) maxT = aData.tempsMax[idx];
-                            if (minT || maxT) tempFound = true;
-                        }
-                    }
-                }
 
-                // 3. 短期予報側（data[0]）にしか気温がないイレギュラーパターンの救済措置
-                if (!tempFound && data[0] && data[0].timeSeries) {
-                    let tSeriesShort = data[0].timeSeries.find(ts => ts.areas && ts.areas[0].temps);
-                    if (tSeriesShort) {
-                        let idx = tSeriesShort.timeDefines.findIndex(t => t.startsWith(tDateStr));
+                // 取得した気象庁の全ての配列（短期・週間）をくまなく探す
+                for (let block of data) {
+                    if (!block.timeSeries) continue;
+                    for (let ts of block.timeSeries) {
+                        let aData = ts.areas.find(a => a.area.code === areaCode) || ts.areas[0];
+                        if (!aData) continue;
+
+                        // 対象日（tDateStr）と完全に一致するデータ位置(idx)を探す
+                        let idx = ts.timeDefines.findIndex(t => t.startsWith(tDateStr));
+                        
+                        // 1. 天気テキストの取得
+                        if (idx !== -1 && aData.weathers && aData.weathers[idx] && weatherText === "不明") {
+                            weatherText = aData.weathers[idx];
+                        }
+
+                        // 2. 降水確率の取得（その日の全ての時間帯から最大値を抽出）
+                        if (aData.pops) {
+                            ts.timeDefines.forEach((t, i) => {
+                                if (t.startsWith(tDateStr) && aData.pops[i]) {
+                                    let p = parseInt(aData.pops[i].replace('%',''));
+                                    if (!isNaN(p) && p > pop) pop = p;
+                                }
+                            });
+                        }
+
+                        // 3. 週間天気側の気温データの取得
                         if (idx !== -1) {
-                            let aData = getArea(tSeriesShort);
-                            if (aData.temps && aData.temps[idx]) {
-                                // 短鮮度用に暫定値をマッピング（気象庁の短期は1段階の気温データのみの場合があるため）
-                                maxT = aData.temps[idx];
-                                minT = (parseFloat(maxT) - 8).toString(); // 最低気温の近似値を作成
+                            if (aData.tempsMax && aData.tempsMax[idx]) { maxT = aData.tempsMax[idx]; tempFound = true; }
+                            if (aData.tempsMin && aData.tempsMin[idx]) { minT = aData.tempsMin[idx]; tempFound = true; }
+                        }
+
+                        // 4. 短期予報側の気温データの取得（1日に複数回発表されている場合）
+                        if (aData.temps && !tempFound) {
+                            let dayTemps = [];
+                            ts.timeDefines.forEach((t, i) => {
+                                if (t.startsWith(tDateStr) && aData.temps[i]) {
+                                    dayTemps.push(parseFloat(aData.temps[i]));
+                                }
+                            });
+                            if (dayTemps.length > 0) {
+                                maxT = Math.max(...dayTemps).toString();
+                                minT = Math.min(...dayTemps).toString();
+                                // もしデータが1つしかなければ、近似値で最低気温を算出
+                                if (maxT === minT) minT = (parseFloat(maxT) - 8).toString();
                                 tempFound = true;
                             }
                         }
                     }
                 }
 
-                // 反映と警告表示
+                // 反映処理
                 if (tempFound) {
                     if (minT) document.getElementById('minTemp').value = Math.round(parseFloat(minT));
                     if (maxT) document.getElementById('maxTemp').value = Math.round(parseFloat(maxT));
                 } else {
-                    // 気象庁にデータがない場合、ユーザーに手動入力を促すアラート
-                    alert(`【お知らせ】\n気象庁から発注対象日（${tDateStr}）の予測気温データがまだ配信されていません。\n恐れ入りますが、気温欄は手動でご入力ください。`);
+                    alert(`【お知らせ】\n気象庁から対象日（${tDateStr}）の予測気温データがまだ配信されていません。\n恐れ入りますが、気温欄は手動でご入力ください。`);
                 }
                 
-                if (pop) document.getElementById('popRate').value = pop.replace('%','');
+                document.getElementById('popRate').value = pop;
                 
                 let icon = '⛅';
                 if (/大雨|豪雨|暴風|大雪/.test(weatherText)) icon='🌧️';
@@ -625,12 +639,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 const disp = document.getElementById('weather-display'); disp.style.display = 'block';
                 disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,15)} / 降水確率: ${pop}%`;
                 
-                Logic.calcWeatherCoeff(); Logic.calculate(false, false);
+                Logic.calcWeatherCoeff(); 
+                Logic.calculate(false, false);
+                
             } catch (e) { 
                 console.error(e);
-                alert("気象庁サーバーからの取得に失敗しました。時間をおいて再試行してください。"); 
+                alert("気象庁サーバーからの取得に失敗しました。"); 
             } 
-            finally { btn.innerText = originalText; btn.disabled = false; }
+            finally { 
+                btn.innerText = originalText; 
+                btn.disabled = false; 
+            }
         }
     };
     window.Weather = Weather; 
