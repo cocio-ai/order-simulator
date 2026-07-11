@@ -111,7 +111,7 @@
             <h3 class="section-title">外部変動要因</h3>
             <div class="form-group">
                 <label style="color: var(--seven-green-dark); display: flex; flex-direction: column; gap: 2px;">
-                    <div style="font-size: 0.95rem;">📅 発注対象日</div>
+                    <div style="font-size: 0.95rem;">📅 発注対象日 (納品・販売日)</div>
                     <div style="font-size: 0.75rem; color: #888; font-weight: normal;">(11時で翌日/翌々日に自動切替)</div>
                 </label>
                 <input type="date" id="targetDateInput" style="font-weight: 800; color: var(--primary-dark);">
@@ -233,13 +233,14 @@
             </div>
 
             <div class="form-group event-box">
-                <label style="color: var(--primary-dark);">📅 対象の予測日（直近7日）</label>
+                <label style="color: var(--primary-dark);">📅 対象の【販売・納品日】</label>
+                <div style="font-size: 0.8rem; color: var(--seven-red); margin-bottom: 8px; font-weight: 800;">※発注した日(例:11日)ではなく、実際に商品が販売された日(例:12日や13日)を選んでください。</div>
                 <select id="learnDateSelect" style="font-weight: bold; font-size: 1rem; color: var(--primary-dark);"></select>
             </div>
 
             <div class="flex-row">
-                <div class="flex-col"><label>予測された販売数</label><input type="number" inputmode="numeric" id="fbPredicted" placeholder="手動入力" style="background:#f2f2f7; font-weight:bold; color:#555;" readonly></div>
-                <div class="flex-col"><label style="color: var(--seven-red);">実際の販売数</label><input type="number" inputmode="numeric" id="fbActual" placeholder="例: 55"></div>
+                <div class="flex-col"><label>販売日の予測数</label><input type="number" inputmode="numeric" id="fbPredicted" placeholder="手動入力" style="background:#f2f2f7; font-weight:bold; color:#555;" readonly></div>
+                <div class="flex-col"><label style="color: var(--seven-red);">販売日の実績数</label><input type="number" inputmode="numeric" id="fbActual" placeholder="例: 55"></div>
             </div>
             
             <div style="font-size: 0.85rem; margin-top: 10px; color: var(--text-muted); text-align: right;">
@@ -265,7 +266,6 @@
 
     <!-- データ引継タブ -->
     <div id="tab-backup" class="tab-content">
-        <!-- ★ 新規追加：アプリの更新（キャッシュクリア）枠 -->
         <div class="card" style="border: 2px solid var(--seven-blue);">
             <h3 class="section-title" style="color: var(--seven-blue);">🔄 アプリの更新</h3>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
