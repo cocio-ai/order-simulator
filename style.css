@@ -8,12 +8,12 @@
     --success: #28a745;
     --warning: #ff9900;
     --danger: #dc3545;
-    --background: #f2f2f7; /* iOSネイティブの背景色 */
+    --background: #f2f2f7; 
     --card-bg: #ffffff;
     --text: #1c1c1e;
     --text-muted: #8e8e93;
     --border: #e5e5ea;
-    --radius: 12px; /* 丸みを少し強めに */
+    --radius: 12px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,26 +23,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica
 /* ヘッダー・タイトル */
 .main-title { font-size: 1.3rem; font-weight: 800; text-align: center; color: var(--text); margin-bottom: 16px; letter-spacing: 0.5px; }
 
-/* カードデザイン (Appleライクな上質さ) */
+/* PWA誘導バナー */
+.pwa-prompt { background: linear-gradient(135deg, #00a1e9 0%, #0056b3 100%); color: #fff; padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,86,179,0.2); animation: slideDown 0.5s ease-out; }
+.pwa-content { font-size: 0.8rem; line-height: 1.4; }
+.pwa-content strong { display: block; font-size: 0.95rem; margin-bottom: 4px; }
+.pwa-close { background: rgba(255,255,255,0.2); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-weight: bold; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* カードデザイン */
 .card { background: var(--card-bg); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.02); }
-.section-title { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #f0f0f5; display: flex; justify-content: space-between; align-items: center; }
+.section-title { font-size: 1.05rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 
-/* 入力フォームの洗練 */
+/* 入力フォーム */
 .form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-weight: 600; font-size: 0.85rem; color: #444; margin-bottom: 6px; }
+.form-group label { display: block; font-weight: 600; font-size: 0.85rem; color: var(--text); margin-bottom: 6px; }
 
-input[type="text"], input[type="number"], select, input[type="date"] {
+input[type="text"], input[type="number"], select, input[type="date"], textarea {
     width: 100%; padding: 8px 12px; font-size: 1rem; border: 1px solid #d1d1d6;
-    border-radius: 8px; background-color: #fafafa; color: var(--text); height: 42px; transition: all 0.2s;
+    border-radius: 8px; background-color: #fafafa; color: var(--text); transition: all 0.2s;
 }
-input:focus, select:focus { outline: none; border-color: var(--seven-green); background-color: #fff; box-shadow: 0 0 0 3px rgba(0,165,79,0.15); }
+input[type="text"], input[type="number"], select, input[type="date"] { height: 42px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--seven-green); background-color: #fff; box-shadow: 0 0 0 3px rgba(0,165,79,0.15); }
 input[readonly] { background-color: #f2f2f7; color: #8e8e93; font-weight: 600; border-color: transparent; }
 
 .flex-row { display: flex; gap: 10px; margin-bottom: 12px; }
 .flex-col { flex: 1; display: flex; flex-direction: column; }
-.flex-col label { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
+.flex-col label { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; margin-bottom: 6px; color: var(--text); }
 
-/* 曜日ボタンの調整 */
+/* イベント・グラフ枠用 */
+.event-box { background: rgba(238,114,0,0.05); padding: 12px; border: 1px solid rgba(238,114,0,0.2); border-radius: 8px; }
+.chart-container { background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #eee; }
+
+/* 曜日ボタン */
 .day-ratio-container { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: #f2f2f7; padding: 6px; border-radius: 8px; }
 .day-ratio-box { display: flex; flex-direction: column; align-items: center; }
 .day-ratio-box label { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; color: #555; }
@@ -50,14 +62,14 @@ input[readonly] { background-color: #f2f2f7; color: #8e8e93; font-weight: 600; b
 .day-ratio-box.day-sun label { color: var(--danger); }
 .day-ratio-box select { padding: 0; font-size: 0.85rem; height: 32px; text-align: center; border-radius: 6px; }
 
-/* メインボタン (グラデーションと立体感) */
+/* ボタン */
 .calc-button { width: 100%; background: linear-gradient(180deg, #00b859 0%, var(--seven-green-dark) 100%); color: white; padding: 14px; font-size: 1.05rem; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 8px; box-shadow: 0 4px 12px rgba(0,165,79,0.25); transition: transform 0.1s, box-shadow 0.1s; }
 .calc-button:active { transform: scale(0.97); box-shadow: 0 2px 6px rgba(0,165,79,0.2); }
 
 .weather-btn-group { display: flex; gap: 8px; }
-.btn-weather { flex: 1; background: #fff; border: 1.5px solid var(--seven-blue); color: var(--seven-blue); padding: 10px 4px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+.btn-weather { flex: 1; background: var(--card-bg); border: 1.5px solid var(--seven-blue); color: var(--seven-blue); padding: 10px 4px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
 
-/* タブデザイン (iOS風セグメントコントロール) */
+/* タブデザイン */
 .tab-container { display: flex; background: #e3e3e8; border-radius: 10px; padding: 4px; margin-bottom: 16px; position: relative; }
 .tab-button { flex: 1; text-align: center; padding: 10px 4px; font-size: 0.85rem; font-weight: 700; color: #8e8e93; border: none; background: transparent; cursor: pointer; z-index: 1; border-radius: 8px; transition: color 0.2s; }
 .tab-button.active { color: var(--text); }
@@ -85,13 +97,13 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 .sticky-order { color: var(--seven-green-dark); font-weight: 800; font-size: 1.2rem; }
 
 /* スクショ用一括リスト */
-.screenshot-container { background: #fff; padding: 0; border-radius: 8px; }
+.screenshot-container { background: var(--card-bg); padding: 0; border-radius: 8px; }
 .screenshot-header { text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px 8px 0 0; border-bottom: 2px solid var(--seven-green); margin-bottom: 8px; }
-.screenshot-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px dashed #e5e5ea; }
+.screenshot-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px dashed var(--border); }
 .screenshot-item:last-child { border-bottom: none; }
-.screenshot-cat { font-weight: 800; font-size: 1.1rem; color: #333; }
+.screenshot-cat { font-weight: 800; font-size: 1.1rem; color: var(--text); }
 .screenshot-data { text-align: right; }
-.screenshot-pred { font-size: 0.85rem; color: #8e8e93; margin-right: 12px; }
+.screenshot-pred { font-size: 0.85rem; color: var(--text-muted); margin-right: 12px; }
 .screenshot-order { font-size: 1.5rem; font-weight: 900; color: var(--text); }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -99,44 +111,44 @@ hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 /* --- ダークモード（夜勤対応） --- */
 @media (prefers-color-scheme: dark) {
     :root {
-        --background: #000000; /* iOSネイティブの真の黒 */
-        --card-bg: #1c1c1e;    /* 少し浮き上がらせるダークグレー */
+        --background: #000000; 
+        --card-bg: #1c1c1e;    
         --text: #ffffff;
         --text-muted: #ebebf5; 
         --border: #38383a;
     }
 
-    /* 全体・カードの背景反転 */
     body { background-color: var(--background); color: var(--text); }
     .card { background: var(--card-bg); border-color: var(--border); box-shadow: none; }
     .result-card { background: linear-gradient(to bottom, #1c1c1e, #2c2c2e); border: 2px solid var(--seven-blue); }
     .result-header { background-color: #000000; border-left: 4px solid var(--seven-blue); color: #fff;}
     .section-title { color: var(--seven-blue); border-bottom: 2px solid var(--border); }
 
-    /* 入力フォームのダーク化 */
-    input[type="text"], input[type="number"], select, input[type="date"] {
+    input[type="text"], input[type="number"], select, input[type="date"], textarea {
         background-color: #2c2c2e; color: #fff; border: 1px solid #38383a;
     }
-    input:focus, select:focus { background-color: #3a3a3c; box-shadow: 0 0 0 3px rgba(0,161,233,0.15); border-color: var(--seven-blue); }
+    input:focus, select:focus, textarea:focus { background-color: #3a3a3c; box-shadow: 0 0 0 3px rgba(0,161,233,0.15); border-color: var(--seven-blue); }
     input[readonly] { background-color: #1c1c1e; color: #8e8e93; }
 
-    /* 各種パネルや細かい部分の調整 */
     .forecast-panel, .order-panel { background: #2c2c2e; border-color: var(--border); }
     .order-panel { background: rgba(0, 165, 79, 0.15); border-color: var(--seven-green); }
     .f-value, .o-label { color: #fff; }
-    .form-group label { color: #e0e0e0; }
+    .flex-col label, .form-group label { color: #e0e0e0; }
+    
+    .event-box { background: rgba(238,114,0,0.1); border-color: #555; }
+    .chart-container { background: #2c2c2e; border-color: #38383a; }
+    
     .day-ratio-container { background: #2c2c2e; }
     .day-ratio-box label { color: #e0e0e0; }
     .tab-container { background: #2c2c2e; }
     .tab-active-bg { background: #48484a; }
     .tab-button.active { color: #fff; }
+    .btn-weather { background: #2c2c2e; }
     
-    /* 下部固定バー */
     .sticky-result-bar { background: rgba(28, 28, 30, 0.95); border-top: 1px solid #38383a; }
     .sticky-result-bar div, .sticky-order { color: #fff !important; }
     .sticky-order span { color: var(--seven-green) !important; }
     
-    /* 一括画面タブの調整 */
     #screenshotTargetArea { background: var(--background) !important; border-color: var(--border) !important; }
     .screenshot-container { background: var(--background); }
     .screenshot-header { background: var(--card-bg); border-bottom: 2px solid var(--seven-green); }
