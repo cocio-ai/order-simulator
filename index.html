@@ -6,11 +6,10 @@
     <meta name="theme-color" content="#f2f2f7">
     <title>ORDER SIMULATOR - AI Bese</title>
     
-    <!-- PWA用の設定読み込み -->
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link name="apple-touch-icon" href="icon-192.png">
 
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -20,7 +19,6 @@
 <body>
 
 <div class="app-wrapper">
-    <!-- ホーム画面追加＆引継ぎ案内バナー -->
     <div id="pwaPrompt" class="pwa-prompt" style="display: none;">
         <div class="pwa-content">
             <strong>📱 ホーム画面に追加してアプリ化！</strong>
@@ -219,28 +217,46 @@
         </div>
     </div>
 
-    <!-- AI学習タブ -->
     <div id="tab-learning" class="tab-content">
         <div class="card" style="border: 2px solid var(--seven-red);">
             <h3 class="section-title" style="color: var(--seven-red);">🧠 AI 予実学習</h3>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
-                過去の予測と実際の結果のズレをフィードバックし、自店舗のクセを自動学習させます。<br>
-                対象: <strong id="learnTargetCategory" style="font-size: 1.05rem; color: var(--primary-dark);">未選択</strong>
+                過去の予測と実際の結果のズレをフィードバックし、自店舗のクセを自動学習させます。
             </p>
+            
+            <div class="form-group event-box" style="margin-bottom: 16px;">
+                <label style="color: var(--primary-dark); font-weight: bold;">🗂 対象分類の選択</label>
+                <select id="learnCategorySelect" style="font-weight: bold; font-size: 1rem; color: var(--primary-dark);">
+                    <option value="おにぎり">おにぎり</option>
+                    <option value="こだわりおにぎり">こだわりおにぎり</option>
+                    <option value="弁当">弁当（常温・短鮮度）</option>
+                    <option value="寿司">寿司</option>
+                    <option value="チルド弁当">チルド弁当</option>
+                    <option value="サンドイッチ">サンドイッチ</option>
+                    <option value="ロール">ロール</option>
+                    <option value="調理麺">調理麺（冷たい麺）</option>
+                    <option value="カップ麺">カップ麺</option>
+                    <option value="スパゲティパスタ">スパゲティパスタ</option>
+                    <option value="グラタンドリア">グラタンドリア</option>
+                    <option value="サラダ">サラダ</option>
+                    <option value="カップデリ">カップデリ</option>
+                    <option value="惣惣菜">惣菜</option>
+                </select>
+            </div>
             
             <div class="chart-container">
                 <canvas id="learningChart" style="max-height: 200px; width: 100%;"></canvas>
             </div>
 
             <div class="form-group event-box">
-                <label style="color: var(--primary-dark);">📅 対象の【販売・納品日】</label>
-                <div style="font-size: 0.8rem; color: var(--seven-red); margin-bottom: 8px; font-weight: 800;">※発注した日(例:11日)ではなく、実際に商品が販売された日(例:12日や13日)を選んでください。</div>
+                <label style="color: var(--primary-dark); font-weight: bold;">📅 対象の【販売・納品日（曜日）】</label>
+                <div style="font-size: 0.8rem; color: var(--seven-red); margin-bottom: 8px; font-weight: 800;">※いつ発注したかではなく、実際に店に並んで売れた日(曜日)を選んでください。</div>
                 <select id="learnDateSelect" style="font-weight: bold; font-size: 1rem; color: var(--primary-dark);"></select>
             </div>
 
             <div class="flex-row">
-                <div class="flex-col"><label>販売日の予測数</label><input type="number" inputmode="numeric" id="fbPredicted" placeholder="手動入力" style="background:#f2f2f7; font-weight:bold; color:#555;" readonly></div>
-                <div class="flex-col"><label style="color: var(--seven-red);">販売日の実績数</label><input type="number" inputmode="numeric" id="fbActual" placeholder="例: 55"></div>
+                <div class="flex-col"><label>その日の予測数</label><input type="number" inputmode="numeric" id="fbPredicted" placeholder="手動入力" style="background:#f2f2f7; font-weight:bold; color:#555;" readonly></div>
+                <div class="flex-col"><label style="color: var(--seven-red);">その日の実績数</label><input type="number" inputmode="numeric" id="fbActual" placeholder="例: 55"></div>
             </div>
             
             <div style="font-size: 0.85rem; margin-top: 10px; color: var(--text-muted); text-align: right;">
@@ -251,7 +267,6 @@
         </div>
     </div>
 
-    <!-- スクショ用一括確認タブ -->
     <div id="tab-all" class="tab-content">
         <div id="screenshotTargetArea" class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--border); background: var(--card-bg);">
             <div id="allResultsContainer" class="screenshot-container">
@@ -264,7 +279,6 @@
         </div>
     </div>
 
-    <!-- データ引継タブ -->
     <div id="tab-backup" class="tab-content">
         <div class="card" style="border: 2px solid var(--seven-blue);">
             <h3 class="section-title" style="color: var(--seven-blue);">🔄 アプリの更新</h3>
