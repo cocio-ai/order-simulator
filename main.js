@@ -78,7 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (this.data.stores[s].categories) {
                             Object.keys(this.data.stores[s].categories).forEach(c => {
                                 let cat = this.data.stores[s].categories[c];
-                                // ★recentSales の初期化処理を削除
                                 if (typeof cat.learnedCoeff === 'undefined') cat.learnedCoeff = 1.0;
                                 if (typeof cat.categoryCoeff === 'undefined') cat.categoryCoeff = "1.0";
                                 if (typeof cat.history === 'undefined') cat.history = {};
@@ -129,7 +128,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const existingLearned = existingCat.learnedCoeff ? existingCat.learnedCoeff : 1.0;
             const existingHistory = existingCat.history || {};
 
-            // ★recentSales を保存リストから削除
             this.data.stores[store].categories[cat] = {
                 avgSales: document.getElementById('avgSales').value,
                 currentStock: document.getElementById('currentStock').value,
@@ -357,7 +355,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange('simulator'));
             document.getElementById('learnCategorySelect').addEventListener('change', () => this.onCategoryChange('learning'));
 
-            // ★recentSales を監視イベントから削除
             const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'categoryCoeff', 'popRate'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
@@ -392,6 +389,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById('btn-add-event').addEventListener('click', () => Events.add());
             document.getElementById('btn-learn').addEventListener('click', () => Logic.executeLearning());
+            
+            // ★追加：リセットボタンのイベントリスナー
+            const btnResetLearning = document.getElementById('btn-reset-learning');
+            if (btnResetLearning) {
+                btnResetLearning.addEventListener('click', () => Logic.resetLearning());
+            }
+
             document.getElementById('btn-refresh-all').addEventListener('click', () => Logic.calculateAll());
             
             const btnShare = document.getElementById('btn-share-image');
@@ -629,7 +633,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             if (!store || !cat) return;
             
-            // ★recentSales を初期値から削除
             let data = { avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0", categoryCoeff: "1.0", learnedCoeff: 1.0, ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"} };
             if (State.data.stores[store] && State.data.stores[store].categories && State.data.stores[store].categories[cat]) {
                 data = { ...data, ...State.data.stores[store].categories[cat] };
@@ -893,6 +896,31 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff, msg: msgs.join(" / ") };
         },
 
+        // ★追加：学習データのリセット処理
+        resetLearning() {
+            const storeSelect = document.getElementById('storeNameSelect');
+            const store = storeSelect.value;
+            const cat = State.data.currentCategory;
+
+            if (!store || store === "__NEW__" || !cat) return alert("店舗と分類を選択してください。");
+            
+            if (!confirm(`【${cat}】のAI学習データ（過去の履歴と現在の補正値）をすべてリセットし、初期状態（1.00倍）に戻しますか？\n※この操作は元に戻せません。`)) return;
+
+            if (State.data.stores[store] && State.data.stores[store].categories[cat]) {
+                State.data.stores[store].categories[cat].learnedCoeff = 1.0;
+                State.data.stores[store].categories[cat].history = {};
+                State.save();
+                
+                alert(`【${cat}】の学習データをリセットしました。`);
+                
+                document.getElementById('currentLearnedCoeffText').innerText = "1.00";
+                ChartModule.render({});
+                UI.updateLearnHistoryUI();
+                UI.restoreCategoryInputs();
+                this.calculate(false, false);
+            }
+        },
+
         executeLearning() {
             const act = parseFloat(document.getElementById('fbActual').value);
             const pred = parseFloat(document.getElementById('fbPredicted').value);
@@ -961,7 +989,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
-            // ★recentSalesとtrendBoostの計算ロジックを削除
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
             const minQty = (fHours<=24) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             const waste = parseFloat(document.getElementById('avgWaste').value) || 0;
@@ -980,7 +1007,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const evInfo = this.getEventCoeff(dateStr, cat, store);
             const eventR = evInfo.coeff;
 
-            // 基本需要は4週平均をそのまま使用
             let baseDemand = avgSales;
 
             let shortR = 1.0, diffShort = 0;
@@ -1011,7 +1037,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (finalOrder > limit) finalOrder = limit;
             }
 
-            // ★renderUIの引数からtrendBoostValを削除
             if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo);
             
             if(saveHist) {
@@ -1021,7 +1046,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return { cat: cat, pred: Math.ceil(finalDemandRaw), order: finalOrder };
         },
 
-        // ★引数からtrendを除去
         renderUI(cat, predRaw, order, base, shortR, day, weather, cal, custom, catR, learn, temp, evInfo) {
             document.getElementById('resCategory').innerText = cat;
             document.getElementById('resBaseSales').innerText = base.toFixed(1);
