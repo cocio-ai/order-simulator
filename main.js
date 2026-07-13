@@ -40,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const initializeDateAndTime = () => {
         const now = new Date();
         const target = new Date(now);
-        // 11時を境に翌日・翌々日の「販売日」へシフトさせる（現場と完全一致のロジック）
         const offset = (now.getHours() >= 11) ? 2 : 1;
         target.setDate(now.getDate() + offset);
         
@@ -88,9 +87,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                 }
                 
-                // ★【自動データ修正（1日ズラし）】★
-                // 過去に「7/10提案→7/11販売」と1日ズレて誤記録されてしまっていたデータを
-                // 「7/10提案→7/12販売」になるよう、全履歴の販売日を自動で＋1日修正します。
                 if (this.data && this.data.stores && !this.data.shiftedDatesV3) {
                     Object.keys(this.data.stores).forEach(s => {
                         if (this.data.stores[s].categories) {
@@ -101,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                     Object.keys(cat.history).forEach(dateStr => {
                                         let oldDate = new Date(dateStr);
                                         if (!isNaN(oldDate)) {
-                                            oldDate.setDate(oldDate.getDate() + 1); // ここで+1日
+                                            oldDate.setDate(oldDate.getDate() + 1);
                                             let newDateStr = oldDate.getFullYear() + "-" + String(oldDate.getMonth()+1).padStart(2, '0') + "-" + String(oldDate.getDate()).padStart(2, '0');
                                             newHistory[newDateStr] = cat.history[dateStr];
                                         }
@@ -111,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             });
                         }
                     });
-                    this.data.shiftedDatesV3 = true; // 修正済みフラグ
+                    this.data.shiftedDatesV3 = true; 
                 }
 
                 this.save();
@@ -163,16 +159,24 @@ document.addEventListener("DOMContentLoaded", () => {
             if(!this.data.stores[store].categories[cat].history) this.data.stores[store].categories[cat].history = {};
             
             const now = new Date();
-            // システム実行日＝「提案日」として記録
             const proposalDateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0');
             
+            // 既存の学習済みデータがある場合は上書きしないよう保護
+            const existing = this.data.stores[store].categories[cat].history[targetDateStr];
+            if (existing && typeof existing === 'object' && existing.isLearned) {
+                return; // すでに実績入力済みの場合は計算履歴で上書きしない
+            }
+
             this.data.stores[store].categories[cat].history[targetDateStr] = {
                 pred: predQty,
-                orderDate: proposalDateStr // 変数名はorderDateだが意味は「提案日(Proposal Date)」
+                orderDate: proposalDateStr,
+                isLearned: false, // 学習済みフラグの初期値
+                actual: ""        // 実績の初期値
             };
             
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
             if (keys.length > 7) {
+                // 学習済みの古いデータは残し、未学習の古いデータを優先して消す処理も可能ですが、今回は単純に古いものから削除
                 keys.slice(7).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
             }
             this.save();
@@ -240,7 +244,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Events = Events;
 
-    // ★ グラフに「提案」「発注」「販売」の3段階をはっきりと表示
     const ChartModule = {
         chart: null,
         render(history) {
@@ -250,25 +253,24 @@ document.addEventListener("DOMContentLoaded", () => {
             const dates = Object.keys(history).sort((a, b) => a.localeCompare(b));
             
             const labels = dates.map(d => {
-                const targetDate = new Date(d); // 販売日 (Sales Date)
+                const targetDate = new Date(d);
                 const salesStr = `${targetDate.getMonth()+1}/${targetDate.getDate()}(${getWeekDayStr(targetDate)})`;
                 
                 const orderDate = new Date(targetDate);
-                orderDate.setDate(orderDate.getDate() - 1); // 発注締切日 (Order Deadline)
+                orderDate.setDate(orderDate.getDate() - 1);
                 const orderStr = `${orderDate.getMonth()+1}/${orderDate.getDate()}(${getWeekDayStr(orderDate)})`;
                 
                 let histItem = history[d];
-                let propDateStr = typeof histItem === 'object' ? histItem.orderDate : null; // 提案日 (Proposal Date)
+                let propDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
                 let propStr = "";
                 if (propDateStr) {
                     const pDate = new Date(propDateStr);
                     propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
                 } else {
                     const pDate = new Date(targetDate);
-                    pDate.setDate(pDate.getDate() - 2); // なければ販売日の2日前
+                    pDate.setDate(pDate.getDate() - 2); 
                     propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
                 }
-                // 3段で完璧に表示
                 return [`提案:${propStr}`, `発注:${orderStr}〆`, `販売:${salesStr}`];
             });
             
@@ -451,11 +453,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // ★ プルダウンも「提案」「発注」「販売」を完全に明記
+        // ★ 日付の保持と、学習済み表示の追加
         updateLearnHistoryUI() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
             if(!store || !cat || !select) return;
+            
+            const currentSelectedDate = select.value; // 現在選んでいる日付を記憶しておく
             
             select.innerHTML = '';
             const history = (State.data.stores[store].categories && State.data.stores[store].categories[cat] && State.data.stores[store].categories[cat].history) ? State.data.stores[store].categories[cat].history : {};
@@ -475,6 +479,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     let histItem = history[d];
                     let predVal = typeof histItem === 'object' ? histItem.pred : histItem;
                     let propDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
+                    let isLearned = typeof histItem === 'object' ? histItem.isLearned : false;
                     
                     let propStr = "";
                     if(propDateStr) {
@@ -486,33 +491,81 @@ document.addEventListener("DOMContentLoaded", () => {
                         propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
                     }
                     
-                    const label = `【販売日】${salesStr} (提案:${propStr} ⇒ 発注:${orderStr}〆 / 予測: ${predVal}個)`;
+                    let label = `【販売日】${salesStr} (提案:${propStr} ⇒ 発注:${orderStr}〆 / 予測: ${predVal}個)`;
+                    
+                    // 学習済みの場合はマークをつける
+                    if (isLearned) {
+                        label = `✅ [学習済] ${label}`;
+                    }
+                    
                     select.appendChild(new Option(label, d));
                 });
                 select.appendChild(new Option("手動で過去の日付・予測を入力する...", "manual"));
             }
+            
+            // 再構築したリストに、記憶しておいた日付が存在すれば、そのまま選択状態にする
+            if (currentSelectedDate && Array.from(select.options).some(opt => opt.value === currentSelectedDate)) {
+                select.value = currentSelectedDate;
+            }
+            
             this.onChangeLearnDate();
         },
 
+        // ★ 実績数の自動クリアと、学習済みデータのロック処理
         onChangeLearnDate() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
             const predInput = document.getElementById('fbPredicted');
-            if(!store || !cat || !select || !predInput) return;
+            const actInput = document.getElementById('fbActual');
+            const btnLearn = document.getElementById('btn-learn');
+            if(!store || !cat || !select || !predInput || !actInput || !btnLearn) return;
             
             if(select.value === 'manual') {
                 predInput.readOnly = false;
                 predInput.style.backgroundColor = "#fafafa";
                 predInput.value = "";
                 predInput.placeholder = "手動入力";
+                
+                actInput.value = ""; // 実績数をクリア
+                actInput.readOnly = false;
+                actInput.style.backgroundColor = "#fff";
+                actInput.style.color = "#000";
+                
+                btnLearn.disabled = false;
+                btnLearn.innerText = "AIに学習させる";
+                btnLearn.style.background = "var(--seven-red)";
             } else {
                 const history = State.data.stores[store].categories[cat].history || {};
                 const histItem = history[select.value];
                 const predVal = typeof histItem === 'object' ? histItem.pred : histItem;
+                const isLearned = typeof histItem === 'object' ? histItem.isLearned : false;
+                const actualVal = typeof histItem === 'object' ? histItem.actual : "";
                 
                 predInput.readOnly = true;
                 predInput.style.backgroundColor = "var(--border)";
                 predInput.value = predVal || "";
+
+                if (isLearned) {
+                    // 学習済みの場合は数値を表示してロックする
+                    actInput.value = actualVal;
+                    actInput.readOnly = true;
+                    actInput.style.backgroundColor = "var(--border)";
+                    actInput.style.color = "#555";
+                    
+                    btnLearn.disabled = true;
+                    btnLearn.innerText = "学習済み (重複防止ロック中)";
+                    btnLearn.style.background = "#999";
+                } else {
+                    // 未学習の場合は実績数を空にして入力を促す
+                    actInput.value = ""; 
+                    actInput.readOnly = false;
+                    actInput.style.backgroundColor = "#fff";
+                    actInput.style.color = "#000";
+                    
+                    btnLearn.disabled = false;
+                    btnLearn.innerText = "AIに学習させる";
+                    btnLearn.style.background = "var(--seven-red)";
+                }
             }
         },
 
@@ -760,7 +813,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('weatherCoeffDisplay').value = `× ${coeff}`;
         },
 
-        // ★ 発注締切の案内をUIに表示
         updateDateUI() {
             const dateStr = document.getElementById('targetDateInput').value;
             const badge = document.getElementById('calendarBadge');
@@ -774,7 +826,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const dObj = new Date(dateStr);
             const orderObj = new Date(dObj);
-            orderObj.setDate(orderObj.getDate() - 1); // 締切は販売日の前日
+            orderObj.setDate(orderObj.getDate() - 1); 
             deadlineText.innerText = `※この販売分の発注締切: ${orderObj.getMonth()+1}/${orderObj.getDate()}(${getWeekDayStr(orderObj)}) 午前11時`;
 
             const d = dObj.getDate();
@@ -847,6 +899,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff, msg: msgs.join(" / ") };
         },
 
+        // ★ 重複学習（二重掛け）の防止処理を追加
         executeLearning() {
             const act = parseFloat(document.getElementById('fbActual').value);
             const pred = parseFloat(document.getElementById('fbPredicted').value);
@@ -855,14 +908,42 @@ document.addEventListener("DOMContentLoaded", () => {
             const storeSelect = document.getElementById('storeNameSelect');
             const store = storeSelect.value;
             const cat = State.data.currentCategory;
+            const select = document.getElementById('learnDateSelect');
+            const targetDateStr = select.value;
+
             if (!store || store === "__NEW__" || !cat) return;
             
             let currentL = State.data.stores[store].categories[cat].learnedCoeff || 1.0;
+            
+            // 安全ロック：すでに学習済みのデータに対する再実行を弾く
+            if (targetDateStr !== 'manual') {
+                 const histItem = State.data.stores[store].categories[cat].history[targetDateStr];
+                 if (histItem && typeof histItem === 'object' && histItem.isLearned) {
+                     return alert("この日付のデータは既に学習済みです。二重に補正がかかるのを防ぐためロックされています。");
+                 }
+            }
+
             let ratio = act / pred;
             let newL = currentL + ((ratio - 1.0) * 0.3);
             newL = Math.max(0.8, Math.min(1.2, newL)); 
             
             State.data.stores[store].categories[cat].learnedCoeff = newL;
+            
+            // 学習済みフラグと実績数を保存
+            if (targetDateStr !== 'manual') {
+                if (typeof State.data.stores[store].categories[cat].history[targetDateStr] === 'object') {
+                    State.data.stores[store].categories[cat].history[targetDateStr].isLearned = true;
+                    State.data.stores[store].categories[cat].history[targetDateStr].actual = act;
+                } else {
+                    let oldPred = State.data.stores[store].categories[cat].history[targetDateStr];
+                    State.data.stores[store].categories[cat].history[targetDateStr] = {
+                        pred: oldPred,
+                        actual: act,
+                        isLearned: true
+                    };
+                }
+            }
+
             State.save();
             
             document.getElementById('currentLearnedCoeffText').innerText = newL.toFixed(2);
@@ -871,6 +952,10 @@ document.addEventListener("DOMContentLoaded", () => {
             
             this.calculate(false, false);
             ChartModule.render(State.data.stores[store].categories[cat].history || {});
+            
+            // UIを更新してロックをかける
+            UI.onChangeLearnDate();
+            UI.updateLearnHistoryUI();
         },
 
         calculate(silent = false, saveHist = false) {
