@@ -64,40 +64,37 @@
             </div>
         </div>
 
-        <!-- ★UI大幅進化：販売・在庫データ セクション -->
         <div class="card">
             <h3 class="section-title">販売・在庫データ</h3>
             
-            <!-- 最重要データ：大きく見やすく -->
-            <div class="flex-row" style="align-items: flex-end; margin-bottom: 16px; border-bottom: 2px solid var(--border); padding-bottom: 12px;">
-                <div class="flex-col" style="flex: 1.5;">
-                    <label style="font-size: 0.95rem; color: var(--primary-dark); font-weight: 800;">📊 4週平均 販売数</label>
-                    <input type="number" inputmode="numeric" id="avgSales" value="50" min="0" style="font-size: 1.3rem; font-weight: 900; border: 2px solid var(--primary); background: #f0f8ff;">
+            <!-- ★UI改善：最も重要な「平均数」と「現在庫」を最上段に並べて見やすく整理 -->
+            <div class="flex-row" style="align-items: flex-end; margin-bottom: 16px;">
+                <div class="flex-col" style="flex: 1.2;">
+                    <label style="color: var(--primary-dark); font-weight: bold;">4週平均 販売数</label>
+                    <input type="number" inputmode="numeric" id="avgSales" value="50" min="0" style="font-size: 1.1rem; font-weight: bold;">
                 </div>
                 <div class="flex-col" style="flex: 1;">
-                    <label id="stockLabelText" style="font-size: 0.9rem; font-weight: 800;">現在庫</label>
-                    <input type="number" inputmode="numeric" id="currentStock" value="15" min="0" style="font-size: 1.3rem; font-weight: 900; border: 2px solid #ccc;">
+                    <label id="stockLabelText" style="color: var(--seven-red); font-weight: bold;">現在庫</label>
+                    <input type="number" inputmode="numeric" id="currentStock" value="15" min="0" style="font-weight: 900; font-size: 1.2rem;">
                 </div>
             </div>
 
-            <!-- ブレ幅データ：グレー背景でグループ化 -->
-            <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
-                <label style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 8px; font-weight: bold;">📈 売上のブレ幅</label>
-                <div class="flex-row" style="align-items: center; margin-bottom: 0;">
-                    <div class="flex-col"><label style="font-size: 0.8rem;">最高販売数</label><input type="number" inputmode="numeric" id="maxSales" value="65" min="0"></div>
-                    <div style="font-weight: 800; color: #ccc; padding: 0 8px; margin-top: 15px;">〜</div>
-                    <div class="flex-col"><label style="font-size: 0.8rem;">最小販売数</label><input type="number" inputmode="numeric" id="minSales" value="35" min="0"></div>
-                </div>
+            <!-- 最高・最小 -->
+            <div class="flex-row" style="align-items: center; background: #fafafa; padding: 10px; border-radius: 8px; margin-bottom: 12px;">
+                <div class="flex-col"><label style="color: var(--text-muted);">最高販売数</label><input type="number" inputmode="numeric" id="maxSales" value="65" min="0"></div>
+                <div style="font-weight: 800; color: #ddd; margin-top: 15px; padding: 0 8px;">ー</div>
+                <div class="flex-col"><label style="color: var(--text-muted);">最小販売数</label><input type="number" inputmode="numeric" id="minSales" value="35" min="0"></div>
             </div>
 
-            <!-- リスクデータ -->
-            <div class="flex-row" style="margin-bottom: 12px;">
-                <div class="flex-col"><label style="font-size: 0.8rem; color: var(--danger);">平均廃棄数</label><input type="number" inputmode="numeric" id="avgWaste" value="3" min="0"></div>
-                <div class="flex-col"><label style="font-size: 0.8rem; color: var(--warning);">平均欠品率 (%)</label><input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100"></div>
+            <!-- 廃棄・欠品 -->
+            <div class="flex-row" style="margin-bottom: 0;">
+                <div class="flex-col"><label style="color: var(--danger);">平均廃棄数</label><input type="number" inputmode="numeric" id="avgWaste" value="3" min="0"></div>
+                <div class="flex-col"><label style="color: var(--warning);">平均欠品率 (%)</label><input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100"></div>
             </div>
 
-            <div class="flex-row" id="displayInputArea" style="margin-top: 12px; margin-bottom: 0;">
-                <div class="flex-col"><label style="font-size: 0.8rem; color: var(--primary);">最低陳列量</label><input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0"></div><div class="flex-col"></div>
+            <!-- 最低陳列量 (必要な分類のみ表示) -->
+            <div class="flex-row" id="displayInputArea" style="margin-top: 16px; margin-bottom: 0;">
+                <div class="flex-col"><label style="color: var(--primary);">最低陳列量</label><input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0"></div><div class="flex-col"></div>
             </div>
 
             <div class="form-group" style="margin-top: 24px; margin-bottom: 0; padding-top: 16px; border-top: 1px dashed var(--border);">
@@ -203,9 +200,9 @@
 
         <button id="btn-calculate" class="calc-button" style="margin-bottom: 16px;"><span id="btn-calc-text">⚡ シミュレーション実行</span></button>
 
-        <!-- ★ 結果表示部からトレンド表記を削除 -->
         <div id="resultArea" class="result-card card" style="display: none; margin-top: 12px;">
             <div class="result-header"><strong id="resCategory"></strong> <span id="resFreshnessText" style="font-size:0.85rem; color:#666; font-weight:normal; margin-left:10px;"></span></div>
+            <!-- ★UI改善：不要になったトレンド表記を削除 -->
             <div class="result-item" style="font-size: 0.85rem; margin-bottom: 12px; line-height: 1.5; color: #555;">
                 (内訳: 基本 <span id="resBaseSales"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 各種係数 <span id="resMultipliers" style="color:var(--primary-dark); font-weight:bold;"></span>)
             </div>
