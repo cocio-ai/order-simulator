@@ -78,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (this.data.stores[s].categories) {
                             Object.keys(this.data.stores[s].categories).forEach(c => {
                                 let cat = this.data.stores[s].categories[c];
-                                if (typeof cat.recentSales === 'undefined') cat.recentSales = "";
+                                // ★recentSales の初期化処理を削除
                                 if (typeof cat.learnedCoeff === 'undefined') cat.learnedCoeff = 1.0;
                                 if (typeof cat.categoryCoeff === 'undefined') cat.categoryCoeff = "1.0";
                                 if (typeof cat.history === 'undefined') cat.history = {};
@@ -129,9 +129,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const existingLearned = existingCat.learnedCoeff ? existingCat.learnedCoeff : 1.0;
             const existingHistory = existingCat.history || {};
 
+            // ★recentSales を保存リストから削除
             this.data.stores[store].categories[cat] = {
                 avgSales: document.getElementById('avgSales').value,
-                recentSales: document.getElementById('recentSales').value,
                 currentStock: document.getElementById('currentStock').value,
                 maxSales: document.getElementById('maxSales').value,
                 minSales: document.getElementById('minSales').value,
@@ -161,22 +161,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const now = new Date();
             const proposalDateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0');
             
-            // 既存の学習済みデータがある場合は上書きしないよう保護
             const existing = this.data.stores[store].categories[cat].history[targetDateStr];
             if (existing && typeof existing === 'object' && existing.isLearned) {
-                return; // すでに実績入力済みの場合は計算履歴で上書きしない
+                return; 
             }
 
             this.data.stores[store].categories[cat].history[targetDateStr] = {
                 pred: predQty,
                 orderDate: proposalDateStr,
-                isLearned: false, // 学習済みフラグの初期値
-                actual: ""        // 実績の初期値
+                isLearned: false, 
+                actual: ""        
             };
             
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
             if (keys.length > 7) {
-                // 学習済みの古いデータは残し、未学習の古いデータを優先して消す処理も可能ですが、今回は単純に古いものから削除
                 keys.slice(7).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
             }
             this.save();
@@ -359,7 +357,8 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange('simulator'));
             document.getElementById('learnCategorySelect').addEventListener('change', () => this.onCategoryChange('learning'));
 
-            const inputs = ['avgSales', 'recentSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'categoryCoeff', 'popRate'];
+            // ★recentSales を監視イベントから削除
+            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'categoryCoeff', 'popRate'];
             inputs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) {
@@ -453,13 +452,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // ★ 日付の保持と、学習済み表示の追加
         updateLearnHistoryUI() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
             if(!store || !cat || !select) return;
             
-            const currentSelectedDate = select.value; // 現在選んでいる日付を記憶しておく
+            const currentSelectedDate = select.value;
             
             select.innerHTML = '';
             const history = (State.data.stores[store].categories && State.data.stores[store].categories[cat] && State.data.stores[store].categories[cat].history) ? State.data.stores[store].categories[cat].history : {};
@@ -493,7 +491,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     let label = `【販売日】${salesStr} (提案:${propStr} ⇒ 発注:${orderStr}〆 / 予測: ${predVal}個)`;
                     
-                    // 学習済みの場合はマークをつける
                     if (isLearned) {
                         label = `✅ [学習済] ${label}`;
                     }
@@ -503,7 +500,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 select.appendChild(new Option("手動で過去の日付・予測を入力する...", "manual"));
             }
             
-            // 再構築したリストに、記憶しておいた日付が存在すれば、そのまま選択状態にする
             if (currentSelectedDate && Array.from(select.options).some(opt => opt.value === currentSelectedDate)) {
                 select.value = currentSelectedDate;
             }
@@ -511,7 +507,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.onChangeLearnDate();
         },
 
-        // ★ 実績数の自動クリアと、学習済みデータのロック処理
         onChangeLearnDate() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
@@ -526,7 +521,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 predInput.value = "";
                 predInput.placeholder = "手動入力";
                 
-                actInput.value = ""; // 実績数をクリア
+                actInput.value = ""; 
                 actInput.readOnly = false;
                 actInput.style.backgroundColor = "#fff";
                 actInput.style.color = "#000";
@@ -546,7 +541,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 predInput.value = predVal || "";
 
                 if (isLearned) {
-                    // 学習済みの場合は数値を表示してロックする
                     actInput.value = actualVal;
                     actInput.readOnly = true;
                     actInput.style.backgroundColor = "var(--border)";
@@ -556,7 +550,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     btnLearn.innerText = "学習済み (重複防止ロック中)";
                     btnLearn.style.background = "#999";
                 } else {
-                    // 未学習の場合は実績数を空にして入力を促す
                     actInput.value = ""; 
                     actInput.readOnly = false;
                     actInput.style.backgroundColor = "#fff";
@@ -636,12 +629,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             if (!store || !cat) return;
             
-            let data = { avgSales: "50", recentSales: "", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0", categoryCoeff: "1.0", learnedCoeff: 1.0, ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"} };
+            // ★recentSales を初期値から削除
+            let data = { avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0", categoryCoeff: "1.0", learnedCoeff: 1.0, ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"} };
             if (State.data.stores[store] && State.data.stores[store].categories && State.data.stores[store].categories[cat]) {
                 data = { ...data, ...State.data.stores[store].categories[cat] };
             }
 
-            ['avgSales', 'recentSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty'].forEach(id => {
+            ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty'].forEach(id => {
                 if(document.getElementById(id)) document.getElementById(id).value = data[id] || "";
             });
             
@@ -899,7 +893,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff, msg: msgs.join(" / ") };
         },
 
-        // ★ 重複学習（二重掛け）の防止処理を追加
         executeLearning() {
             const act = parseFloat(document.getElementById('fbActual').value);
             const pred = parseFloat(document.getElementById('fbPredicted').value);
@@ -915,7 +908,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             let currentL = State.data.stores[store].categories[cat].learnedCoeff || 1.0;
             
-            // 安全ロック：すでに学習済みのデータに対する再実行を弾く
             if (targetDateStr !== 'manual') {
                  const histItem = State.data.stores[store].categories[cat].history[targetDateStr];
                  if (histItem && typeof histItem === 'object' && histItem.isLearned) {
@@ -929,7 +921,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             State.data.stores[store].categories[cat].learnedCoeff = newL;
             
-            // 学習済みフラグと実績数を保存
             if (targetDateStr !== 'manual') {
                 if (typeof State.data.stores[store].categories[cat].history[targetDateStr] === 'object') {
                     State.data.stores[store].categories[cat].history[targetDateStr].isLearned = true;
@@ -953,7 +944,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.calculate(false, false);
             ChartModule.render(State.data.stores[store].categories[cat].history || {});
             
-            // UIを更新してロックをかける
             UI.onChangeLearnDate();
             UI.updateLearnHistoryUI();
         },
@@ -971,7 +961,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
-            const recentSales = parseFloat(document.getElementById('recentSales').value);
+            // ★recentSalesとtrendBoostの計算ロジックを削除
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
             const minQty = (fHours<=24) ? (parseFloat(document.getElementById('minDisplayQty').value) || 0) : 0;
             const waste = parseFloat(document.getElementById('avgWaste').value) || 0;
@@ -990,12 +980,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const evInfo = this.getEventCoeff(dateStr, cat, store);
             const eventR = evInfo.coeff;
 
+            // 基本需要は4週平均をそのまま使用
             let baseDemand = avgSales;
-            let trendBoostVal = 0;
-            if (!isNaN(recentSales) && recentSales > (avgSales * 1.1)) {
-                trendBoostVal = (recentSales - avgSales) * 0.6; 
-                baseDemand += trendBoostVal;
-            }
 
             let shortR = 1.0, diffShort = 0;
             if (shortage > 20) { shortR = 1.03 + ((shortage-20)*0.004); diffShort = shortage-20; }
@@ -1025,7 +1011,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (finalOrder > limit) finalOrder = limit;
             }
 
-            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, trendBoostVal, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo);
+            // ★renderUIの引数からtrendBoostValを削除
+            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo);
             
             if(saveHist) {
                 State.saveHistory(dateStr, Math.ceil(finalDemandRaw));
@@ -1034,10 +1021,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return { cat: cat, pred: Math.ceil(finalDemandRaw), order: finalOrder };
         },
 
-        renderUI(cat, predRaw, order, base, trend, shortR, day, weather, cal, custom, catR, learn, temp, evInfo) {
+        // ★引数からtrendを除去
+        renderUI(cat, predRaw, order, base, shortR, day, weather, cal, custom, catR, learn, temp, evInfo) {
             document.getElementById('resCategory').innerText = cat;
             document.getElementById('resBaseSales').innerText = base.toFixed(1);
-            document.getElementById('resTrendBoost').innerText = trend > 0 ? `(+トレンド ${trend.toFixed(1)})` : '';
             document.getElementById('resShortageBoost').innerText = shortR > 1.0 ? `(×欠品補正 ${shortR.toFixed(2)})` : '';
             
             document.getElementById('resDayRatio').innerText = day.toFixed(2);
