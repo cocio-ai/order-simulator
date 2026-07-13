@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
         Object.keys(prefs).forEach(k => { prefSelect.appendChild(new Option(prefs[k], k)); });
     }
 
-    const daysArr = ['mon','tue','wed','thu','fri','sat'].concat(['sun']);
+    const daysArr = ['mon','tue','wed','thu','fri','sat','sun'];
     const daysLabel = ['月','火','水','木','金','土','日'];
     const drContainer = document.getElementById('dayRatioBoxes');
     if(drContainer) {
@@ -33,9 +33,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const getWeekDayStr = (dateObj) => {
+        return ['日','月','火','水','木','金','土'][dateObj.getDay()];
+    };
+
     const initializeDateAndTime = () => {
         const now = new Date();
         const target = new Date(now);
+        // 11時を境に翌日・翌々日の「販売日」へシフトさせる（現場と完全一致のロジック）
         const offset = (now.getHours() >= 11) ? 2 : 1;
         target.setDate(now.getDate() + offset);
         
@@ -67,6 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         this.data = parsedV1; this.data.version = 2; 
                     }
                 }
+                
                 if (this.data && this.data.stores) {
                     Object.keys(this.data.stores).forEach(s => {
                         if (!this.data.stores[s].events) this.data.stores[s].events = [];
@@ -81,6 +87,33 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     });
                 }
+                
+                // ★【自動データ修正（1日ズラし）】★
+                // 過去に「7/10提案→7/11販売」と1日ズレて誤記録されてしまっていたデータを
+                // 「7/10提案→7/12販売」になるよう、全履歴の販売日を自動で＋1日修正します。
+                if (this.data && this.data.stores && !this.data.shiftedDatesV3) {
+                    Object.keys(this.data.stores).forEach(s => {
+                        if (this.data.stores[s].categories) {
+                            Object.keys(this.data.stores[s].categories).forEach(c => {
+                                let cat = this.data.stores[s].categories[c];
+                                if (cat.history) {
+                                    let newHistory = {};
+                                    Object.keys(cat.history).forEach(dateStr => {
+                                        let oldDate = new Date(dateStr);
+                                        if (!isNaN(oldDate)) {
+                                            oldDate.setDate(oldDate.getDate() + 1); // ここで+1日
+                                            let newDateStr = oldDate.getFullYear() + "-" + String(oldDate.getMonth()+1).padStart(2, '0') + "-" + String(oldDate.getDate()).padStart(2, '0');
+                                            newHistory[newDateStr] = cat.history[dateStr];
+                                        }
+                                    });
+                                    cat.history = newHistory;
+                                }
+                            });
+                        }
+                    });
+                    this.data.shiftedDatesV3 = true; // 修正済みフラグ
+                }
+
                 this.save();
             } catch(e) { console.error("Load Error"); }
         },
@@ -130,11 +163,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if(!this.data.stores[store].categories[cat].history) this.data.stores[store].categories[cat].history = {};
             
             const now = new Date();
-            const orderDateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0');
+            // システム実行日＝「提案日」として記録
+            const proposalDateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0');
             
             this.data.stores[store].categories[cat].history[targetDateStr] = {
                 pred: predQty,
-                orderDate: orderDateStr
+                orderDate: proposalDateStr // 変数名はorderDateだが意味は「提案日(Proposal Date)」
             };
             
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
@@ -206,10 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Events = Events;
 
-    const getWeekDayStr = (dateObj) => {
-        return ['日','月','火','水','木','金','土'][dateObj.getDay()];
-    };
-
+    // ★ グラフに「提案」「発注」「販売」の3段階をはっきりと表示
     const ChartModule = {
         chart: null,
         render(history) {
@@ -219,22 +250,26 @@ document.addEventListener("DOMContentLoaded", () => {
             const dates = Object.keys(history).sort((a, b) => a.localeCompare(b));
             
             const labels = dates.map(d => {
-                const targetDate = new Date(d);
-                const salesStr = isNaN(targetDate) ? d : `${targetDate.getMonth()+1}/${targetDate.getDate()}(${getWeekDayStr(targetDate)})`;
+                const targetDate = new Date(d); // 販売日 (Sales Date)
+                const salesStr = `${targetDate.getMonth()+1}/${targetDate.getDate()}(${getWeekDayStr(targetDate)})`;
+                
+                const orderDate = new Date(targetDate);
+                orderDate.setDate(orderDate.getDate() - 1); // 発注締切日 (Order Deadline)
+                const orderStr = `${orderDate.getMonth()+1}/${orderDate.getDate()}(${getWeekDayStr(orderDate)})`;
                 
                 let histItem = history[d];
-                let orderDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
-                
-                let orderStr = "";
-                if (orderDateStr) {
-                    const oDate = new Date(orderDateStr);
-                    orderStr = `${oDate.getMonth()+1}/${oDate.getDate()}(${getWeekDayStr(oDate)})`;
+                let propDateStr = typeof histItem === 'object' ? histItem.orderDate : null; // 提案日 (Proposal Date)
+                let propStr = "";
+                if (propDateStr) {
+                    const pDate = new Date(propDateStr);
+                    propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
                 } else {
-                    const oDate = new Date(targetDate);
-                    oDate.setDate(oDate.getDate() - 1); 
-                    orderStr = `${oDate.getMonth()+1}/${oDate.getDate()}(${getWeekDayStr(oDate)})`;
+                    const pDate = new Date(targetDate);
+                    pDate.setDate(pDate.getDate() - 2); // なければ販売日の2日前
+                    propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
                 }
-                return [`${orderStr} 発注`, `↓`, `${salesStr} 販売`];
+                // 3段で完璧に表示
+                return [`提案:${propStr}`, `発注:${orderStr}〆`, `販売:${salesStr}`];
             });
             
             const predData = dates.map(d => {
@@ -263,7 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     maintainAspectRatio: false,
                     scales: {
                         y: { beginAtZero: false, ticks: { color: '#888' } },
-                        x: { ticks: { color: '#888', font: { size: 9 } } }
+                        x: { ticks: { color: '#888', font: { size: 9 }, maxRotation: 0 } }
                     },
                     plugins: { legend: { labels: { color: '#888' } } }
                 }
@@ -416,6 +451,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
+        // ★ プルダウンも「提案」「発注」「販売」を完全に明記
         updateLearnHistoryUI() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
@@ -429,24 +465,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 select.appendChild(new Option("記録がありません (手動入力)", "manual"));
             } else {
                 dates.forEach(d => {
-                    const dObj = new Date(d);
-                    const salesStr = isNaN(dObj) ? d : `${dObj.getMonth()+1}月${dObj.getDate()}日(${getWeekDayStr(dObj)})`;
+                    const targetDate = new Date(d);
+                    const salesStr = `${targetDate.getMonth()+1}/${targetDate.getDate()}(${getWeekDayStr(targetDate)})`;
+                    
+                    const orderDate = new Date(targetDate);
+                    orderDate.setDate(orderDate.getDate() - 1);
+                    const orderStr = `${orderDate.getMonth()+1}/${orderDate.getDate()}(${getWeekDayStr(orderDate)})`;
                     
                     let histItem = history[d];
                     let predVal = typeof histItem === 'object' ? histItem.pred : histItem;
-                    let orderDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
+                    let propDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
                     
-                    let label = "";
-                    if(orderDateStr) {
-                        const oObj = new Date(orderDateStr);
-                        const orderStr = `${oObj.getMonth()+1}月${oObj.getDate()}日(${getWeekDayStr(oObj)})`;
-                        label = `【販売日】${salesStr} (← ${orderStr} 発注分 / 予測: ${predVal}個)`;
+                    let propStr = "";
+                    if(propDateStr) {
+                        const pDate = new Date(propDateStr);
+                        propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
                     } else {
-                        const oObj = new Date(dObj);
-                        oObj.setDate(oObj.getDate() - 1);
-                        const orderStr = `${oObj.getMonth()+1}月${oObj.getDate()}日(${getWeekDayStr(oObj)})`;
-                        label = `【販売日】${salesStr} (← ${orderStr} 頃発注 / 予測: ${predVal}個)`;
+                        const pDate = new Date(targetDate);
+                        pDate.setDate(pDate.getDate() - 2);
+                        propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
                     }
+                    
+                    const label = `【販売日】${salesStr} (提案:${propStr} ⇒ 発注:${orderStr}〆 / 予測: ${predVal}個)`;
                     select.appendChild(new Option(label, d));
                 });
                 select.appendChild(new Option("手動で過去の日付・予測を入力する...", "manual"));
@@ -606,13 +646,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // ★ 天気・カレンダー同期バグの完全修正
         async fetchWeather(offset) {
             const now = new Date();
             const target = new Date(now);
             target.setDate(now.getDate() + offset);
             
-            // ★確実に画面のカレンダーと曜日を「明日」または「明後日」の販売日に書き換える
             const tDateStr = target.toISOString().split('T')[0];
             document.getElementById('targetDateInput').value = tDateStr;
             const days = ['sun','mon','tue','wed','thu','fri','sat'];
@@ -722,11 +760,24 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('weatherCoeffDisplay').value = `× ${coeff}`;
         },
 
+        // ★ 発注締切の案内をUIに表示
         updateDateUI() {
             const dateStr = document.getElementById('targetDateInput').value;
             const badge = document.getElementById('calendarBadge');
-            if(!dateStr) { badge.style.display='none'; return; }
-            const d = new Date(dateStr).getDate();
+            const deadlineText = document.getElementById('orderDeadlineText');
+            
+            if(!dateStr) { 
+                badge.style.display='none'; 
+                deadlineText.innerText = ''; 
+                return; 
+            }
+            
+            const dObj = new Date(dateStr);
+            const orderObj = new Date(dObj);
+            orderObj.setDate(orderObj.getDate() - 1); // 締切は販売日の前日
+            deadlineText.innerText = `※この販売分の発注締切: ${orderObj.getMonth()+1}/${orderObj.getDate()}(${getWeekDayStr(orderObj)}) 午前11時`;
+
+            const d = dObj.getDate();
             if (d === 15 || d === 25) { badge.innerText = `💰 年金/給料日 特需`; badge.style.display='block'; }
             else if (d % 5 === 0 && d !== 31) { badge.innerText = `🚙 五十日(ごとおび) 活発`; badge.style.display='block'; }
             else { badge.style.display='none'; }
@@ -740,7 +791,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return 1.0;
         },
 
-        // ★ 調理麺：35度上限キャップ ＆ お盆(8/16)以降の食べ飽きトレンド完全版
         getTempCoeff(dateStr, catVal, maxTemp, minTemp) {
             let coeff = 1.0, fixed = 0, msg = "";
             const targetDate = dateStr ? new Date(dateStr) : new Date();
@@ -750,11 +800,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (catVal === "調理麺") {
                 if (maxTemp >= 26) {
                     coeff = 1.0;
-                    // どれだけ気温が上がっても「35度」を上限として頭打ちにする
                     const effectiveTemp = Math.min(35, Math.floor(maxTemp));
                     fixed = (effectiveTemp - 26) * 3;
                     
-                    // ★ 8月16日以降、および9月を「食べ飽き・晩夏期」として判定
                     if ((currentMonth === 8 && currentDate >= 16) || currentMonth === 9) {
                         fixed = Math.round(fixed * 0.8); 
                         msg = `☀️ お盆以降の食べ飽き考慮（最大35度頭打ち基準 / 補正：＋${fixed}個）`;
