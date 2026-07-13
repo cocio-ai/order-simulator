@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#f2f2f7">
     <title>ORDER SIMULATOR - AI Bese</title>
     
+    <!-- PWA用の設定読み込み -->
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -108,9 +109,9 @@
         <div class="card">
             <h3 class="section-title">外部変動要因</h3>
             <div class="form-group">
-                <label style="color: var(--seven-green-dark); display: flex; flex-direction: column; gap: 2px;">
-                    <div style="font-size: 0.95rem;">📅 発注対象日 (納品・販売日)</div>
-                    <div style="font-size: 0.75rem; color: #888; font-weight: normal;">(11時で翌日/翌々日に自動切替)</div>
+                <label style="color: var(--seven-green-dark); display: flex; flex-direction: column; gap: 4px;">
+                    <div style="font-size: 0.95rem; font-weight: 800;">📅 対象の【販売日】 (実際に店に並ぶ日)</div>
+                    <div id="orderDeadlineText" style="font-size: 0.8rem; color: var(--seven-red); font-weight: bold;"></div>
                 </label>
                 <input type="date" id="targetDateInput" style="font-weight: 800; color: var(--primary-dark);">
                 <div id="calendarBadge" style="display:none; background:var(--seven-red); color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold; width: fit-content; margin-top: 8px;"></div>
@@ -217,6 +218,7 @@
         </div>
     </div>
 
+    <!-- AI学習タブ -->
     <div id="tab-learning" class="tab-content">
         <div class="card" style="border: 2px solid var(--seven-red);">
             <h3 class="section-title" style="color: var(--seven-red);">🧠 AI 予実学習</h3>
@@ -249,9 +251,9 @@
             </div>
 
             <div class="form-group event-box">
-                <label style="color: var(--primary-dark); font-weight: bold;">📅 対象の【販売・納品日（曜日）】</label>
-                <div style="font-size: 0.8rem; color: var(--seven-red); margin-bottom: 8px; font-weight: 800;">※いつ発注したかではなく、実際に店に並んで売れた日(曜日)を選んでください。</div>
-                <select id="learnDateSelect" style="font-weight: bold; font-size: 1rem; color: var(--primary-dark);"></select>
+                <label style="color: var(--primary-dark); font-weight: bold;">📅 対象の【販売日】</label>
+                <div style="font-size: 0.8rem; color: var(--seven-red); margin-bottom: 8px; font-weight: 800;">※発注日ではなく、実際に店に並んで売れた日(販売日)を選択してください。</div>
+                <select id="learnDateSelect" style="font-weight: bold; font-size: 0.95rem; color: var(--primary-dark);"></select>
             </div>
 
             <div class="flex-row">
@@ -267,6 +269,7 @@
         </div>
     </div>
 
+    <!-- スクショ用一括確認タブ -->
     <div id="tab-all" class="tab-content">
         <div id="screenshotTargetArea" class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--border); background: var(--card-bg);">
             <div id="allResultsContainer" class="screenshot-container">
@@ -279,6 +282,7 @@
         </div>
     </div>
 
+    <!-- データ引継タブ -->
     <div id="tab-backup" class="tab-content">
         <div class="card" style="border: 2px solid var(--seven-blue);">
             <h3 class="section-title" style="color: var(--seven-blue);">🔄 アプリの更新</h3>
