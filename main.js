@@ -121,7 +121,6 @@ document.addEventListener("DOMContentLoaded", () => {
             };
             this.save();
         },
-        // ★ 修正反映：発注日と販売日（ターゲット日）をセットで保存
         saveHistory(targetDateStr, predQty) {
             if(!targetDateStr || isNaN(predQty)) return;
             const store = this.data.currentStore; const cat = this.data.currentCategory;
@@ -130,11 +129,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if(!this.data.stores[store].categories[cat]) return;
             if(!this.data.stores[store].categories[cat].history) this.data.stores[store].categories[cat].history = {};
             
-            // 発注日として本日の日付を記録
             const now = new Date();
             const orderDateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0');
             
-            // 単なる数値ではなく、予測数と発注日をセットで保存
             this.data.stores[store].categories[cat].history[targetDateStr] = {
                 pred: predQty,
                 orderDate: orderDateStr
@@ -209,7 +206,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Events = Events;
 
-    // ★ 修正反映：グラフの軸を2段書きにして発注日・販売日の関係を明示
+    const getWeekDayStr = (dateObj) => {
+        return ['日','月','火','水','木','金','土'][dateObj.getDay()];
+    };
+
     const ChartModule = {
         chart: null,
         render(history) {
@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const labels = dates.map(d => {
                 const targetDate = new Date(d);
-                const salesStr = isNaN(targetDate) ? d : `${targetDate.getMonth()+1}/${targetDate.getDate()}`;
+                const salesStr = isNaN(targetDate) ? d : `${targetDate.getMonth()+1}/${targetDate.getDate()}(${getWeekDayStr(targetDate)})`;
                 
                 let histItem = history[d];
                 let orderDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
@@ -228,11 +228,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 let orderStr = "";
                 if (orderDateStr) {
                     const oDate = new Date(orderDateStr);
-                    orderStr = `${oDate.getMonth()+1}/${oDate.getDate()}`;
+                    orderStr = `${oDate.getMonth()+1}/${oDate.getDate()}(${getWeekDayStr(oDate)})`;
                 } else {
                     const oDate = new Date(targetDate);
                     oDate.setDate(oDate.getDate() - 1); 
-                    orderStr = `${oDate.getMonth()+1}/${oDate.getDate()}`;
+                    orderStr = `${oDate.getMonth()+1}/${oDate.getDate()}(${getWeekDayStr(oDate)})`;
                 }
                 return [`${orderStr} 発注`, `↓`, `${salesStr} 販売`];
             });
@@ -263,7 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     maintainAspectRatio: false,
                     scales: {
                         y: { beginAtZero: false, ticks: { color: '#888' } },
-                        x: { ticks: { color: '#888', font: { size: 10 } } }
+                        x: { ticks: { color: '#888', font: { size: 9 } } }
                     },
                     plugins: { legend: { labels: { color: '#888' } } }
                 }
@@ -277,6 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.renderStoreDatalist();
             if (State.data.currentCategory) {
                 document.getElementById('categoryName').value = State.data.currentCategory;
+                document.getElementById('learnCategorySelect').value = State.data.currentCategory;
                 this.updateFreshnessDisplay(State.data.currentCategory);
                 this.restoreCategoryInputs(); 
             }
@@ -318,7 +319,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange());
+            document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange('simulator'));
+            document.getElementById('learnCategorySelect').addEventListener('change', () => this.onCategoryChange('learning'));
 
             const inputs = ['avgSales', 'recentSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'categoryCoeff', 'popRate'];
             inputs.forEach(id => {
@@ -404,8 +406,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (tabId === 'all') Logic.calculateAll();
             if (tabId === 'learning') {
-                document.getElementById('learnTargetCategory').innerText = State.data.currentCategory || "未選択";
-                document.getElementById('learnSuccessMsg').style.display = 'none';
                 this.updateLearnHistoryUI();
                 
                 const store = State.data.currentStore;
@@ -416,7 +416,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // ★ 修正反映：プルダウンの表記を発注日と販売日のセット表示に変更
         updateLearnHistoryUI() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
@@ -431,7 +430,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 dates.forEach(d => {
                     const dObj = new Date(d);
-                    const salesStr = isNaN(dObj) ? d : `${dObj.getMonth()+1}月${dObj.getDate()}日`;
+                    const salesStr = isNaN(dObj) ? d : `${dObj.getMonth()+1}月${dObj.getDate()}日(${getWeekDayStr(dObj)})`;
                     
                     let histItem = history[d];
                     let predVal = typeof histItem === 'object' ? histItem.pred : histItem;
@@ -440,13 +439,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     let label = "";
                     if(orderDateStr) {
                         const oObj = new Date(orderDateStr);
-                        const orderStr = `${oObj.getMonth()+1}月${oObj.getDate()}日`;
-                        label = `【販売日】${salesStr} (${orderStr} 発注分 / 予測: ${predVal}個)`;
+                        const orderStr = `${oObj.getMonth()+1}月${oObj.getDate()}日(${getWeekDayStr(oObj)})`;
+                        label = `【販売日】${salesStr} (← ${orderStr} 発注分 / 予測: ${predVal}個)`;
                     } else {
                         const oObj = new Date(dObj);
                         oObj.setDate(oObj.getDate() - 1);
-                        const orderStr = `${oObj.getMonth()+1}月${oObj.getDate()}日`;
-                        label = `【販売日】${salesStr} (${orderStr} 頃発注 / 予測: ${predVal}個)`;
+                        const orderStr = `${oObj.getMonth()+1}月${oObj.getDate()}日(${getWeekDayStr(oObj)})`;
+                        label = `【販売日】${salesStr} (← ${orderStr} 頃発注 / 予測: ${predVal}個)`;
                     }
                     select.appendChild(new Option(label, d));
                 });
@@ -477,11 +476,29 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        onCategoryChange() {
-            const cat = document.getElementById('categoryName').value;
+        onCategoryChange(source) {
+            let cat = "";
+            if (source === 'simulator') {
+                cat = document.getElementById('categoryName').value;
+                document.getElementById('learnCategorySelect').value = cat;
+            } else {
+                cat = document.getElementById('learnCategorySelect').value;
+                document.getElementById('categoryName').value = cat;
+            }
+            
             if (cat === State.data.currentCategory) return;
             State.updateInputData(); State.data.currentCategory = cat; State.save();
-            this.updateFreshnessDisplay(cat); this.restoreCategoryInputs(); Logic.calculate(false, false);
+            this.updateFreshnessDisplay(cat); this.restoreCategoryInputs(); 
+            
+            if (source === 'learning') {
+                this.updateLearnHistoryUI();
+                const store = State.data.currentStore;
+                if (store && State.data.stores[store] && State.data.stores[store].categories[cat]) {
+                    ChartModule.render(State.data.stores[store].categories[cat].history || {});
+                }
+            } else {
+                Logic.calculate(false, false);
+            }
         },
 
         renderStoreDatalist() {
@@ -588,7 +605,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // 天気予報完全強化版も維持
         async fetchWeather(offset) {
             const now = new Date();
             const target = new Date(now);
@@ -721,12 +737,43 @@ document.addEventListener("DOMContentLoaded", () => {
             return 1.0;
         },
 
-        getTempCoeff(catVal, maxTemp, minTemp) {
+        // ★ 調理麺の気温ブースト修正：35度上限キャップ ＆ 対象日からの月日判定
+        getTempCoeff(dateStr, catVal, maxTemp, minTemp) {
             let coeff = 1.0, fixed = 0, msg = "";
+            const targetDate = dateStr ? new Date(dateStr) : new Date();
+            const currentMonth = targetDate.getMonth() + 1; 
+            const currentDate = targetDate.getDate();
+            
             if (catVal === "調理麺") {
-                if (maxTemp >= 26) { coeff = 1.0; fixed = 10 + (Math.floor(maxTemp)-26)*3; msg = `🔥 猛暑日！冷やし麺ダイレクト+${fixed}個加算`; }
-                else if (maxTemp >= 20) { coeff = 1.0 + ((maxTemp - 20) * 0.02); msg = "🌤 20℃超え。調理麺が動き出します"; }
-                else if (maxTemp < 10) { coeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04); msg = "❄️ 10℃未満。冷やし麺は売れにくいです"; }
+                if (maxTemp >= 26) {
+                    coeff = 1.0;
+                    // 35度を上限とする（どれだけ上がっても35度として計算）
+                    const effectiveTemp = Math.min(35, Math.floor(maxTemp));
+                    fixed = (effectiveTemp - 26) * 3;
+                    
+                    // 8月16日以降と9月は「食べ飽き・晩夏トレンド」として80%にマイルド化
+                    if ((currentMonth === 8 && currentDate >= 16) || currentMonth === 9) {
+                        fixed = Math.round(fixed * 0.8); 
+                        msg = `☀️ お盆以降の食べ飽き考慮（最大35度基準 / 補正：＋${fixed}個）`;
+                    } else if (currentMonth >= 10 || currentMonth <= 4) {
+                        fixed = Math.round(fixed * 0.5); // 秋〜春の急な夏日は50%に抑制
+                        msg = `🍂 涼期トレンド（最大35度基準 / 補正：＋${fixed}個）`;
+                    } else {
+                        msg = `🔥 夏の冷し麺特需（最大35度基準 / 補正：＋${fixed}個）`;
+                    }
+                } else if (maxTemp >= 20) {
+                    coeff = 1.0 + ((maxTemp - 20) * 0.02);
+                    msg = "🌤 20℃超え。調理麺が動き出します";
+                } else if (maxTemp < 10) {
+                    // 冬期（11月〜2月）はレンジ温麺の需要があるためマイナス補正をカット
+                    if (currentMonth >= 11 || currentMonth <= 2) {
+                        coeff = 1.0; 
+                        msg = `❄️ 冬期のレンジ温麺需要（マイナス補正停止）`;
+                    } else {
+                        coeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04);
+                        msg = "❄️ 気温低下。冷やし麺は売れにくいです";
+                    }
+                }
             } else if (["サラダ", "カップデリ"].includes(catVal)) {
                 if (maxTemp > 25) coeff = 1.0 + ((maxTemp - 25) * 0.03);
             } else if (["カップ麺", "グラタンドリア", "チルド弁当"].includes(catVal)) {
@@ -820,7 +867,8 @@ document.addEventListener("DOMContentLoaded", () => {
             else if (shortage > 5) { shortR = 1.0 + (shortage*0.002); diffShort = shortage*0.5; }
             else if (shortage > 0) { shortR = 1.01; diffShort = shortage; }
             
-            const tInfo = this.getTempCoeff(cat, maxT, minT);
+            // ★ 対象日（dateStr）を渡して正確な時期トレンドを判定させる
+            const tInfo = this.getTempCoeff(dateStr, cat, maxT, minT);
             
             const maxS = parseFloat(document.getElementById('maxSales').value) || 0;
             const minS = parseFloat(document.getElementById('minSales').value) || 0;
@@ -894,7 +942,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let results = [];
             cats.forEach(c => {
                 document.getElementById('categoryName').value = c;
-                UI.onCategoryChange();
+                UI.onCategoryChange('simulator');
                 let res = this.calculate(true, true);
                 if(res) results.push(res);
             });
@@ -910,7 +958,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             results.forEach(r => {
                 html += `
-                    <div class="screenshot-item" onclick="document.getElementById('categoryName').value='${r.cat}'; UI.onCategoryChange(); UI.switchTab('simulator'); window.scrollTo(0,0);">
+                    <div class="screenshot-item" onclick="document.getElementById('categoryName').value='${r.cat}'; UI.onCategoryChange('simulator'); UI.switchTab('simulator'); window.scrollTo(0,0);">
                         <div class="screenshot-cat">${r.cat}</div>
                         <div class="screenshot-data" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                             <div style="font-size: 0.85rem; color: #666;">販売予測数: <span style="font-weight: bold; color: #333; font-size: 1rem;">${r.pred}</span></div>
