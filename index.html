@@ -67,7 +67,6 @@
         <div class="card">
             <h3 class="section-title">販売・在庫データ</h3>
             
-            <!-- ★UI改善：最も重要な「平均数」と「現在庫」を最上段に並べて見やすく整理 -->
             <div class="flex-row" style="align-items: flex-end; margin-bottom: 16px;">
                 <div class="flex-col" style="flex: 1.2;">
                     <label style="color: var(--primary-dark); font-weight: bold;">4週平均 販売数</label>
@@ -79,20 +78,17 @@
                 </div>
             </div>
 
-            <!-- 最高・最小 -->
             <div class="flex-row" style="align-items: center; background: #fafafa; padding: 10px; border-radius: 8px; margin-bottom: 12px;">
                 <div class="flex-col"><label style="color: var(--text-muted);">最高販売数</label><input type="number" inputmode="numeric" id="maxSales" value="65" min="0"></div>
                 <div style="font-weight: 800; color: #ddd; margin-top: 15px; padding: 0 8px;">ー</div>
                 <div class="flex-col"><label style="color: var(--text-muted);">最小販売数</label><input type="number" inputmode="numeric" id="minSales" value="35" min="0"></div>
             </div>
 
-            <!-- 廃棄・欠品 -->
             <div class="flex-row" style="margin-bottom: 0;">
                 <div class="flex-col"><label style="color: var(--danger);">平均廃棄数</label><input type="number" inputmode="numeric" id="avgWaste" value="3" min="0"></div>
                 <div class="flex-col"><label style="color: var(--warning);">平均欠品率 (%)</label><input type="number" inputmode="numeric" id="avgShortageRate" value="0" min="0" max="100"></div>
             </div>
 
-            <!-- 最低陳列量 (必要な分類のみ表示) -->
             <div class="flex-row" id="displayInputArea" style="margin-top: 16px; margin-bottom: 0;">
                 <div class="flex-col"><label style="color: var(--primary);">最低陳列量</label><input type="number" inputmode="numeric" id="minDisplayQty" value="0" min="0"></div><div class="flex-col"></div>
             </div>
@@ -202,7 +198,6 @@
 
         <div id="resultArea" class="result-card card" style="display: none; margin-top: 12px;">
             <div class="result-header"><strong id="resCategory"></strong> <span id="resFreshnessText" style="font-size:0.85rem; color:#666; font-weight:normal; margin-left:10px;"></span></div>
-            <!-- ★UI改善：不要になったトレンド表記を削除 -->
             <div class="result-item" style="font-size: 0.85rem; margin-bottom: 12px; line-height: 1.5; color: #555;">
                 (内訳: 基本 <span id="resBaseSales"></span> <span id="resShortageBoost" style="color:var(--warning); font-weight:bold;"></span> × 曜日 <span id="resDayRatio"></span> × 各種係数 <span id="resMultipliers" style="color:var(--primary-dark); font-weight:bold;"></span>)
             </div>
@@ -271,6 +266,9 @@
             </div>
             <button id="btn-learn" class="calc-button" style="background: var(--seven-red); margin-top: 16px;">AIに学習させる</button>
             <div id="learnSuccessMsg" style="color: var(--success); font-weight: bold; text-align: center; margin-top: 12px; display: none;">✅ AIが学習しました！</div>
+            
+            <!-- ★追加：学習データのリセットボタン -->
+            <button id="btn-reset-learning" class="calc-button" style="background: #6c757d; margin-top: 24px; padding: 12px; font-size: 0.9rem;">🗑️ この分類の学習データをリセット</button>
         </div>
     </div>
 
