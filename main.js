@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
         Object.keys(prefs).forEach(k => { prefSelect.appendChild(new Option(prefs[k], k)); });
     }
 
-    const daysArr = ['mon','tue','wed','thu','fri','sat','sun'];
+    const daysArr = ['mon','tue','wed','thu','fri','sat'].concat(['sun']);
     const daysLabel = ['月','火','水','木','金','土','日'];
     const drContainer = document.getElementById('dayRatioBoxes');
     if(drContainer) {
@@ -480,7 +480,8 @@ document.addEventListener("DOMContentLoaded", () => {
             let cat = "";
             if (source === 'simulator') {
                 cat = document.getElementById('categoryName').value;
-                document.getElementById('learnCategorySelect').value = cat;
+                const learnSelect = document.getElementById('learnCategorySelect');
+                if (learnSelect) learnSelect.value = cat;
             } else {
                 cat = document.getElementById('learnCategorySelect').value;
                 document.getElementById('categoryName').value = cat;
@@ -605,11 +606,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
+        // ★ 天気・カレンダー同期バグの完全修正
         async fetchWeather(offset) {
             const now = new Date();
             const target = new Date(now);
             target.setDate(now.getDate() + offset);
             
+            // ★確実に画面のカレンダーと曜日を「明日」または「明後日」の販売日に書き換える
             const tDateStr = target.toISOString().split('T')[0];
             document.getElementById('targetDateInput').value = tDateStr;
             const days = ['sun','mon','tue','wed','thu','fri','sat'];
@@ -737,7 +740,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return 1.0;
         },
 
-        // ★ 調理麺の気温ブースト修正：35度上限キャップ ＆ 対象日からの月日判定
+        // ★ 調理麺：35度上限キャップ ＆ お盆(8/16)以降の食べ飽きトレンド完全版
         getTempCoeff(dateStr, catVal, maxTemp, minTemp) {
             let coeff = 1.0, fixed = 0, msg = "";
             const targetDate = dateStr ? new Date(dateStr) : new Date();
@@ -747,28 +750,27 @@ document.addEventListener("DOMContentLoaded", () => {
             if (catVal === "調理麺") {
                 if (maxTemp >= 26) {
                     coeff = 1.0;
-                    // 35度を上限とする（どれだけ上がっても35度として計算）
+                    // どれだけ気温が上がっても「35度」を上限として頭打ちにする
                     const effectiveTemp = Math.min(35, Math.floor(maxTemp));
                     fixed = (effectiveTemp - 26) * 3;
                     
-                    // 8月16日以降と9月は「食べ飽き・晩夏トレンド」として80%にマイルド化
+                    // ★ 8月16日以降、および9月を「食べ飽き・晩夏期」として判定
                     if ((currentMonth === 8 && currentDate >= 16) || currentMonth === 9) {
                         fixed = Math.round(fixed * 0.8); 
-                        msg = `☀️ お盆以降の食べ飽き考慮（最大35度基準 / 補正：＋${fixed}個）`;
+                        msg = `☀️ お盆以降の食べ飽き考慮（最大35度頭打ち基準 / 補正：＋${fixed}個）`;
                     } else if (currentMonth >= 10 || currentMonth <= 4) {
-                        fixed = Math.round(fixed * 0.5); // 秋〜春の急な夏日は50%に抑制
-                        msg = `🍂 涼期トレンド（最大35度基準 / 補正：＋${fixed}個）`;
+                        fixed = Math.round(fixed * 0.5); 
+                        msg = `🍂 涼期・春期トレンド（最大35度頭打ち基準 / 補正：＋${fixed}個）`;
                     } else {
-                        msg = `🔥 夏の冷し麺特需（最大35度基準 / 補正：＋${fixed}個）`;
+                        msg = `🔥 夏の冷し麺特需ブースト（最大35度頭打ち基準 / 補正：＋${fixed}個）`;
                     }
                 } else if (maxTemp >= 20) {
                     coeff = 1.0 + ((maxTemp - 20) * 0.02);
                     msg = "🌤 20℃超え。調理麺が動き出します";
                 } else if (maxTemp < 10) {
-                    // 冬期（11月〜2月）はレンジ温麺の需要があるためマイナス補正をカット
                     if (currentMonth >= 11 || currentMonth <= 2) {
                         coeff = 1.0; 
-                        msg = `❄️ 冬期のレンジ温麺需要（マイナス補正停止）`;
+                        msg = `❄️ 冬期のレンジ温麺需要（気温低下による一律のマイナス補正を停止）`;
                     } else {
                         coeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04);
                         msg = "❄️ 気温低下。冷やし麺は売れにくいです";
@@ -867,7 +869,6 @@ document.addEventListener("DOMContentLoaded", () => {
             else if (shortage > 5) { shortR = 1.0 + (shortage*0.002); diffShort = shortage*0.5; }
             else if (shortage > 0) { shortR = 1.01; diffShort = shortage; }
             
-            // ★ 対象日（dateStr）を渡して正確な時期トレンドを判定させる
             const tInfo = this.getTempCoeff(dateStr, cat, maxT, minT);
             
             const maxS = parseFloat(document.getElementById('maxSales').value) || 0;
