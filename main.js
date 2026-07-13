@@ -171,9 +171,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 actual: ""        
             };
             
+            // 保存件数を14日分に拡張
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
-            if (keys.length > 7) {
-                keys.slice(7).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
+            if (keys.length > 14) {
+                keys.slice(14).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
             }
             this.save();
         }
@@ -390,7 +391,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('btn-add-event').addEventListener('click', () => Events.add());
             document.getElementById('btn-learn').addEventListener('click', () => Logic.executeLearning());
             
-            // ★追加：リセットボタンのイベントリスナー
             const btnResetLearning = document.getElementById('btn-reset-learning');
             if (btnResetLearning) {
                 btnResetLearning.addEventListener('click', () => Logic.resetLearning());
@@ -896,7 +896,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return { coeff, msg: msgs.join(" / ") };
         },
 
-        // ★追加：学習データのリセット処理
         resetLearning() {
             const storeSelect = document.getElementById('storeNameSelect');
             const store = storeSelect.value;
@@ -1002,7 +1001,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const maxT = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minT = parseFloat(document.getElementById('minTemp').value) || 15;
             
-            const learnR = (State.data.stores[store] && State.data.stores[store].categories[cat]) ? (State.data.stores[store].categories[cat].learnedCoeff || 1.0) : 1.0;
+            // ★追加: 学習データの蓄積回数をカウント
+            let learnedCount = 0;
+            if (State.data.stores[store] && State.data.stores[store].categories[cat] && State.data.stores[store].categories[cat].history) {
+                const hist = State.data.stores[store].categories[cat].history;
+                Object.keys(hist).forEach(k => {
+                    if (hist[k] && typeof hist[k] === 'object' && hist[k].isLearned) learnedCount++;
+                });
+            }
+            
+            const baseLearnR = (State.data.stores[store] && State.data.stores[store].categories[cat]) ? (State.data.stores[store].categories[cat].learnedCoeff || 1.0) : 1.0;
+            
+            // ★7回（1週間分）のデータが揃うまでは補正を適用しない（1.0倍）
+            const REQUIRED_LEARN_COUNT = 7;
+            const learnR = (learnedCount >= REQUIRED_LEARN_COUNT) ? baseLearnR : 1.0;
             
             const evInfo = this.getEventCoeff(dateStr, cat, store);
             const eventR = evInfo.coeff;
@@ -1037,7 +1049,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (finalOrder > limit) finalOrder = limit;
             }
 
-            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo);
+            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo, learnedCount, baseLearnR);
             
             if(saveHist) {
                 State.saveHistory(dateStr, Math.ceil(finalDemandRaw));
@@ -1046,7 +1058,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return { cat: cat, pred: Math.ceil(finalDemandRaw), order: finalOrder };
         },
 
-        renderUI(cat, predRaw, order, base, shortR, day, weather, cal, custom, catR, learn, temp, evInfo) {
+        renderUI(cat, predRaw, order, base, shortR, day, weather, cal, custom, catR, learn, temp, evInfo, learnedCount, baseLearnR) {
             document.getElementById('resCategory').innerText = cat;
             document.getElementById('resBaseSales').innerText = base.toFixed(1);
             document.getElementById('resShortageBoost').innerText = shortR > 1.0 ? `(×欠品補正 ${shortR.toFixed(2)})` : '';
@@ -1063,8 +1075,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 evMsgEl.style.display = 'none';
             }
             
-            if(learn !== 1.0) document.getElementById('resLearningMessage').innerText = `🧠 店舗独自のAI学習補正 (×${learn.toFixed(2)}) 適用中`;
-            else document.getElementById('resLearningMessage').innerText = "";
+            let learnMsg = "";
+            const REQUIRED_LEARN_COUNT = 7;
+            if (learnedCount >= REQUIRED_LEARN_COUNT) {
+                if (learn !== 1.0) learnMsg = `🧠 店舗独自のAI学習補正 (×${learn.toFixed(2)}) 適用中`;
+            } else {
+                if (learnedCount > 0) {
+                    learnMsg = `⏳ AI学習データ蓄積中 (${learnedCount}/${REQUIRED_LEARN_COUNT}回) ※7回到達で補正開始`;
+                }
+            }
+            
+            const learnMsgEl = document.getElementById('resLearningMessage');
+            if (learnMsg) {
+                learnMsgEl.innerText = learnMsg;
+                learnMsgEl.style.display = 'block';
+                if (learnedCount >= REQUIRED_LEARN_COUNT) {
+                    learnMsgEl.style.color = 'var(--seven-green-dark)';
+                } else {
+                    learnMsgEl.style.color = '#ee7200';
+                }
+            } else {
+                learnMsgEl.style.display = 'none';
+            }
 
             document.getElementById('resTempMessage').innerText = temp.message;
             document.getElementById('resAdjSales').innerText = Math.ceil(predRaw);
