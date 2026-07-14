@@ -46,8 +46,12 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const dateInput = document.getElementById('targetDateInput');
         if(dateInput) {
-            // 【修正】前日のキャッシュが残っていても強制的に現在時刻ベースの正しい対象日に上書きする
-            dateInput.value = target.toISOString().split('T')[0];
+            // 【修正】世界標準時（UTC）のズレをなくすため、日本時間で文字列を生成する
+            const y = target.getFullYear();
+            const m = String(target.getMonth() + 1).padStart(2, '0');
+            const d = String(target.getDate()).padStart(2, '0');
+            
+            dateInput.value = `${y}-${m}-${d}`;
             const days = ['sun','mon','tue','wed','thu','fri','sat'];
             document.getElementById('targetDay').value = days[target.getDay()];
             Logic.updateDateUI();
@@ -713,7 +717,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const target = new Date(now);
             target.setDate(now.getDate() + offset);
             
-            const tDateStr = target.toISOString().split('T')[0];
+            // 【修正】ここでも世界標準時への自動変換を防ぎ、日本時間で日付を作成
+            const y = target.getFullYear();
+            const m = String(target.getMonth() + 1).padStart(2, '0');
+            const d = String(target.getDate()).padStart(2, '0');
+            const tDateStr = `${y}-${m}-${d}`;
+            
             document.getElementById('targetDateInput').value = tDateStr;
             const days = ['sun','mon','tue','wed','thu','fri','sat'];
             document.getElementById('targetDay').value = days[target.getDay()];
