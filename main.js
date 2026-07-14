@@ -368,6 +368,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
+            // ★【修正箇所】曜日ごとの販売指数の変更時にも自動保存と自動計算を実行させる
+            const daysArrForEvents = ['mon','tue','wed','thu','fri','sat','sun'];
+            daysArrForEvents.forEach(d => {
+                const el = document.getElementById('ratio_' + d);
+                if (el) {
+                    el.addEventListener('change', () => {
+                        State.updateInputData();
+                        Logic.calculate(false, false);
+                    });
+                }
+            });
+
             document.getElementById('targetDateInput').addEventListener('input', (e) => {
                 const d = new Date(e.target.value);
                 if(!isNaN(d)) { document.getElementById('targetDay').value = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()]; }
@@ -1113,7 +1125,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const dateObj = new Date(dateStr);
             const formattedDate = !isNaN(dateObj) ? `${dateObj.getMonth()+1}月${dateObj.getDate()}日` : "未定";
 
-            // ★元の選択状態を記憶しておく
             const originalCategory = State.data.currentCategory;
 
             let results = [];
@@ -1124,7 +1135,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if(res) results.push(res);
             });
 
-            // ★一括計算が終わったら元の選択状態に戻す
             if (originalCategory) {
                 document.getElementById('categoryName').value = originalCategory;
                 UI.onCategoryChange('simulator');
