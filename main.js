@@ -40,11 +40,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const initializeDateAndTime = () => {
         const now = new Date();
         const target = new Date(now);
+        // 11時を境に、翌日か翌々日かを判定
         const offset = (now.getHours() >= 11) ? 2 : 1;
         target.setDate(now.getDate() + offset);
         
         const dateInput = document.getElementById('targetDateInput');
-        if(dateInput && !dateInput.value) {
+        if(dateInput) {
+            // 【修正】前日のキャッシュが残っていても強制的に現在時刻ベースの正しい対象日に上書きする
             dateInput.value = target.toISOString().split('T')[0];
             const days = ['sun','mon','tue','wed','thu','fri','sat'];
             document.getElementById('targetDay').value = days[target.getDay()];
@@ -368,7 +370,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // ★【修正箇所】曜日ごとの販売指数の変更時にも自動保存と自動計算を実行させる
             const daysArrForEvents = ['mon','tue','wed','thu','fri','sat','sun'];
             daysArrForEvents.forEach(d => {
                 const el = document.getElementById('ratio_' + d);
