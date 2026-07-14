@@ -171,7 +171,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 actual: ""        
             };
             
-            // 保存件数を14日分に拡張
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
             if (keys.length > 14) {
                 keys.slice(14).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
@@ -1001,7 +1000,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const maxT = parseFloat(document.getElementById('maxTemp').value) || 25;
             const minT = parseFloat(document.getElementById('minTemp').value) || 15;
             
-            // ★追加: 学習データの蓄積回数をカウント
             let learnedCount = 0;
             if (State.data.stores[store] && State.data.stores[store].categories[cat] && State.data.stores[store].categories[cat].history) {
                 const hist = State.data.stores[store].categories[cat].history;
@@ -1012,7 +1010,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const baseLearnR = (State.data.stores[store] && State.data.stores[store].categories[cat]) ? (State.data.stores[store].categories[cat].learnedCoeff || 1.0) : 1.0;
             
-            // ★7回（1週間分）のデータが揃うまでは補正を適用しない（1.0倍）
             const REQUIRED_LEARN_COUNT = 7;
             const learnR = (learnedCount >= REQUIRED_LEARN_COUNT) ? baseLearnR : 1.0;
             
@@ -1116,6 +1113,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const dateObj = new Date(dateStr);
             const formattedDate = !isNaN(dateObj) ? `${dateObj.getMonth()+1}月${dateObj.getDate()}日` : "未定";
 
+            // ★元の選択状態を記憶しておく
+            const originalCategory = State.data.currentCategory;
+
             let results = [];
             cats.forEach(c => {
                 document.getElementById('categoryName').value = c;
@@ -1123,6 +1123,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 let res = this.calculate(true, true);
                 if(res) results.push(res);
             });
+
+            // ★一括計算が終わったら元の選択状態に戻す
+            if (originalCategory) {
+                document.getElementById('categoryName').value = originalCategory;
+                UI.onCategoryChange('simulator');
+            }
 
             const container = document.getElementById('allResultsContainer');
             
