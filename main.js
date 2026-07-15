@@ -40,13 +40,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const initializeDateAndTime = () => {
         const now = new Date();
         const target = new Date(now);
-        // 11時を境に、翌日か翌々日かを判定
         const offset = (now.getHours() >= 11) ? 2 : 1;
         target.setDate(now.getDate() + offset);
         
         const dateInput = document.getElementById('targetDateInput');
         if(dateInput) {
-            // 【修正】世界標準時（UTC）のズレをなくすため、日本時間で文字列を生成する
             const y = target.getFullYear();
             const m = String(target.getMonth() + 1).padStart(2, '0');
             const d = String(target.getDate()).padStart(2, '0');
@@ -527,6 +525,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.onChangeLearnDate();
         },
 
+        // 【修正】入力欄のロック仕様を変更（修正と解除を可能に）
         onChangeLearnDate() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
@@ -545,10 +544,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 actInput.readOnly = false;
                 actInput.style.backgroundColor = "#fff";
                 actInput.style.color = "#000";
+                actInput.placeholder = "";
                 
                 btnLearn.disabled = false;
                 btnLearn.innerText = "AIに学習させる";
                 btnLearn.style.background = "var(--seven-red)";
+                btnLearn.style.color = "#fff";
             } else {
                 const history = State.data.stores[store].categories[cat].history || {};
                 const histItem = history[select.value];
@@ -562,22 +563,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (isLearned) {
                     actInput.value = actualVal;
-                    actInput.readOnly = true;
-                    actInput.style.backgroundColor = "var(--border)";
-                    actInput.style.color = "#555";
+                    // ロックせず修正可能に
+                    actInput.readOnly = false;
+                    actInput.style.backgroundColor = "#fff";
+                    actInput.style.color = "#000";
+                    actInput.placeholder = "空欄で解除";
                     
-                    btnLearn.disabled = true;
-                    btnLearn.innerText = "学習済み (重複防止ロック中)";
-                    btnLearn.style.background = "#999";
+                    btnLearn.disabled = false;
+                    btnLearn.innerText = "数値を修正して再学習";
+                    btnLearn.style.background = "#ffb300"; // 注意を引く黄色
+                    btnLearn.style.color = "#000";
                 } else {
                     actInput.value = ""; 
                     actInput.readOnly = false;
                     actInput.style.backgroundColor = "#fff";
                     actInput.style.color = "#000";
+                    actInput.placeholder = "";
                     
                     btnLearn.disabled = false;
                     btnLearn.innerText = "AIに学習させる";
                     btnLearn.style.background = "var(--seven-red)";
+                    btnLearn.style.color = "#fff";
                 }
             }
         },
@@ -717,7 +723,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const target = new Date(now);
             target.setDate(now.getDate() + offset);
             
-            // 【修正】ここでも世界標準時への自動変換を防ぎ、日本時間で日付を作成
             const y = target.getFullYear();
             const m = String(target.getMonth() + 1).padStart(2, '0');
             const d = String(target.getDate()).padStart(2, '0');
@@ -941,11 +946,30 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
+        // 【追加】過去の学習データから係数を1.0ベースで再計算する安全なロジック
+        recalcCoeff(store, cat) {
+            let coeff = 1.0;
+            const history = State.data.stores[store].categories[cat].history || {};
+            const dates = Object.keys(history).sort((a, b) => a.localeCompare(b));
+            dates.forEach(d => {
+                const h = history[d];
+                if (h && typeof h === 'object' && h.isLearned) {
+                    const act = parseFloat(h.actual);
+                    const pred = parseFloat(h.pred);
+                    if (!isNaN(act) && !isNaN(pred) && pred > 0) {
+                        let ratio = act / pred;
+                        coeff = coeff + ((ratio - 1.0) * 0.3);
+                        coeff = Math.max(0.8, Math.min(1.2, coeff));
+                    }
+                }
+            });
+            State.data.stores[store].categories[cat].learnedCoeff = coeff;
+        },
+
+        // 【修正】解除機能と、上書き再計算に対応
         executeLearning() {
-            const act = parseFloat(document.getElementById('fbActual').value);
+            const actStr = document.getElementById('fbActual').value.trim();
             const pred = parseFloat(document.getElementById('fbPredicted').value);
-            if (!act || !pred || pred <= 0) return alert("予測数と実際の販売数を正しく入力してください。");
-            
             const storeSelect = document.getElementById('storeNameSelect');
             const store = storeSelect.value;
             const cat = State.data.currentCategory;
@@ -953,39 +977,51 @@ document.addEventListener("DOMContentLoaded", () => {
             const targetDateStr = select.value;
 
             if (!store || store === "__NEW__" || !cat) return;
-            
-            let currentL = State.data.stores[store].categories[cat].learnedCoeff || 1.0;
-            
-            if (targetDateStr !== 'manual') {
+
+            // 空欄の場合は「学習の解除」として処理する
+            if (targetDateStr !== 'manual' && actStr === "") {
                  const histItem = State.data.stores[store].categories[cat].history[targetDateStr];
                  if (histItem && typeof histItem === 'object' && histItem.isLearned) {
-                     return alert("この日付のデータは既に学習済みです。二重に補正がかかるのを防ぐためロックされています。");
+                     if(confirm(`【${targetDateStr}】の学習データを解除（未学習の状態に）しますか？`)) {
+                         histItem.isLearned = false;
+                         histItem.actual = "";
+                         this.recalcCoeff(store, cat);
+                         State.save();
+                         document.getElementById('currentLearnedCoeffText').innerText = State.data.stores[store].categories[cat].learnedCoeff.toFixed(2);
+                         this.calculate(false, false);
+                         ChartModule.render(State.data.stores[store].categories[cat].history || {});
+                         UI.updateLearnHistoryUI();
+                         return;
+                     } else { return; }
                  }
             }
 
-            let ratio = act / pred;
-            let newL = currentL + ((ratio - 1.0) * 0.3);
-            newL = Math.max(0.8, Math.min(1.2, newL)); 
-            
-            State.data.stores[store].categories[cat].learnedCoeff = newL;
-            
+            const act = parseFloat(actStr);
+            if (isNaN(act) || !pred || pred <= 0) return alert("予測数と実際の販売数を正しく入力してください。\n（学習済みのデータを解除したい場合は、販売数を空欄にしてボタンを押してください）");
+
             if (targetDateStr !== 'manual') {
-                if (typeof State.data.stores[store].categories[cat].history[targetDateStr] === 'object') {
-                    State.data.stores[store].categories[cat].history[targetDateStr].isLearned = true;
-                    State.data.stores[store].categories[cat].history[targetDateStr].actual = act;
+                const histItem = State.data.stores[store].categories[cat].history[targetDateStr];
+                if (typeof histItem === 'object') {
+                    histItem.isLearned = true;
+                    histItem.actual = act;
                 } else {
-                    let oldPred = State.data.stores[store].categories[cat].history[targetDateStr];
                     State.data.stores[store].categories[cat].history[targetDateStr] = {
-                        pred: oldPred,
+                        pred: histItem,
                         actual: act,
                         isLearned: true
                     };
                 }
+                this.recalcCoeff(store, cat);
+            } else {
+                let currentL = State.data.stores[store].categories[cat].learnedCoeff || 1.0;
+                let ratio = act / pred;
+                let newL = currentL + ((ratio - 1.0) * 0.3);
+                State.data.stores[store].categories[cat].learnedCoeff = Math.max(0.8, Math.min(1.2, newL));
             }
 
             State.save();
             
-            document.getElementById('currentLearnedCoeffText').innerText = newL.toFixed(2);
+            document.getElementById('currentLearnedCoeffText').innerText = State.data.stores[store].categories[cat].learnedCoeff.toFixed(2);
             const msg = document.getElementById('learnSuccessMsg');
             msg.style.display = 'block'; setTimeout(() => msg.style.display='none', 3000);
             
