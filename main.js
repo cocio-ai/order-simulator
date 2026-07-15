@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const initializeDateAndTime = () => {
         const now = new Date();
         const target = new Date(now);
+        // 【11時ルール】当日11時までは翌日分(1)、11時以降は翌々日分(2)
         const offset = (now.getHours() >= 11) ? 2 : 1;
         target.setDate(now.getDate() + offset);
         
@@ -383,18 +384,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            document.getElementById('targetDateInput').addEventListener('input', (e) => {
+            // 手動で日付を変更した際、天気を自動で取得し直す連携を追加
+            document.getElementById('targetDateInput').addEventListener('change', (e) => {
                 const d = new Date(e.target.value);
-                if(!isNaN(d)) { document.getElementById('targetDay').value = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()]; }
-                Logic.updateDateUI(); Logic.calculate(false, false);
+                if(!isNaN(d)) { 
+                    document.getElementById('targetDay').value = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()]; 
+                }
+                Logic.updateDateUI(); 
+                Weather.fetchWeather(); 
+                Logic.calculate(false, false);
             });
+            
             document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false, false));
             document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false, false));
             document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false, false));
             document.getElementById('customCoeff').addEventListener('change', () => Logic.calculate(false, false));
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
-            document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(1); });
+            document.getElementById('cityArea').addEventListener('change', () => { 
+                Weather.onCityAreaChange(); 
+                Weather.fetchWeather(); 
+            });
 
             document.getElementById('btn-calculate').addEventListener('click', () => {
                 if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -525,7 +535,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.onChangeLearnDate();
         },
 
-        // 【修正】入力欄のロック仕様を変更（修正と解除を可能に）
         onChangeLearnDate() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
@@ -563,7 +572,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (isLearned) {
                     actInput.value = actualVal;
-                    // ロックせず修正可能に
                     actInput.readOnly = false;
                     actInput.style.backgroundColor = "#fff";
                     actInput.style.color = "#000";
@@ -571,7 +579,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     btnLearn.disabled = false;
                     btnLearn.innerText = "数値を修正して再学習";
-                    btnLearn.style.background = "#ffb300"; // 注意を引く黄色
+                    btnLearn.style.background = "#ffb300"; 
                     btnLearn.style.color = "#000";
                 } else {
                     actInput.value = ""; 
@@ -718,29 +726,41 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        async fetchWeather(offset) {
-            const now = new Date();
-            const target = new Date(now);
-            target.setDate(now.getDate() + offset);
+        // 対象日(tDateStr)を直接参照して天気を取得する仕様に変更
+        async fetchWeather(offsetOrEvent) {
+            let tDateStr = document.getElementById('targetDateInput').value;
             
-            const y = target.getFullYear();
-            const m = String(target.getMonth() + 1).padStart(2, '0');
-            const d = String(target.getDate()).padStart(2, '0');
-            const tDateStr = `${y}-${m}-${d}`;
+            let btn = null;
+            if (typeof offsetOrEvent === 'number') {
+                const now = new Date();
+                const target = new Date(now);
+                target.setDate(now.getDate() + offsetOrEvent);
+                
+                const y = target.getFullYear();
+                const m = String(target.getMonth() + 1).padStart(2, '0');
+                const d = String(target.getDate()).padStart(2, '0');
+                tDateStr = `${y}-${m}-${d}`;
+                
+                document.getElementById('targetDateInput').value = tDateStr;
+                const days = ['sun','mon','tue','wed','thu','fri','sat'];
+                document.getElementById('targetDay').value = days[target.getDay()];
+                Logic.updateDateUI();
+                
+                btn = offsetOrEvent === 1 ? document.getElementById('btn-weather-tmw') : document.getElementById('btn-weather-dat');
+            }
             
-            document.getElementById('targetDateInput').value = tDateStr;
-            const days = ['sun','mon','tue','wed','thu','fri','sat'];
-            document.getElementById('targetDay').value = days[target.getDay()];
-            Logic.updateDateUI();
+            if (!tDateStr) return;
             
             const prefCode = document.getElementById('prefecture').value; 
             const areaCode = document.getElementById('cityArea').value;
-            if (!prefCode || !areaCode) return alert("エリアを選択してください");
+            if (!prefCode || !areaCode) return;
 
-            const btn = offset === 1 ? document.getElementById('btn-weather-tmw') : document.getElementById('btn-weather-dat');
-            const originalText = btn.innerText; 
-            btn.innerText = "取得中..."; 
-            btn.disabled = true;
+            let originalText = "";
+            if (btn) {
+                originalText = btn.innerText; 
+                btn.innerText = "取得中..."; 
+                btn.disabled = true;
+            }
 
             try {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
@@ -797,7 +817,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (minT) document.getElementById('minTemp').value = Math.round(parseFloat(minT));
                     if (maxT) document.getElementById('maxTemp').value = Math.round(parseFloat(maxT));
                 } else {
-                    alert(`【お知らせ】\n気象庁から対象日（${tDateStr}）の予測気温データがまだ配信されていません。\n恐れ入りますが、気温欄は手動でご入力ください。`);
+                    // 自動取得ボタンから呼ばれた時のみアラートを出す
+                    if (typeof offsetOrEvent === 'number') {
+                        alert(`【お知らせ】\n気象庁から対象日（${tDateStr}）の予測気温データがまだ配信されていません。\n恐れ入りますが、気温欄は手動でご入力ください。`);
+                    }
                 }
                 
                 document.getElementById('popRate').value = pop;
@@ -815,11 +838,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 
             } catch (e) { 
                 console.error(e);
-                alert("気象庁サーバーからの取得に失敗しました。"); 
-            } 
-            finally { 
-                btn.innerText = originalText; 
-                btn.disabled = false; 
+            } finally { 
+                if (btn) {
+                    btn.innerText = originalText; 
+                    btn.disabled = false; 
+                }
             }
         }
     };
@@ -946,7 +969,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // 【追加】過去の学習データから係数を1.0ベースで再計算する安全なロジック
         recalcCoeff(store, cat) {
             let coeff = 1.0;
             const history = State.data.stores[store].categories[cat].history || {};
@@ -966,7 +988,6 @@ document.addEventListener("DOMContentLoaded", () => {
             State.data.stores[store].categories[cat].learnedCoeff = coeff;
         },
 
-        // 【修正】解除機能と、上書き再計算に対応
         executeLearning() {
             const actStr = document.getElementById('fbActual').value.trim();
             const pred = parseFloat(document.getElementById('fbPredicted').value);
@@ -978,7 +999,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!store || store === "__NEW__" || !cat) return;
 
-            // 空欄の場合は「学習の解除」として処理する
             if (targetDateStr !== 'manual' && actStr === "") {
                  const histItem = State.data.stores[store].categories[cat].history[targetDateStr];
                  if (histItem && typeof histItem === 'object' && histItem.isLearned) {
