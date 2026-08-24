@@ -40,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const initializeDateAndTime = () => {
         const now = new Date();
         const target = new Date(now);
-        // 【11時ルール】当日11時までは翌日分(1)、11時以降は翌々日分(2)
         const offset = (now.getHours() >= 11) ? 2 : 1;
         target.setDate(now.getDate() + offset);
         
@@ -322,18 +321,6 @@ document.addEventListener("DOMContentLoaded", () => {
             Weather.restoreStoreWeather();
             Events.renderList();
             this.setupEventListeners();
-
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-            if (!isStandalone) {
-                const prompt = document.getElementById('pwaPrompt');
-                if (prompt && !localStorage.getItem('pwaPromptDismissed')) {
-                    prompt.style.display = 'flex';
-                    document.getElementById('pwaClose').addEventListener('click', () => {
-                        prompt.style.display = 'none';
-                        localStorage.setItem('pwaPromptDismissed', 'true');
-                    });
-                }
-            }
         },
 
         setupEventListeners() {
@@ -384,7 +371,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // 手動で日付を変更した際、天気を自動で取得し直す連携を追加
             document.getElementById('targetDateInput').addEventListener('change', (e) => {
                 const d = new Date(e.target.value);
                 if(!isNaN(d)) { 
@@ -726,7 +712,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
 
-        // 対象日(tDateStr)を直接参照して天気を取得する仕様に変更
         async fetchWeather(offsetOrEvent) {
             let tDateStr = document.getElementById('targetDateInput').value;
             
@@ -817,7 +802,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (minT) document.getElementById('minTemp').value = Math.round(parseFloat(minT));
                     if (maxT) document.getElementById('maxTemp').value = Math.round(parseFloat(maxT));
                 } else {
-                    // 自動取得ボタンから呼ばれた時のみアラートを出す
                     if (typeof offsetOrEvent === 'number') {
                         alert(`【お知らせ】\n気象庁から対象日（${tDateStr}）の予測気温データがまだ配信されていません。\n恐れ入りますが、気温欄は手動でご入力ください。`);
                     }
@@ -1110,13 +1094,29 @@ document.addEventListener("DOMContentLoaded", () => {
             let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR * eventR;
             let finalDemandRaw = (baseDemand * shortR * multiplier) + tInfo.fixedBoost;
             
+            // 【変更】安全係数（保険バッファ）を鮮度とAI学習度合いに応じて動的に下げる
+            let safetyFactor = 1.645; // 基本は95%カバー（強気）
+            
+            if (fHours <= 14) {
+                safetyFactor = 0.84; // 弁当・おにぎり等は廃棄リスク大のため80%カバーに落とす
+            } else if (fHours <= 24) {
+                safetyFactor = 1.28; // サンドイッチなどは90%カバー
+            }
+
+            // AI学習が十分に蓄積されている（精度が高い）場合は、さらに保険バッファを削減
+            if (learnedCount >= REQUIRED_LEARN_COUNT) {
+                safetyFactor = safetyFactor * 0.7; 
+            }
+
             const extraDays = fHours===60 ? 0.5 : (fHours===38 ? 0.2 : 0);
-            const safetyStock = 1.645 * stdDev * Math.sqrt(1 + extraDays);
+            const safetyStock = safetyFactor * stdDev * Math.sqrt(1 + extraDays);
             const sysBuffer = (finalDemandRaw * extraDays) + safetyStock;
             const appliedBuffer = Math.max(minQty, sysBuffer);
             
             let rawOrder = Math.max(0, Math.ceil((finalDemandRaw + appliedBuffer) - currentStock));
-            const wasteReduct = waste * Math.max(0, 1 - (diffShort/10));
+            
+            // 【変更】欠品が少なければ、廃棄の平均数をより積極的に削る（売り切り型へのシフト）
+            const wasteReduct = waste * Math.max(0.2, 1 - (diffShort/10));
             let finalOrder = Math.max(0, Math.ceil(rawOrder - wasteReduct));
             
             if (fHours > 24) {
