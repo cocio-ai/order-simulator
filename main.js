@@ -175,9 +175,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 actual: ""        
             };
             
+            // 【変更】トレンド分析のため、保存期間を30日（約1ヶ月分）に拡張
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
-            if (keys.length > 14) {
-                keys.slice(14).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
+            if (keys.length > 30) {
+                keys.slice(30).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
             }
             this.save();
         }
@@ -243,6 +244,62 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     window.Events = Events;
+
+    // 【新規追加】データベースから時系列の嗜好トレンドを演算するモジュール
+    const TrendEngine = {
+        getTrendCoeff(store, cat) {
+            let coeff = 1.0;
+            let msg = "";
+            
+            // トレンドの影響を受けやすい麺類・パスタ系のみ適用
+            if (!["調理麺", "カップ麺", "スパゲティパスタ"].includes(cat)) return { coeff, msg };
+
+            const history = State.data.stores[store]?.categories[cat]?.history;
+            if (!history) return { coeff, msg };
+
+            const dates = Object.keys(history).sort((a, b) => b.localeCompare(a)); // 新しい順
+            
+            let recentActuals = [];
+            let pastActuals = [];
+
+            // 学習済みの実売データのみを抽出
+            dates.forEach(d => {
+                const h = history[d];
+                if (h && typeof h === 'object' && h.isLearned && h.actual !== "") {
+                    const act = parseFloat(h.actual);
+                    if (!isNaN(act)) {
+                        if (recentActuals.length < 5) {
+                            // 直近5回分のデータ
+                            recentActuals.push(act);
+                        } else if (pastActuals.length < 10) {
+                            // その前10回分のデータ（比較対象）
+                            pastActuals.push(act);
+                        }
+                    }
+                }
+            });
+
+            // 比較できる十分なデータが溜まっている場合のみ演算
+            if (recentActuals.length >= 3 && pastActuals.length >= 5) {
+                const recentAvg = recentActuals.reduce((a, b) => a + b, 0) / recentActuals.length;
+                const pastAvg = pastActuals.reduce((a, b) => a + b, 0) / pastActuals.length;
+                
+                if (pastAvg > 0) {
+                    const ratio = recentAvg / pastAvg;
+                    
+                    if (ratio > 1.1) {
+                        coeff = Math.min(1.2, 1.0 + ((ratio - 1.0) * 0.5));
+                        msg = `📈 上昇トレンド検知: 直近の嗜好高まりを補正 (×${coeff.toFixed(2)})`;
+                    } else if (ratio < 0.9) {
+                        coeff = Math.max(0.8, 1.0 - ((1.0 - ratio) * 0.5));
+                        msg = `📉 下降トレンド検知: 食べ飽き・嗜好の変化を補正 (×${coeff.toFixed(2)})`;
+                    }
+                }
+            }
+
+            return { coeff, msg };
+        }
+    };
 
     const ChartModule = {
         chart: null,
@@ -1071,12 +1128,15 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             const baseLearnR = (State.data.stores[store] && State.data.stores[store].categories[cat]) ? (State.data.stores[store].categories[cat].learnedCoeff || 1.0) : 1.0;
-            
             const REQUIRED_LEARN_COUNT = 7;
             const learnR = (learnedCount >= REQUIRED_LEARN_COUNT) ? baseLearnR : 1.0;
             
             const evInfo = this.getEventCoeff(dateStr, cat, store);
             const eventR = evInfo.coeff;
+
+            // 【追加】トレンドエンジンから勢い係数を取得
+            const trendInfo = TrendEngine.getTrendCoeff(store, cat);
+            const trendR = trendInfo.coeff;
 
             let baseDemand = avgSales;
 
@@ -1091,19 +1151,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const minS = parseFloat(document.getElementById('minSales').value) || 0;
             const stdDev = (Math.max(maxS, minS) - Math.min(maxS, minS)) / 4 * shortR;
             
-            let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR * eventR;
+            // トレンド係数を掛け合わせる
+            let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR * eventR * trendR;
             let finalDemandRaw = (baseDemand * shortR * multiplier) + tInfo.fixedBoost;
             
-            // 【変更】安全係数（保険バッファ）を鮮度とAI学習度合いに応じて動的に下げる
-            let safetyFactor = 1.645; // 基本は95%カバー（強気）
-            
-            if (fHours <= 14) {
-                safetyFactor = 0.84; // 弁当・おにぎり等は廃棄リスク大のため80%カバーに落とす
-            } else if (fHours <= 24) {
-                safetyFactor = 1.28; // サンドイッチなどは90%カバー
-            }
+            let safetyFactor = 1.645;
+            if (fHours <= 14) safetyFactor = 0.84; 
+            else if (fHours <= 24) safetyFactor = 1.28; 
 
-            // AI学習が十分に蓄積されている（精度が高い）場合は、さらに保険バッファを削減
             if (learnedCount >= REQUIRED_LEARN_COUNT) {
                 safetyFactor = safetyFactor * 0.7; 
             }
@@ -1115,7 +1170,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             let rawOrder = Math.max(0, Math.ceil((finalDemandRaw + appliedBuffer) - currentStock));
             
-            // 【変更】欠品が少なければ、廃棄の平均数をより積極的に削る（売り切り型へのシフト）
             const wasteReduct = waste * Math.max(0.2, 1 - (diffShort/10));
             let finalOrder = Math.max(0, Math.ceil(rawOrder - wasteReduct));
             
@@ -1124,7 +1178,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (finalOrder > limit) finalOrder = limit;
             }
 
-            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo, learnedCount, baseLearnR);
+            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo, trendInfo, learnedCount, baseLearnR);
             
             if(saveHist) {
                 State.saveHistory(dateStr, Math.ceil(finalDemandRaw));
@@ -1133,7 +1187,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return { cat: cat, pred: Math.ceil(finalDemandRaw), order: finalOrder };
         },
 
-        renderUI(cat, predRaw, order, base, shortR, day, weather, cal, custom, catR, learn, temp, evInfo, learnedCount, baseLearnR) {
+        renderUI(cat, predRaw, order, base, shortR, day, weather, cal, custom, catR, learn, temp, evInfo, trendInfo, learnedCount, baseLearnR) {
             document.getElementById('resCategory').innerText = cat;
             document.getElementById('resBaseSales').innerText = base.toFixed(1);
             document.getElementById('resShortageBoost').innerText = shortR > 1.0 ? `(×欠品補正 ${shortR.toFixed(2)})` : '';
@@ -1148,6 +1202,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 evMsgEl.style.display = 'block';
             } else {
                 evMsgEl.style.display = 'none';
+            }
+
+            // 【追加】トレンド演算のメッセージを表示
+            let trendMsgEl = document.getElementById('resTrendMessage');
+            if (!trendMsgEl) {
+                trendMsgEl = document.createElement('div');
+                trendMsgEl.id = 'resTrendMessage';
+                trendMsgEl.style.color = '#e91e63';
+                trendMsgEl.style.fontWeight = 'bold';
+                trendMsgEl.style.marginTop = '4px';
+                document.getElementById('resMultipliers').parentNode.appendChild(trendMsgEl);
+            }
+            if (trendInfo && trendInfo.msg) {
+                trendMsgEl.innerText = trendInfo.msg;
+                trendMsgEl.style.display = 'block';
+            } else {
+                trendMsgEl.style.display = 'none';
             }
             
             let learnMsg = "";
