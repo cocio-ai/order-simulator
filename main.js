@@ -175,10 +175,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 actual: ""        
             };
             
-            // 【変更】トレンド分析のため、保存期間を30日（約1ヶ月分）に拡張
+            // トレンド・4週間分分析のため、保存期間を40日分に拡張
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
-            if (keys.length > 30) {
-                keys.slice(30).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
+            if (keys.length > 40) {
+                keys.slice(40).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
             }
             this.save();
         }
@@ -245,48 +245,35 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.Events = Events;
 
-    // 【新規追加】データベースから時系列の嗜好トレンドを演算するモジュール
     const TrendEngine = {
         getTrendCoeff(store, cat) {
             let coeff = 1.0;
             let msg = "";
-            
-            // トレンドの影響を受けやすい麺類・パスタ系のみ適用
             if (!["調理麺", "カップ麺", "スパゲティパスタ"].includes(cat)) return { coeff, msg };
 
             const history = State.data.stores[store]?.categories[cat]?.history;
             if (!history) return { coeff, msg };
 
-            const dates = Object.keys(history).sort((a, b) => b.localeCompare(a)); // 新しい順
-            
+            const dates = Object.keys(history).sort((a, b) => b.localeCompare(b));
             let recentActuals = [];
             let pastActuals = [];
 
-            // 学習済みの実売データのみを抽出
             dates.forEach(d => {
                 const h = history[d];
                 if (h && typeof h === 'object' && h.isLearned && h.actual !== "") {
                     const act = parseFloat(h.actual);
                     if (!isNaN(act)) {
-                        if (recentActuals.length < 5) {
-                            // 直近5回分のデータ
-                            recentActuals.push(act);
-                        } else if (pastActuals.length < 10) {
-                            // その前10回分のデータ（比較対象）
-                            pastActuals.push(act);
-                        }
+                        if (recentActuals.length < 5) recentActuals.push(act);
+                        else if (pastActuals.length < 10) pastActuals.push(act);
                     }
                 }
             });
 
-            // 比較できる十分なデータが溜まっている場合のみ演算
             if (recentActuals.length >= 3 && pastActuals.length >= 5) {
                 const recentAvg = recentActuals.reduce((a, b) => a + b, 0) / recentActuals.length;
                 const pastAvg = pastActuals.reduce((a, b) => a + b, 0) / pastActuals.length;
-                
                 if (pastAvg > 0) {
                     const ratio = recentAvg / pastAvg;
-                    
                     if (ratio > 1.1) {
                         coeff = Math.min(1.2, 1.0 + ((ratio - 1.0) * 0.5));
                         msg = `📈 上昇トレンド検知: 直近の嗜好高まりを補正 (×${coeff.toFixed(2)})`;
@@ -296,10 +283,94 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             }
-
             return { coeff, msg };
         }
     };
+
+    const AIOptimizer = {
+        checkAndRenderProposal() {
+            const store = State.data.currentStore;
+            const cat = State.data.currentCategory;
+            const container = document.getElementById('aiProposalContainer');
+            if (!container || !store || !cat) return;
+
+            const history = State.data.stores[store]?.categories[cat]?.history || {};
+            let learnedCount = 0;
+            let daySums = {sun:[], mon:[], tue:[], wed:[], thu:[], fri:[], sat:[]};
+
+            Object.keys(history).forEach(dStr => {
+                const h = history[dStr];
+                if (h && typeof h === 'object' && h.isLearned && h.actual !== "") {
+                    learnedCount++;
+                    const dObj = new Date(dStr);
+                    const daysMap = ['sun','mon','tue','wed','thu','fri','sat'];
+                    const dayKey = daysMap[dObj.getDay()];
+                    const pred = parseFloat(h.pred);
+                    const act = parseFloat(h.actual);
+                    if (!isNaN(pred) && !isNaN(act) && pred > 0) {
+                        daySums[dayKey].push(act / pred);
+                    }
+                }
+            });
+
+            // 【変更】4週間分（28件以上）の学習データ蓄積をトリガーに変更
+            const REQUIRED_OPTIMIZE_COUNT = 28;
+
+            if (learnedCount >= REQUIRED_OPTIMIZE_COUNT) {
+                let newRatios = {};
+                let hasDataForCalc = false;
+                
+                ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
+                    if (daySums[d].length > 0) {
+                        const avgRatio = daySums[d].reduce((a,b)=>a+b,0) / daySums[d].length;
+                        let rounded = Math.round(avgRatio * 10) / 10;
+                        newRatios[d] = Math.max(0.5, Math.min(2.0, rounded));
+                        hasDataForCalc = true;
+                    } else {
+                        const el = document.getElementById('ratio_' + d);
+                        newRatios[d] = el ? parseFloat(el.value) : 1.0;
+                    }
+                });
+
+                if (hasDataForCalc) {
+                    window._pendingAiRatios = newRatios;
+                    container.innerHTML = `
+                        <div style="background: linear-gradient(135deg, #fff3e0, #ffe0b2); border: 2px solid #ee7200; padding: 14px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(238,114,0,0.15);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                                <strong style="color: #d84315; font-size: 1rem;">🧠 AI月間最適化の提案 (${learnedCount}件の蓄積から算出)</strong>
+                                <span style="background:#ee7200; color:#fff; font-size:0.75rem; padding:2px 6px; border-radius:4px; font-weight:bold;">NEW</span>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #333; margin-bottom: 10px;">
+                                直近4週間（約1ヶ月）の安定した実売データに基づき、曜日の売上比率を自動チューニングしました。以下のボタンを押すと一括で反映されます。
+                            </div>
+                            <button onclick="AIOptimizer.applyProposal()" style="width:100%; background:var(--seven-red); color:#fff; border:none; padding:10px; border-radius:6px; font-weight:900; font-size:0.95rem; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                                ✨ 提案された曜日係数を一括適用する
+                            </button>
+                        </div>
+                    `;
+                    container.style.display = 'block';
+                    return;
+                }
+            }
+            container.style.display = 'none';
+        },
+
+        applyProposal() {
+            if (!window._pendingAiRatios) return;
+            const r = window._pendingAiRatios;
+            ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
+                const el = document.getElementById('ratio_' + d);
+                if (el && r[d]) {
+                    el.value = r[d].toFixed(1);
+                }
+            });
+            State.updateInputData();
+            Logic.calculate(false, false);
+            alert("✨ AIの最適化提案を適用しました！曜日比率が更新され保存されました。");
+            document.getElementById('aiProposalContainer').style.display = 'none';
+        }
+    };
+    window.AIOptimizer = AIOptimizer;
 
     const ChartModule = {
         chart: null,
@@ -369,6 +440,15 @@ document.addEventListener("DOMContentLoaded", () => {
         init() {
             initializeDateAndTime();
             this.renderStoreDatalist();
+            
+            const targetArea = document.querySelector('.simulator-card') || document.getElementById('resultArea');
+            if (targetArea && !document.getElementById('aiProposalContainer')) {
+                const propDiv = document.createElement('div');
+                propDiv.id = 'aiProposalContainer';
+                propDiv.style.display = 'none';
+                targetArea.parentNode.insertBefore(propDiv, targetArea);
+            }
+
             if (State.data.currentCategory) {
                 document.getElementById('categoryName').value = State.data.currentCategory;
                 document.getElementById('learnCategorySelect').value = State.data.currentCategory;
@@ -378,6 +458,7 @@ document.addEventListener("DOMContentLoaded", () => {
             Weather.restoreStoreWeather();
             Events.renderList();
             this.setupEventListeners();
+            AIOptimizer.checkAndRenderProposal();
         },
 
         setupEventListeners() {
@@ -392,12 +473,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (newStore && newStore.trim() !== "") {
                         State.data.currentStore = newStore.trim(); State.ensureStore(State.data.currentStore); State.save();
                         this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Events.renderList(); Logic.calculate(false, false);
+                        AIOptimizer.checkAndRenderProposal();
                     } else {
                         storeSelect.value = State.data.currentStore || "";
                     }
                 } else {
                     State.data.currentStore = storeSelect.value; State.save();
                     this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Events.renderList(); Logic.calculate(false, false);
+                    AIOptimizer.checkAndRenderProposal();
                 }
             });
 
@@ -663,6 +746,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 Logic.calculate(false, false);
             }
+            AIOptimizer.checkAndRenderProposal();
         },
 
         renderStoreDatalist() {
@@ -1007,6 +1091,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 UI.updateLearnHistoryUI();
                 UI.restoreCategoryInputs();
                 this.calculate(false, false);
+                AIOptimizer.checkAndRenderProposal();
             }
         },
 
@@ -1052,6 +1137,7 @@ document.addEventListener("DOMContentLoaded", () => {
                          this.calculate(false, false);
                          ChartModule.render(State.data.stores[store].categories[cat].history || {});
                          UI.updateLearnHistoryUI();
+                         AIOptimizer.checkAndRenderProposal();
                          return;
                      } else { return; }
                  }
@@ -1091,6 +1177,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             UI.onChangeLearnDate();
             UI.updateLearnHistoryUI();
+            AIOptimizer.checkAndRenderProposal();
         },
 
         calculate(silent = false, saveHist = false) {
@@ -1134,7 +1221,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const evInfo = this.getEventCoeff(dateStr, cat, store);
             const eventR = evInfo.coeff;
 
-            // 【追加】トレンドエンジンから勢い係数を取得
             const trendInfo = TrendEngine.getTrendCoeff(store, cat);
             const trendR = trendInfo.coeff;
 
@@ -1151,7 +1237,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const minS = parseFloat(document.getElementById('minSales').value) || 0;
             const stdDev = (Math.max(maxS, minS) - Math.min(maxS, minS)) / 4 * shortR;
             
-            // トレンド係数を掛け合わせる
             let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR * eventR * trendR;
             let finalDemandRaw = (baseDemand * shortR * multiplier) + tInfo.fixedBoost;
             
@@ -1203,8 +1288,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 evMsgEl.style.display = 'none';
             }
-
-            // 【追加】トレンド演算のメッセージを表示
+            
             let trendMsgEl = document.getElementById('resTrendMessage');
             if (!trendMsgEl) {
                 trendMsgEl = document.createElement('div');
