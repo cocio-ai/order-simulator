@@ -1441,7 +1441,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    State.load(); UI.init();
+    State.load(); UI.init();b
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
