@@ -444,6 +444,10 @@ document.addEventListener("DOMContentLoaded", () => {
             ['targetDay', 'maxTemp', 'minTemp', 'customCoeff'].forEach(id => {
                 document.getElementById(id).addEventListener('change', () => Logic.calculate(false, false));
             });
+
+            // 【修正】ここでボタンのクリックイベントを再追加しました
+            document.getElementById('btn-weather-tmw').addEventListener('click', () => Weather.fetchWeather(1));
+            document.getElementById('btn-weather-dat').addEventListener('click', () => Weather.fetchWeather(2));
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
             document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(); });
@@ -661,7 +665,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const prefCode = document.getElementById('prefecture').value; 
             const areaCode = document.getElementById('cityArea').value;
             
-            // 【重要】UI変更によってエリア設定が空になっている場合のサイレントエラー対策
             if (!prefCode || !areaCode) {
                 if (typeof offsetOrEvent === 'number') {
                     alert("【エラー】\n天気を取得するには、画面上部の「エリア設定」で都道府県と地域を選択してください。");
@@ -977,3 +980,4 @@ document.addEventListener("DOMContentLoaded", () => {
         window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
     }
 });
+b
