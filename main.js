@@ -980,4 +980,3 @@ document.addEventListener("DOMContentLoaded", () => {
         window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
     }
 });
-b
