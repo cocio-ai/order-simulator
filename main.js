@@ -60,22 +60,13 @@ document.addEventListener("DOMContentLoaded", () => {
         data: { version: 2, currentStore: "", currentCategory: "", stores: {} },
         load() {
             try {
-                const rawV1 = localStorage.getItem('oms_unified_state_v1');
                 const rawV2 = localStorage.getItem('oms_unified_state_v2');
-                let v2HasData = false;
                 if (rawV2) {
                     const parsedV2 = JSON.parse(rawV2);
                     if (parsedV2 && parsedV2.stores && Object.keys(parsedV2.stores).length > 0) {
-                        v2HasData = true; this.data = parsedV2;
+                        this.data = parsedV2;
                     }
                 }
-                if (!v2HasData && rawV1) {
-                    const parsedV1 = JSON.parse(rawV1);
-                    if (parsedV1 && parsedV1.stores && Object.keys(parsedV1.stores).length > 0) {
-                        this.data = parsedV1; this.data.version = 2; 
-                    }
-                }
-                
                 if (this.data && this.data.stores) {
                     Object.keys(this.data.stores).forEach(s => {
                         if (!this.data.stores[s].events) this.data.stores[s].events = [];
@@ -89,38 +80,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     });
                 }
-                
-                if (this.data && this.data.stores && !this.data.shiftedDatesV3) {
-                    Object.keys(this.data.stores).forEach(s => {
-                        if (this.data.stores[s].categories) {
-                            Object.keys(this.data.stores[s].categories).forEach(c => {
-                                let cat = this.data.stores[s].categories[c];
-                                if (cat.history) {
-                                    let newHistory = {};
-                                    Object.keys(cat.history).forEach(dateStr => {
-                                        let oldDate = new Date(dateStr);
-                                        if (!isNaN(oldDate)) {
-                                            oldDate.setDate(oldDate.getDate() + 1);
-                                            let newDateStr = oldDate.getFullYear() + "-" + String(oldDate.getMonth()+1).padStart(2, '0') + "-" + String(oldDate.getDate()).padStart(2, '0');
-                                            newHistory[newDateStr] = cat.history[dateStr];
-                                        }
-                                    });
-                                    cat.history = newHistory;
-                                }
-                            });
-                        }
-                    });
-                    this.data.shiftedDatesV3 = true; 
-                }
-
-                this.save();
             } catch(e) { console.error("Load Error"); }
         },
         save() { try { localStorage.setItem('oms_unified_state_v2', JSON.stringify(this.data)); UI.showSaveIndicator(); } catch(e){} },
         ensureStore(storeName) {
             if (!storeName) return;
             if (!this.data.stores[storeName]) this.data.stores[storeName] = { prefecture: "230000", cityArea: "", categories: {}, events: [] };
-            if (!this.data.stores[storeName].events) this.data.stores[storeName].events = [];
         },
         updateInputData() {
             const store = this.data.currentStore; const cat = this.data.currentCategory;
@@ -157,28 +122,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const store = this.data.currentStore; const cat = this.data.currentCategory;
             if (!store || !cat) return;
             this.ensureStore(store);
-            if(!this.data.stores[store].categories[cat]) return;
             if(!this.data.stores[store].categories[cat].history) this.data.stores[store].categories[cat].history = {};
             
             const now = new Date();
             const proposalDateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0');
             
             const existing = this.data.stores[store].categories[cat].history[targetDateStr];
-            if (existing && typeof existing === 'object' && existing.isLearned) {
-                return; 
-            }
+            if (existing && typeof existing === 'object' && existing.isLearned) return; 
 
             this.data.stores[store].categories[cat].history[targetDateStr] = {
-                pred: predQty,
-                orderDate: proposalDateStr,
-                isLearned: false, 
-                actual: ""        
+                pred: predQty, orderDate: proposalDateStr, isLearned: false, actual: ""        
             };
-            
-            const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
-            if (keys.length > 40) {
-                keys.slice(40).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
-            }
             this.save();
         }
     };
@@ -187,55 +141,43 @@ document.addEventListener("DOMContentLoaded", () => {
         add() {
             const store = State.data.currentStore;
             if(!store || store === "__NEW__") return alert("店舗を選択してください");
-            
             const date = document.getElementById('evDate').value;
             const name = document.getElementById('evName').value.trim();
             const cat = document.getElementById('evCategory').value;
             const coeff = parseFloat(document.getElementById('evCoeff').value);
             
             if(!date || !name || isNaN(coeff)) return alert("日付、名前、倍率をすべて入力してください");
-            
             State.ensureStore(store);
             State.data.stores[store].events.push({ id: Date.now(), date, name, category: cat, coeff });
             State.save();
-            
             document.getElementById('evName').value = "";
-            this.renderList();
-            Logic.calculate(false, false);
+            this.renderList(); Logic.calculate(false, false);
         },
         remove(id) {
             const store = State.data.currentStore;
             if(!store) return;
             State.data.stores[store].events = State.data.stores[store].events.filter(e => e.id !== id);
             State.save();
-            this.renderList();
-            Logic.calculate(false, false);
+            this.renderList(); Logic.calculate(false, false);
         },
         renderList() {
             const store = State.data.currentStore;
             const container = document.getElementById('eventListContainer');
             if(!store || !State.data.stores[store] || !State.data.stores[store].events || State.data.stores[store].events.length === 0) {
-                container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding: 10px;">登録されているイベントはありません</div>';
-                return;
+                container.innerHTML = '<div style="color:var(--text-sub); text-align:center;">登録されているイベントはありません</div>'; return;
             }
-            
             let html = '';
-            const sorted = [...State.data.stores[store].events].sort((a,b) => a.date.localeCompare(b.date));
-            
-            sorted.forEach(e => {
-                const d = new Date(e.date);
-                const dStr = isNaN(d) ? e.date : `${d.getMonth()+1}/${d.getDate()}`;
+            State.data.stores[store].events.forEach(e => {
                 const catLabel = e.category === "ALL" ? "全分類" : e.category;
-                
                 html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); padding:10px 12px; border-radius:8px; margin-bottom:8px; font-size:0.9rem; border-left: 4px solid var(--seven-red); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f2f2f7; padding:12px; border-radius:8px; margin-bottom:8px;">
                         <div>
-                            <strong style="color:var(--seven-red); margin-right:8px;">${dStr}</strong> 
-                            <span style="font-weight: bold; color: var(--text);">${e.name}</span> 
-                            <span style="color:var(--text-muted); font-size: 0.8rem; margin-left: 4px;">(${catLabel})</span> 
-                            <strong style="color:var(--primary-dark); margin-left: 8px;">×${e.coeff.toFixed(1)}</strong>
+                            <strong style="color:var(--seven-red); margin-right:8px;">${e.date}</strong> 
+                            <span style="font-weight: bold;">${e.name}</span> 
+                            <span style="font-size: 0.8rem; margin-left: 4px;">(${catLabel})</span> 
+                            <strong style="margin-left: 8px;">×${e.coeff.toFixed(1)}</strong>
                         </div>
-                        <button onclick="Events.remove(${e.id})" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer; padding: 0 8px;">×</button>
+                        <button onclick="Events.remove(${e.id})" style="background:none; border:none; font-size:1.4rem; cursor:pointer;">×</button>
                     </div>
                 `;
             });
@@ -246,21 +188,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const TrendEngine = {
         getTrendCoeff(store, cat) {
-            let coeff = 1.0;
-            let msg = "";
-            let trendStatus = "NONE"; // UP, DOWN, FLAT, NONE
-            let diffPercent = 0;
-
-            if (!["調理麺", "カップ麺", "スパゲティパスタ"].includes(cat)) {
-                return { coeff, msg, trendStatus, diffPercent };
-            }
+            let coeff = 1.0; let msg = ""; let trendStatus = "NONE"; let diffPercent = 0;
+            if (!["調理麺", "カップ麺", "スパゲティパスタ"].includes(cat)) return { coeff, msg, trendStatus, diffPercent };
 
             const history = State.data.stores[store]?.categories[cat]?.history;
             if (!history) return { coeff, msg, trendStatus, diffPercent };
 
             const dates = Object.keys(history).sort((a, b) => b.localeCompare(a));
-            let recentActuals = [];
-            let pastActuals = [];
+            let recentActuals = []; let pastActuals = [];
 
             dates.forEach(d => {
                 const h = history[d];
@@ -279,17 +214,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (pastAvg > 0) {
                     const ratio = recentAvg / pastAvg;
                     diffPercent = Math.round((ratio - 1.0) * 100);
-
                     if (ratio > 1.1) {
                         coeff = Math.min(1.2, 1.0 + ((ratio - 1.0) * 0.5));
-                        msg = `📈 上昇トレンド検知: 直近の嗜好高まりを補正 (×${coeff.toFixed(2)})`;
-                        trendStatus = "UP";
+                        msg = `📈 上昇トレンド検知: 直近の嗜好高まりを補正 (×${coeff.toFixed(2)})`; trendStatus = "UP";
                     } else if (ratio < 0.9) {
                         coeff = Math.max(0.8, 1.0 - ((1.0 - ratio) * 0.5));
-                        msg = `📉 下降トレンド検知: 食べ飽き・嗜好の変化を補正 (×${coeff.toFixed(2)})`;
-                        trendStatus = "DOWN";
-                    } else {
-                        trendStatus = "FLAT";
+                        msg = `📉 下降トレンド検知: 食べ飽き・嗜好の変化を補正 (×${coeff.toFixed(2)})`; trendStatus = "DOWN";
                     }
                 }
             }
@@ -297,150 +227,110 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // 【新規】AI学習ステータスをリアルタイム目視化するダッシュボードモジュール
     const AIStatusDashboard = {
         render() {
-            const store = State.data.currentStore;
-            const cat = State.data.currentCategory;
-            const container = document.getElementById('aiDashboardContainer');
-            if (!container || !store || !cat) return;
+            const store = State.data.currentStore; const cat = State.data.currentCategory;
+            const targetArea = document.querySelector('.simulator-card') || document.getElementById('resultArea');
+            if (!targetArea || !store || !cat) return;
+
+            let container = document.getElementById('aiDashboardContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'aiDashboardContainer';
+                targetArea.parentNode.insertBefore(container, targetArea);
+            }
 
             const history = State.data.stores[store]?.categories[cat]?.history || {};
             let learnedCount = 0;
-            let dayCounts = {sun:0, mon:0, tue:0, wed:0, thu:0, fri:0, sat:0};
-
             Object.keys(history).forEach(dStr => {
-                const h = history[dStr];
-                if (h && typeof h === 'object' && h.isLearned && h.actual !== "") {
-                    learnedCount++;
-                    const dObj = new Date(dStr);
-                    const daysMap = ['sun','mon','tue','wed','thu','fri','sat'];
-                    dayCounts[daysMap[dObj.getDay()]]++;
-                }
+                if (history[dStr] && history[dStr].isLearned) learnedCount++;
             });
 
-            const REQUIRED_TARGET = 28; // 4週間分
+            const REQUIRED_TARGET = 28;
             const progressPercent = Math.min(100, Math.round((learnedCount / REQUIRED_TARGET) * 100));
-
-            // トレンド情報の取得
             const trendInfo = TrendEngine.getTrendCoeff(store, cat);
-            let trendBadge = `<span style="color:#757575; font-weight:bold;">➡️ 安定 (変動なし)</span>`;
-            if (trendInfo.trendStatus === "UP") {
-                trendBadge = `<span style="color:#d32f2f; font-weight:900;">📈 上昇傾向 (+${trendInfo.diffPercent}%)</span>`;
-            } else if (trendInfo.trendStatus === "DOWN") {
-                trendBadge = `<span style="color:#1976d2; font-weight:900;">📉 下降傾向 (${trendInfo.diffPercent}%)</span>`;
-            } else if (!["調理麺", "カップ麺", "スパゲティパスタ"].includes(cat)) {
-                trendBadge = `<span style="color:#9e9e9e; font-size:0.8rem;">(麺類のみ解析)</span>`;
-            }
+            
+            let trendBadge = `<span style="color:#8e8e93; font-weight:bold;">➡️ 安定</span>`;
+            if (trendInfo.trendStatus === "UP") trendBadge = `<span style="color:#d32f2f; font-weight:900;">📈 上昇傾向 (+${trendInfo.diffPercent}%)</span>`;
+            else if (trendInfo.trendStatus === "DOWN") trendBadge = `<span style="color:#1976d2; font-weight:900;">📉 下降傾向 (${trendInfo.diffPercent}%)</span>`;
 
             const currentLearnedCoeff = State.data.stores[store]?.categories[cat]?.learnedCoeff || 1.0;
 
-            let html = `
-                <div style="background: var(--card-bg, #ffffff); border: 1px solid var(--border, #e0e0e0); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px;">
-                        <span style="font-weight: 900; font-size: 0.95rem; color: var(--primary-dark, #333); display:flex; align-items:center; gap:6px;">
-                            🤖 AI学習状況ダッシュボード <span style="font-size:0.8rem; color:#666; font-weight:normal;">[${cat}]</span>
-                        </span>
-                        <span style="font-size:0.85rem; font-weight:bold; color:var(--seven-green-dark, #2e7d32);">
-                            蓄積データ: ${learnedCount} 日分
-                        </span>
+            container.innerHTML = `
+                <div class="card" style="padding:16px; border: 2px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                        <span style="font-weight:bold; font-size: 1.1rem;">🤖 AI分析状況 <span style="font-size:0.9rem; color:var(--text-sub);">[${cat}]</span></span>
+                        <span style="font-weight:bold; color:var(--seven-green);">蓄積データ: ${learnedCount}件</span>
                     </div>
-
-                    <!-- プログレスバー -->
-                    <div style="margin-bottom: 12px;">
-                        <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:#666; margin-bottom:4px;">
-                            <span>4週間(28日)目標進捗</span>
-                            <span><strong>${progressPercent}%</strong> (${learnedCount}/${REQUIRED_TARGET}日)</span>
+                    <div style="margin-bottom: 16px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:4px;">
+                            <span>最適化目標 (28件)</span>
+                            <strong>${progressPercent}%</strong>
                         </div>
-                        <div style="width:100%; background:#e0e0e0; height:8px; border-radius:4px; overflow:hidden;">
-                            <div style="width:${progressPercent}%; background: linear-gradient(90deg, #ee7200, #2e7d32); height:100%; transition: width 0.4s ease;"></div>
+                        <div style="width:100%; background:#e5e5ea; height:12px; border-radius:6px; overflow:hidden;">
+                            <div style="width:${progressPercent}%; background:var(--seven-red); height:100%;"></div>
                         </div>
                     </div>
-
-                    <!-- 分析ステータスグリッド -->
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+                    <div class="grid-2" style="background: #f2f2f7; padding: 12px; border-radius: 8px;">
                         <div>
-                            <div style="color:#777; font-size:0.75rem;">嗜好トレンド判定</div>
-                            <div style="margin-top:2px;">${trendBadge}</div>
+                            <div style="color:var(--text-sub); font-size:0.85rem; font-weight:bold;">トレンド判定</div>
+                            <div style="margin-top:4px; font-size:1rem;">${trendBadge}</div>
                         </div>
                         <div>
-                            <div style="color:#777; font-size:0.75rem;">店舗AI個別補正値</div>
-                            <div style="margin-top:2px; font-weight:bold; color:#333;">× ${currentLearnedCoeff.toFixed(2)}</div>
+                            <div style="color:var(--text-sub); font-size:0.85rem; font-weight:bold;">現在のAI学習補正</div>
+                            <div style="margin-top:4px; font-weight:900; font-size:1.1rem;">× ${currentLearnedCoeff.toFixed(2)}</div>
                         </div>
-                    </div>
-
-                    <!-- 曜日別収集状況 -->
-                    <div style="margin-top: 10px; font-size: 0.75rem; color: #666; display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 8px; border-radius:6px; border:1px solid #f0f0f0;">
-                        <span style="font-weight:bold; color:#555;">曜日別学習数:</span>
-                        <span>月:${dayCounts.mon} 火:${dayCounts.tue} 水:${dayCounts.wed} 木:${dayCounts.thu} 金:${dayCounts.fri} 土:${dayCounts.sat} 日:${dayCounts.sun}</span>
                     </div>
                 </div>
             `;
-
-            container.innerHTML = html;
-            container.style.display = 'block';
         }
     };
     window.AIStatusDashboard = AIStatusDashboard;
 
     const AIOptimizer = {
         checkAndRenderProposal() {
-            const store = State.data.currentStore;
-            const cat = State.data.currentCategory;
-            const container = document.getElementById('aiProposalContainer');
-            if (!container || !store || !cat) return;
+            const store = State.data.currentStore; const cat = State.data.currentCategory;
+            const targetArea = document.querySelector('.simulator-card') || document.getElementById('resultArea');
+            if (!targetArea || !store || !cat) return;
+
+            let container = document.getElementById('aiProposalContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'aiProposalContainer';
+                targetArea.parentNode.insertBefore(container, targetArea);
+            }
 
             const history = State.data.stores[store]?.categories[cat]?.history || {};
-            let learnedCount = 0;
-            let daySums = {sun:[], mon:[], tue:[], wed:[], thu:[], fri:[], sat:[]};
+            let learnedCount = 0; let daySums = {sun:[], mon:[], tue:[], wed:[], thu:[], fri:[], sat:[]};
 
             Object.keys(history).forEach(dStr => {
                 const h = history[dStr];
-                if (h && typeof h === 'object' && h.isLearned && h.actual !== "") {
+                if (h && h.isLearned && h.actual !== "") {
                     learnedCount++;
                     const dObj = new Date(dStr);
-                    const daysMap = ['sun','mon','tue','wed','thu','fri','sat'];
-                    const dayKey = daysMap[dObj.getDay()];
-                    const pred = parseFloat(h.pred);
-                    const act = parseFloat(h.actual);
-                    if (!isNaN(pred) && !isNaN(act) && pred > 0) {
-                        daySums[dayKey].push(act / pred);
-                    }
+                    const dayKey = ['sun','mon','tue','wed','thu','fri','sat'][dObj.getDay()];
+                    const pred = parseFloat(h.pred); const act = parseFloat(h.actual);
+                    if (!isNaN(pred) && !isNaN(act) && pred > 0) daySums[dayKey].push(act / pred);
                 }
             });
 
-            const REQUIRED_OPTIMIZE_COUNT = 28;
-
-            if (learnedCount >= REQUIRED_OPTIMIZE_COUNT) {
-                let newRatios = {};
-                let hasDataForCalc = false;
-                
+            if (learnedCount >= 28) {
+                let newRatios = {}; let hasDataForCalc = false;
                 ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
                     if (daySums[d].length > 0) {
                         const avgRatio = daySums[d].reduce((a,b)=>a+b,0) / daySums[d].length;
-                        let rounded = Math.round(avgRatio * 10) / 10;
-                        newRatios[d] = Math.max(0.5, Math.min(2.0, rounded));
+                        newRatios[d] = Math.max(0.5, Math.min(2.0, Math.round(avgRatio * 10) / 10));
                         hasDataForCalc = true;
-                    } else {
-                        const el = document.getElementById('ratio_' + d);
-                        newRatios[d] = el ? parseFloat(el.value) : 1.0;
                     }
                 });
 
                 if (hasDataForCalc) {
                     window._pendingAiRatios = newRatios;
                     container.innerHTML = `
-                        <div style="background: linear-gradient(135deg, #fff3e0, #ffe0b2); border: 2px solid #ee7200; padding: 14px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(238,114,0,0.15);">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                                <strong style="color: #d84315; font-size: 1rem;">🧠 AI月間最適化の提案 (${learnedCount}件の蓄積から算出)</strong>
-                                <span style="background:#ee7200; color:#fff; font-size:0.75rem; padding:2px 6px; border-radius:4px; font-weight:bold;">NEW</span>
-                            </div>
-                            <div style="font-size: 0.85rem; color: #333; margin-bottom: 10px;">
-                                直近4週間（約1ヶ月）の安定した実売データに基づき、曜日の売上比率を自動チューニングしました。以下のボタンを押すと一括で反映されます。
-                            </div>
-                            <button onclick="AIOptimizer.applyProposal()" style="width:100%; background:var(--seven-red); color:#fff; border:none; padding:10px; border-radius:6px; font-weight:900; font-size:0.95rem; cursor:pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                                ✨ 提案された曜日係数を一括適用する
-                            </button>
+                        <div class="card" style="background: #fff5e6; border: 2px solid var(--seven-red);">
+                            <div style="font-weight:bold; font-size: 1.1rem; color: var(--seven-red); margin-bottom: 8px;">🧠 AI月間最適化の提案</div>
+                            <div style="font-size: 0.95rem; margin-bottom: 16px;">約1ヶ月のデータに基づき、曜日の売上比率を自動調整しました。</div>
+                            <button onclick="AIOptimizer.applyProposal()" class="btn btn-primary">曜日係数を一括更新する</button>
                         </div>
                     `;
                     container.style.display = 'block';
@@ -449,19 +339,15 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             container.style.display = 'none';
         },
-
         applyProposal() {
             if (!window._pendingAiRatios) return;
             const r = window._pendingAiRatios;
             ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
                 const el = document.getElementById('ratio_' + d);
-                if (el && r[d]) {
-                    el.value = r[d].toFixed(1);
-                }
+                if (el && r[d]) el.value = r[d].toFixed(1);
             });
-            State.updateInputData();
-            Logic.calculate(false, false);
-            alert("✨ AIの最適化提案を適用しました！曜日比率が更新され保存されました。");
+            State.updateInputData(); Logic.calculate(false, false);
+            alert("曜日比率が更新されました！");
             document.getElementById('aiProposalContainer').style.display = 'none';
         }
     };
@@ -475,32 +361,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const ctx = canvas.getContext('2d');
             const dates = Object.keys(history).sort((a, b) => a.localeCompare(b));
             
-            const labels = dates.map(d => {
-                const targetDate = new Date(d);
-                const salesStr = `${targetDate.getMonth()+1}/${targetDate.getDate()}(${getWeekDayStr(targetDate)})`;
-                
-                const orderDate = new Date(targetDate);
-                orderDate.setDate(orderDate.getDate() - 1);
-                const orderStr = `${orderDate.getMonth()+1}/${orderDate.getDate()}(${getWeekDayStr(orderDate)})`;
-                
-                let histItem = history[d];
-                let propDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
-                let propStr = "";
-                if (propDateStr) {
-                    const pDate = new Date(propDateStr);
-                    propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
-                } else {
-                    const pDate = new Date(targetDate);
-                    pDate.setDate(pDate.getDate() - 2); 
-                    propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
-                }
-                return [`提案:${propStr}`, `発注:${orderStr}〆`, `販売:${salesStr}`];
-            });
-            
-            const predData = dates.map(d => {
-                let val = history[d];
-                return typeof val === 'object' ? val.pred : val;
-            });
+            const labels = dates.map(d => `${new Date(d).getMonth()+1}/${new Date(d).getDate()}`);
+            const predData = dates.map(d => typeof history[d] === 'object' ? history[d].pred : history[d]);
 
             if (this.chart) this.chart.destroy();
             this.chart = new Chart(ctx, {
@@ -508,50 +370,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: '予測数',
-                        data: predData,
-                        borderColor: '#ee7200',
-                        backgroundColor: 'rgba(238, 114, 0, 0.1)',
-                        borderWidth: 2,
-                        pointBackgroundColor: '#ee7200',
-                        fill: true,
-                        tension: 0.3
+                        label: '予測数', data: predData, borderColor: '#ee7200',
+                        backgroundColor: 'rgba(238, 114, 0, 0.1)', borderWidth: 3, fill: true, tension: 0.3
                     }]
                 },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: false, ticks: { color: '#888' } },
-                        x: { ticks: { color: '#888', font: { size: 9 }, maxRotation: 0 } }
-                    },
-                    plugins: { legend: { labels: { color: '#888' } } }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
     };
 
     const UI = {
         init() {
-            initializeDateAndTime();
-            this.renderStoreDatalist();
-            
-            const targetArea = document.querySelector('.simulator-card') || document.getElementById('resultArea');
-            if (targetArea) {
-                if (!document.getElementById('aiDashboardContainer')) {
-                    const dashDiv = document.createElement('div');
-                    dashDiv.id = 'aiDashboardContainer';
-                    dashDiv.style.display = 'none';
-                    targetArea.parentNode.insertBefore(dashDiv, targetArea);
-                }
-                if (!document.getElementById('aiProposalContainer')) {
-                    const propDiv = document.createElement('div');
-                    propDiv.id = 'aiProposalContainer';
-                    propDiv.style.display = 'none';
-                    targetArea.parentNode.insertBefore(propDiv, targetArea);
-                }
-            }
-
+            initializeDateAndTime(); this.renderStoreDatalist();
             if (State.data.currentCategory) {
                 document.getElementById('categoryName').value = State.data.currentCategory;
                 document.getElementById('learnCategorySelect').value = State.data.currentCategory;
@@ -561,9 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
             Weather.restoreStoreWeather();
             Events.renderList();
             this.setupEventListeners();
-            
-            AIStatusDashboard.render();
-            AIOptimizer.checkAndRenderProposal();
+            AIStatusDashboard.render(); AIOptimizer.checkAndRenderProposal();
         },
 
         setupEventListeners() {
@@ -577,28 +405,23 @@ document.addEventListener("DOMContentLoaded", () => {
                     const newStore = prompt("新しい店舗名を入力してください");
                     if (newStore && newStore.trim() !== "") {
                         State.data.currentStore = newStore.trim(); State.ensureStore(State.data.currentStore); State.save();
-                        this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Events.renderList(); Logic.calculate(false, false);
-                        AIStatusDashboard.render();
-                        AIOptimizer.checkAndRenderProposal();
-                    } else {
-                        storeSelect.value = State.data.currentStore || "";
-                    }
+                        this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather();
+                    } else storeSelect.value = State.data.currentStore || "";
                 } else {
                     State.data.currentStore = storeSelect.value; State.save();
-                    this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Events.renderList(); Logic.calculate(false, false);
-                    AIStatusDashboard.render();
-                    AIOptimizer.checkAndRenderProposal();
+                    this.restoreCategoryInputs(); Weather.restoreStoreWeather();
                 }
+                Events.renderList(); Logic.calculate(false, false);
+                AIStatusDashboard.render(); AIOptimizer.checkAndRenderProposal();
             });
 
             document.getElementById('categoryName').addEventListener('change', () => this.onCategoryChange('simulator'));
             document.getElementById('learnCategorySelect').addEventListener('change', () => this.onCategoryChange('learning'));
 
-            const inputs = ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'categoryCoeff', 'popRate'];
-            inputs.forEach(id => {
+            ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty', 'categoryCoeff', 'popRate'].forEach(id => {
                 const el = document.getElementById(id);
                 if(el) {
-                    el.addEventListener('input', (e) => { 
+                    el.addEventListener('input', () => { 
                         State.updateInputData(); 
                         if(id === 'popRate') Logic.calcWeatherCoeff();
                         Logic.calculate(false, false);
@@ -607,96 +430,56 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            const daysArrForEvents = ['mon','tue','wed','thu','fri','sat','sun'];
-            daysArrForEvents.forEach(d => {
+            ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
                 const el = document.getElementById('ratio_' + d);
-                if (el) {
-                    el.addEventListener('change', () => {
-                        State.updateInputData();
-                        Logic.calculate(false, false);
-                    });
-                }
+                if (el) el.addEventListener('change', () => { State.updateInputData(); Logic.calculate(false, false); });
             });
 
             document.getElementById('targetDateInput').addEventListener('change', (e) => {
                 const d = new Date(e.target.value);
-                if(!isNaN(d)) { 
-                    document.getElementById('targetDay').value = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()]; 
-                }
-                Logic.updateDateUI(); 
-                Weather.fetchWeather(); 
-                Logic.calculate(false, false);
+                if(!isNaN(d)) document.getElementById('targetDay').value = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()]; 
+                Logic.updateDateUI(); Weather.fetchWeather(); Logic.calculate(false, false);
             });
             
-            document.getElementById('targetDay').addEventListener('change', () => Logic.calculate(false, false));
-            document.getElementById('maxTemp').addEventListener('input', () => Logic.calculate(false, false));
-            document.getElementById('minTemp').addEventListener('input', () => Logic.calculate(false, false));
-            document.getElementById('customCoeff').addEventListener('change', () => Logic.calculate(false, false));
+            ['targetDay', 'maxTemp', 'minTemp', 'customCoeff'].forEach(id => {
+                document.getElementById(id).addEventListener('change', () => Logic.calculate(false, false));
+            });
             
             document.getElementById('prefecture').addEventListener('change', () => Weather.onPrefectureChange());
-            document.getElementById('cityArea').addEventListener('change', () => { 
-                Weather.onCityAreaChange(); 
-                Weather.fetchWeather(); 
-            });
+            document.getElementById('cityArea').addEventListener('change', () => { Weather.onCityAreaChange(); Weather.fetchWeather(); });
 
             document.getElementById('btn-calculate').addEventListener('click', () => {
                 if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
                 Logic.calculate(false, true); 
-                setTimeout(() => document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
 
             document.getElementById('btn-add-event').addEventListener('click', () => Events.add());
             document.getElementById('btn-learn').addEventListener('click', () => Logic.executeLearning());
-            
-            const btnResetLearning = document.getElementById('btn-reset-learning');
-            if (btnResetLearning) {
-                btnResetLearning.addEventListener('click', () => Logic.resetLearning());
-            }
-
+            document.getElementById('btn-reset-learning').addEventListener('click', () => Logic.resetLearning());
             document.getElementById('btn-refresh-all').addEventListener('click', () => Logic.calculateAll());
-            
-            const btnShare = document.getElementById('btn-share-image');
-            if (btnShare) {
-                btnShare.addEventListener('click', () => { Logic.shareScreenshot(); });
-            }
-
+            document.getElementById('btn-share-image').addEventListener('click', () => Logic.shareScreenshot());
             document.getElementById('learnDateSelect').addEventListener('change', () => this.onChangeLearnDate());
             document.getElementById('btn-export').addEventListener('click', () => this.exportBackup());
             document.getElementById('btn-import').addEventListener('click', () => this.importBackup());
 
-            const btnForceUpdate = document.getElementById('btn-force-update');
-            if (btnForceUpdate) {
-                btnForceUpdate.addEventListener('click', async () => {
-                    const originalText = btnForceUpdate.innerText;
-                    btnForceUpdate.innerText = "更新中...";
-                    btnForceUpdate.disabled = true;
-
-                    try {
-                        if ('serviceWorker' in navigator) {
-                            const registrations = await navigator.serviceWorker.getRegistrations();
-                            for (let registration of registrations) {
-                                await registration.unregister();
-                            }
-                        }
-                        if ('caches' in window) {
-                            const cacheNames = await caches.keys();
-                            await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
-                        }
-                        alert("アプリを最新の状態に更新します。");
-                        window.location.reload(true);
-                    } catch (err) {
-                        console.error("更新エラー:", err);
-                        alert("更新に失敗しました。少し時間をおいて再度お試しください。");
-                        btnForceUpdate.innerText = originalText;
-                        btnForceUpdate.disabled = false;
+            document.getElementById('btn-force-update').addEventListener('click', async () => {
+                try {
+                    if ('serviceWorker' in navigator) {
+                        const regs = await navigator.serviceWorker.getRegistrations();
+                        for (let reg of regs) await reg.unregister();
                     }
-                });
-            }
+                    if ('caches' in window) {
+                        const keys = await caches.keys();
+                        await Promise.all(keys.map(k => caches.delete(k)));
+                    }
+                    alert("アプリを更新します。"); window.location.reload(true);
+                } catch (err) { alert("更新に失敗しました。"); }
+            });
         },
 
         switchTab(tabId) {
             if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-            document.getElementById('tabContainer').setAttribute('data-active-tab', tabId);
             document.querySelectorAll('.tab-content, .tab-button').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
@@ -704,10 +487,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabId === 'all') Logic.calculateAll();
             if (tabId === 'learning') {
                 this.updateLearnHistoryUI();
-                
-                const store = State.data.currentStore;
-                const cat = State.data.currentCategory;
-                if (store && cat && State.data.stores[store] && State.data.stores[store].categories[cat]) {
+                const store = State.data.currentStore; const cat = State.data.currentCategory;
+                if (store && cat && State.data.stores[store]?.categories[cat]) {
                     ChartModule.render(State.data.stores[store].categories[cat].history || {});
                 }
             }
@@ -718,127 +499,44 @@ document.addEventListener("DOMContentLoaded", () => {
             const select = document.getElementById('learnDateSelect');
             if(!store || !cat || !select) return;
             
-            const currentSelectedDate = select.value;
-            
-            select.innerHTML = '';
-            const history = (State.data.stores[store].categories && State.data.stores[store].categories[cat] && State.data.stores[store].categories[cat].history) ? State.data.stores[store].categories[cat].history : {};
+            const currentSelected = select.value; select.innerHTML = '';
+            const history = State.data.stores[store]?.categories[cat]?.history || {};
             const dates = Object.keys(history).sort((a,b) => b.localeCompare(a));
             
             if(dates.length === 0) {
-                select.appendChild(new Option("記録がありません (手動入力)", "manual"));
+                select.appendChild(new Option("記録がありません", "manual"));
             } else {
                 dates.forEach(d => {
-                    const targetDate = new Date(d);
-                    const salesStr = `${targetDate.getMonth()+1}/${targetDate.getDate()}(${getWeekDayStr(targetDate)})`;
-                    
-                    const orderDate = new Date(targetDate);
-                    orderDate.setDate(orderDate.getDate() - 1);
-                    const orderStr = `${orderDate.getMonth()+1}/${orderDate.getDate()}(${getWeekDayStr(orderDate)})`;
-                    
-                    let histItem = history[d];
-                    let predVal = typeof histItem === 'object' ? histItem.pred : histItem;
-                    let propDateStr = typeof histItem === 'object' ? histItem.orderDate : null;
-                    let isLearned = typeof histItem === 'object' ? histItem.isLearned : false;
-                    
-                    let propStr = "";
-                    if(propDateStr) {
-                        const pDate = new Date(propDateStr);
-                        propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
-                    } else {
-                        const pDate = new Date(targetDate);
-                        pDate.setDate(pDate.getDate() - 2);
-                        propStr = `${pDate.getMonth()+1}/${pDate.getDate()}(${getWeekDayStr(pDate)})`;
-                    }
-                    
-                    let label = `【販売日】${salesStr} (提案:${propStr} ⇒ 発注:${orderStr}〆 / 予測: ${predVal}個)`;
-                    
-                    if (isLearned) {
-                        label = `✅ [学習済] ${label}`;
-                    }
-                    
+                    let h = history[d]; let p = typeof h === 'object' ? h.pred : h;
+                    let label = `${new Date(d).getMonth()+1}/${new Date(d).getDate()} (予測: ${p}個)`;
+                    if (h.isLearned) label = `✅ [学習済] ${label}`;
                     select.appendChild(new Option(label, d));
                 });
-                select.appendChild(new Option("手動で過去の日付・予測を入力する...", "manual"));
+                select.appendChild(new Option("手動で入力する...", "manual"));
             }
-            
-            if (currentSelectedDate && Array.from(select.options).some(opt => opt.value === currentSelectedDate)) {
-                select.value = currentSelectedDate;
-            }
-            
+            if (currentSelected && Array.from(select.options).some(o => o.value === currentSelected)) select.value = currentSelected;
             this.onChangeLearnDate();
         },
 
         onChangeLearnDate() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const select = document.getElementById('learnDateSelect');
-            const predInput = document.getElementById('fbPredicted');
-            const actInput = document.getElementById('fbActual');
-            const btnLearn = document.getElementById('btn-learn');
-            if(!store || !cat || !select || !predInput || !actInput || !btnLearn) return;
+            const pInput = document.getElementById('fbPredicted'); const aInput = document.getElementById('fbActual');
+            if(!store || !cat || !select) return;
             
             if(select.value === 'manual') {
-                predInput.readOnly = false;
-                predInput.style.backgroundColor = "#fafafa";
-                predInput.value = "";
-                predInput.placeholder = "手動入力";
-                
-                actInput.value = ""; 
-                actInput.readOnly = false;
-                actInput.style.backgroundColor = "#fff";
-                actInput.style.color = "#000";
-                actInput.placeholder = "";
-                
-                btnLearn.disabled = false;
-                btnLearn.innerText = "AIに学習させる";
-                btnLearn.style.background = "var(--seven-red)";
-                btnLearn.style.color = "#fff";
+                pInput.readOnly = false; pInput.value = ""; aInput.value = "";
             } else {
-                const history = State.data.stores[store].categories[cat].history || {};
-                const histItem = history[select.value];
-                const predVal = typeof histItem === 'object' ? histItem.pred : histItem;
-                const isLearned = typeof histItem === 'object' ? histItem.isLearned : false;
-                const actualVal = typeof histItem === 'object' ? histItem.actual : "";
-                
-                predInput.readOnly = true;
-                predInput.style.backgroundColor = "var(--border)";
-                predInput.value = predVal || "";
-
-                if (isLearned) {
-                    actInput.value = actualVal;
-                    actInput.readOnly = false;
-                    actInput.style.backgroundColor = "#fff";
-                    actInput.style.color = "#000";
-                    actInput.placeholder = "空欄で解除";
-                    
-                    btnLearn.disabled = false;
-                    btnLearn.innerText = "数値を修正して再学習";
-                    btnLearn.style.background = "#ffb300"; 
-                    btnLearn.style.color = "#000";
-                } else {
-                    actInput.value = ""; 
-                    actInput.readOnly = false;
-                    actInput.style.backgroundColor = "#fff";
-                    actInput.style.color = "#000";
-                    actInput.placeholder = "";
-                    
-                    btnLearn.disabled = false;
-                    btnLearn.innerText = "AIに学習させる";
-                    btnLearn.style.background = "var(--seven-red)";
-                    btnLearn.style.color = "#fff";
-                }
+                const h = State.data.stores[store].categories[cat].history[select.value];
+                pInput.readOnly = true; pInput.value = h.pred || h;
+                aInput.value = h.isLearned ? h.actual : "";
             }
         },
 
         onCategoryChange(source) {
-            let cat = "";
-            if (source === 'simulator') {
-                cat = document.getElementById('categoryName').value;
-                const learnSelect = document.getElementById('learnCategorySelect');
-                if (learnSelect) learnSelect.value = cat;
-            } else {
-                cat = document.getElementById('learnCategorySelect').value;
-                document.getElementById('categoryName').value = cat;
-            }
+            let cat = source === 'simulator' ? document.getElementById('categoryName').value : document.getElementById('learnCategorySelect').value;
+            if (source === 'simulator') document.getElementById('learnCategorySelect').value = cat;
+            else document.getElementById('categoryName').value = cat;
             
             if (cat === State.data.currentCategory) return;
             State.updateInputData(); State.data.currentCategory = cat; State.save();
@@ -846,15 +544,11 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (source === 'learning') {
                 this.updateLearnHistoryUI();
-                const store = State.data.currentStore;
-                if (store && State.data.stores[store] && State.data.stores[store].categories[cat]) {
-                    ChartModule.render(State.data.stores[store].categories[cat].history || {});
-                }
+                ChartModule.render(State.data.stores[State.data.currentStore]?.categories[cat]?.history || {});
             } else {
                 Logic.calculate(false, false);
             }
-            AIStatusDashboard.render();
-            AIOptimizer.checkAndRenderProposal();
+            AIStatusDashboard.render(); AIOptimizer.checkAndRenderProposal();
         },
 
         renderStoreDatalist() {
@@ -865,29 +559,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (s === State.data.currentStore) opt.selected = true;
                 select.appendChild(opt);
             });
-            let optNew = document.createElement('option'); optNew.value = '__NEW__'; optNew.text = '＋ 新規店舗を追加...';
-            select.appendChild(optNew);
+            select.appendChild(new Option('＋ 新規店舗を追加...', '__NEW__'));
             if (!State.data.currentStore) select.value = "";
         },
 
         updateFreshnessDisplay(cat) {
             const display = document.getElementById('freshnessDisplay'); const hiddenVal = document.getElementById('freshnessTime');
             const displayInputArea = document.getElementById('displayInputArea'); const stockLabel = document.getElementById('stockLabelText');
-            const stockInput = document.getElementById('currentStock');
             
             if (stockLabel) {
-                if (cat === "ロール") {
-                    stockLabel.innerHTML = `現在庫 <span style="background: rgba(0,161,233,0.1); color: var(--seven-blue); padding: 4px 8px; border-radius: 6px; font-weight: 900; font-size: 0.95rem;">(1便納品前)</span>`;
-                    stockInput.style.borderColor = "var(--seven-blue)";
-                } else {
-                    stockLabel.innerHTML = `現在庫 <span style="background: rgba(238,114,0,0.1); color: var(--seven-red); padding: 4px 8px; border-radius: 6px; font-weight: 900; font-size: 0.95rem;">(2便納品前)</span>`;
-                    stockInput.style.borderColor = "var(--seven-red)";
-                }
+                stockLabel.innerHTML = cat === "ロール" 
+                    ? `現在庫 <span style="color: var(--seven-blue);">(1便納品前)</span>`
+                    : `現在庫 <span style="color: var(--seven-red);">(2便納品前)</span>`;
             }
 
             switch(cat) {
-                case "おにぎり": case "こだわりおにぎり": case "弁当": hiddenVal.value = "14"; display.value = "最適化ロジック (14H)"; displayInputArea.style.display = "flex"; break;
-                case "寿司": case "サンドイッチ": case "ロール": hiddenVal.value = "23"; display.value = "当日消化ロジック (23H)"; displayInputArea.style.display = "flex"; break;
+                case "おにぎり": case "こだわりおにぎり": case "弁当": hiddenVal.value = "14"; display.value = "最適化ロジック (14H)"; displayInputArea.style.display = "block"; break;
+                case "寿司": case "サンドイッチ": case "ロール": hiddenVal.value = "23"; display.value = "当日消化ロジック (23H)"; displayInputArea.style.display = "block"; break;
                 case "調理麺": case "カップ麺": case "惣菜": case "サラダ": hiddenVal.value = "38"; display.value = "維持ロジック (38H)"; displayInputArea.style.display = "none"; break;
                 case "チルド弁当": case "スパゲティパスタ": case "グラタンドリア": case "カップデリ": hiddenVal.value = "60"; display.value = "維持ロジック (60H)"; displayInputArea.style.display = "none"; break;
                 default: hiddenVal.value = "0"; display.value = "分類を選択してください"; displayInputArea.style.display = "none";
@@ -899,9 +587,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!store || !cat) return;
             
             let data = { avgSales: "50", currentStock: "15", maxSales: "65", minSales: "35", avgWaste: "3", avgShortageRate: "0", minDisplayQty: "0", categoryCoeff: "1.0", learnedCoeff: 1.0, ratios: {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"} };
-            if (State.data.stores[store] && State.data.stores[store].categories && State.data.stores[store].categories[cat]) {
-                data = { ...data, ...State.data.stores[store].categories[cat] };
-            }
+            if (State.data.stores[store]?.categories[cat]) data = { ...data, ...State.data.stores[store].categories[cat] };
 
             ['avgSales', 'currentStock', 'maxSales', 'minSales', 'avgWaste', 'avgShortageRate', 'minDisplayQty'].forEach(id => {
                 if(document.getElementById(id)) document.getElementById(id).value = data[id] || "";
@@ -917,12 +603,12 @@ document.addEventListener("DOMContentLoaded", () => {
             Logic.updateDateUI();
         },
 
-        showSaveIndicator() { const ind = document.getElementById('saveIndicator'); if(ind) { ind.innerText = "✓ 保存済"; setTimeout(() => ind.innerText = "", 2000); } },
-        exportBackup() { document.getElementById('backupCode').value = btoa(unescape(encodeURIComponent(JSON.stringify(State.data)))); alert("コードを作成しました！これをコピーして引き継ぎ先の端末で貼り付けてください。"); },
+        showSaveIndicator() {},
+        exportBackup() { document.getElementById('backupCode').value = btoa(unescape(encodeURIComponent(JSON.stringify(State.data)))); alert("コードを作成しました！"); },
         importBackup() {
             try {
                 const parsed = JSON.parse(decodeURIComponent(escape(atob(document.getElementById('backupCode').value.trim()))));
-                if (parsed && parsed.stores) { State.data = parsed; State.save(); this.init(); alert("データの復元に成功しました！"); }
+                if (parsed && parsed.stores) { State.data = parsed; State.save(); this.init(); alert("データを復元しました！"); }
             } catch(e) { alert("コードが正しくありません。"); }
         }
     };
@@ -930,7 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const Weather = {
         restoreStoreWeather() {
-            const store = State.data.currentStore; if (!store) return; State.ensureStore(store);
+            const store = State.data.currentStore; if (!store || !State.data.stores[store]) return;
             const pref = State.data.stores[store].prefecture; const city = State.data.stores[store].cityArea;
             document.getElementById('prefecture').value = pref;
             if (pref) this.fetchAreaList(pref, city);
@@ -947,39 +633,26 @@ document.addEventListener("DOMContentLoaded", () => {
         async fetchAreaList(prefCode, targetCityCode) {
             try {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
-                if (!res.ok) throw new Error("気象庁データの取得に失敗しました");
+                if (!res.ok) throw new Error("API Error");
                 const data = await res.json();
                 const areaSelect = document.getElementById('cityArea'); areaSelect.innerHTML = '';
                 (data[0].timeSeries[0].areas || []).forEach(a => {
-                    let opt = document.createElement('option'); opt.value = a.area.code; opt.text = a.area.name; areaSelect.appendChild(opt);
+                    areaSelect.appendChild(new Option(a.area.name, a.area.code));
                 });
                 if (targetCityCode) areaSelect.value = targetCityCode;
             } catch(e) { 
-                console.error("Area Error:", e);
-                const areaSelect = document.getElementById('cityArea');
-                areaSelect.innerHTML = '<option value="">エリア取得失敗 (都道府県を選び直してください)</option>';
+                document.getElementById('cityArea').innerHTML = '<option value="">取得失敗</option>';
             }
         },
-
         async fetchWeather(offsetOrEvent) {
             let tDateStr = document.getElementById('targetDateInput').value;
-            
             let btn = null;
             if (typeof offsetOrEvent === 'number') {
-                const now = new Date();
-                const target = new Date(now);
-                target.setDate(now.getDate() + offsetOrEvent);
-                
-                const y = target.getFullYear();
-                const m = String(target.getMonth() + 1).padStart(2, '0');
-                const d = String(target.getDate()).padStart(2, '0');
-                tDateStr = `${y}-${m}-${d}`;
-                
+                const now = new Date(); const target = new Date(now); target.setDate(now.getDate() + offsetOrEvent);
+                tDateStr = `${target.getFullYear()}-${String(target.getMonth()+1).padStart(2,'0')}-${String(target.getDate()).padStart(2,'0')}`;
                 document.getElementById('targetDateInput').value = tDateStr;
-                const days = ['sun','mon','tue','wed','thu','fri','sat'];
-                document.getElementById('targetDay').value = days[target.getDay()];
+                document.getElementById('targetDay').value = ['sun','mon','tue','wed','thu','fri','sat'][target.getDay()];
                 Logic.updateDateUI();
-                
                 btn = offsetOrEvent === 1 ? document.getElementById('btn-weather-tmw') : document.getElementById('btn-weather-dat');
             }
             
@@ -987,35 +660,32 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const prefCode = document.getElementById('prefecture').value; 
             const areaCode = document.getElementById('cityArea').value;
-            if (!prefCode || !areaCode) return;
+            
+            // 【重要】UI変更によってエリア設定が空になっている場合のサイレントエラー対策
+            if (!prefCode || !areaCode) {
+                if (typeof offsetOrEvent === 'number') {
+                    alert("【エラー】\n天気を取得するには、画面上部の「エリア設定」で都道府県と地域を選択してください。");
+                }
+                return;
+            }
 
             let originalText = "";
-            if (btn) {
-                originalText = btn.innerText; 
-                btn.innerText = "取得中..."; 
-                btn.disabled = true;
-            }
+            if (btn) { originalText = btn.innerText; btn.innerText = "取得中..."; btn.disabled = true; }
 
             try {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
-                if (!res.ok) throw new Error("天気データ取得失敗");
+                if (!res.ok) throw new Error("Network response was not ok");
                 const data = await res.json();
-
-                let minT = "", maxT = "", weatherText = "不明", pop = 0;
-                let tempFound = false;
+                let minT = "", maxT = "", weatherText = "不明", pop = 0; let tempFound = false;
 
                 for (let block of data) {
                     if (!block.timeSeries) continue;
                     for (let ts of block.timeSeries) {
                         let aData = ts.areas.find(a => a.area.code === areaCode) || ts.areas[0];
                         if (!aData) continue;
-
                         let idx = ts.timeDefines.findIndex(t => t.startsWith(tDateStr));
                         
-                        if (idx !== -1 && aData.weathers && aData.weathers[idx] && weatherText === "不明") {
-                            weatherText = aData.weathers[idx];
-                        }
-
+                        if (idx !== -1 && aData.weathers && aData.weathers[idx] && weatherText === "不明") weatherText = aData.weathers[idx];
                         if (aData.pops) {
                             ts.timeDefines.forEach((t, i) => {
                                 if (t.startsWith(tDateStr) && aData.pops[i]) {
@@ -1024,25 +694,9 @@ document.addEventListener("DOMContentLoaded", () => {
                                 }
                             });
                         }
-
                         if (idx !== -1) {
                             if (aData.tempsMax && aData.tempsMax[idx]) { maxT = aData.tempsMax[idx]; tempFound = true; }
                             if (aData.tempsMin && aData.tempsMin[idx]) { minT = aData.tempsMin[idx]; tempFound = true; }
-                        }
-
-                        if (aData.temps && !tempFound) {
-                            let dayTemps = [];
-                            ts.timeDefines.forEach((t, i) => {
-                                if (t.startsWith(tDateStr) && aData.temps[i]) {
-                                    dayTemps.push(parseFloat(aData.temps[i]));
-                                }
-                            });
-                            if (dayTemps.length > 0) {
-                                maxT = Math.max(...dayTemps).toString();
-                                minT = Math.min(...dayTemps).toString();
-                                if (maxT === minT) minT = (parseFloat(maxT) - 8).toString();
-                                tempFound = true;
-                            }
                         }
                     }
                 }
@@ -1050,12 +704,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (tempFound) {
                     if (minT) document.getElementById('minTemp').value = Math.round(parseFloat(minT));
                     if (maxT) document.getElementById('maxTemp').value = Math.round(parseFloat(maxT));
-                } else {
-                    if (typeof offsetOrEvent === 'number') {
-                        alert(`【お知らせ】\n気象庁から対象日（${tDateStr}）の予測気温データがまだ配信されていません。\n恐れ入りますが、気温欄は手動でご入力ください。`);
-                    }
                 }
-                
                 document.getElementById('popRate').value = pop;
                 
                 let icon = '⛅';
@@ -1065,17 +714,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const disp = document.getElementById('weather-display'); disp.style.display = 'block';
                 disp.innerText = `${icon} ${weatherText.replace(/　/g, ' ').substring(0,15)} / 降水確率: ${pop}%`;
-                
-                Logic.calcWeatherCoeff(); 
-                Logic.calculate(false, false);
+                Logic.calcWeatherCoeff(); Logic.calculate(false, false);
                 
             } catch (e) { 
                 console.error(e);
             } finally { 
-                if (btn) {
-                    btn.innerText = originalText; 
-                    btn.disabled = false; 
-                }
+                if (btn) { btn.innerText = originalText; btn.disabled = false; }
             }
         }
     };
@@ -1085,35 +729,23 @@ document.addEventListener("DOMContentLoaded", () => {
         calcWeatherCoeff() {
             const pop = parseFloat(document.getElementById('popRate').value) || 0;
             let coeff = 1.0;
-            if (pop >= 80) coeff = 0.8;
-            else if (pop >= 50) coeff = 0.9;
-            else if (pop >= 30) coeff = 0.95;
+            if (pop >= 80) coeff = 0.8; else if (pop >= 50) coeff = 0.9; else if (pop >= 30) coeff = 0.95;
             document.getElementById('weatherCoeff').value = coeff;
             document.getElementById('weatherCoeffDisplay').value = `× ${coeff}`;
         },
-
         updateDateUI() {
             const dateStr = document.getElementById('targetDateInput').value;
             const badge = document.getElementById('calendarBadge');
             const deadlineText = document.getElementById('orderDeadlineText');
-            
-            if(!dateStr) { 
-                badge.style.display='none'; 
-                deadlineText.innerText = ''; 
-                return; 
-            }
-            
+            if(!dateStr) return;
             const dObj = new Date(dateStr);
-            const orderObj = new Date(dObj);
-            orderObj.setDate(orderObj.getDate() - 1); 
-            deadlineText.innerText = `※この販売分の発注締切: ${orderObj.getMonth()+1}/${orderObj.getDate()}(${getWeekDayStr(orderObj)}) 午前11時`;
-
+            const orderObj = new Date(dObj); orderObj.setDate(orderObj.getDate() - 1); 
+            deadlineText.innerText = `発注締切: ${orderObj.getMonth()+1}/${orderObj.getDate()} 午前11時`;
             const d = dObj.getDate();
-            if (d === 15 || d === 25) { badge.innerText = `💰 年金/給料日 特需`; badge.style.display='block'; }
-            else if (d % 5 === 0 && d !== 31) { badge.innerText = `🚙 五十日(ごとおび) 活発`; badge.style.display='block'; }
-            else { badge.style.display='none'; }
+            if (d === 15 || d === 25) { badge.innerText = `💰 年金/給料日 特需`; badge.style.display='inline-block'; }
+            else if (d % 5 === 0 && d !== 31) { badge.innerText = `🚙 五十日(ごとおび)`; badge.style.display='inline-block'; }
+            else badge.style.display='none';
         },
-
         getCalendarCoeff(dateStr) {
             if(!dateStr) return 1.0;
             const d = new Date(dateStr).getDate();
@@ -1121,40 +753,16 @@ document.addEventListener("DOMContentLoaded", () => {
             if (d % 5 === 0 && d !== 31) return 1.03; 
             return 1.0;
         },
-
         getTempCoeff(dateStr, catVal, maxTemp, minTemp) {
             let coeff = 1.0, fixed = 0, msg = "";
-            const targetDate = dateStr ? new Date(dateStr) : new Date();
-            const currentMonth = targetDate.getMonth() + 1; 
-            const currentDate = targetDate.getDate();
+            const currentMonth = new Date(dateStr || new Date()).getMonth() + 1; 
             
             if (catVal === "調理麺") {
                 if (maxTemp >= 26) {
-                    coeff = 1.0;
-                    const effectiveTemp = Math.min(35, Math.floor(maxTemp));
-                    fixed = (effectiveTemp - 26) * 3;
-                    
-                    if ((currentMonth === 8 && currentDate >= 16) || currentMonth === 9) {
-                        fixed = Math.round(fixed * 0.8); 
-                        msg = `☀️ お盆以降の食べ飽き考慮（最大35度頭打ち基準 / 補正：＋${fixed}個）`;
-                    } else if (currentMonth >= 10 || currentMonth <= 4) {
-                        fixed = Math.round(fixed * 0.5); 
-                        msg = `🍂 涼期・春期トレンド（最大35度頭打ち基準 / 補正：＋${fixed}個）`;
-                    } else {
-                        msg = `🔥 夏の冷し麺特需ブースト（最大35度頭打ち基準 / 補正：＋${fixed}個）`;
-                    }
-                } else if (maxTemp >= 20) {
-                    coeff = 1.0 + ((maxTemp - 20) * 0.02);
-                    msg = "🌤 20℃超え。調理麺が動き出します";
-                } else if (maxTemp < 10) {
-                    if (currentMonth >= 11 || currentMonth <= 2) {
-                        coeff = 1.0; 
-                        msg = `❄️ 冬期のレンジ温麺需要（気温低下による一律のマイナス補正を停止）`;
-                    } else {
-                        coeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04);
-                        msg = "❄️ 気温低下。冷やし麺は売れにくいです";
-                    }
-                }
+                    coeff = 1.0; fixed = (Math.min(35, Math.floor(maxTemp)) - 26) * 3;
+                    if (currentMonth >= 10 || currentMonth <= 4) fixed = Math.round(fixed * 0.5); 
+                } else if (maxTemp >= 20) coeff = 1.0 + ((maxTemp - 20) * 0.02);
+                else if (maxTemp < 10 && (currentMonth < 11 && currentMonth > 2)) coeff = 1.0 - 0.10 - ((10 - maxTemp) * 0.04);
             } else if (["サラダ", "カップデリ"].includes(catVal)) {
                 if (maxTemp > 25) coeff = 1.0 + ((maxTemp - 25) * 0.03);
             } else if (["カップ麺", "グラタンドリア", "チルド弁当"].includes(catVal)) {
@@ -1163,145 +771,84 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             return { coeff: Math.max(0.3, Math.min(2.5, coeff)), fixedBoost: fixed, message: msg };
         },
-
         getEventCoeff(dateStr, catVal, store) {
-            let coeff = 1.0; 
-            let msgs = [];
-            if(!store || !State.data.stores[store] || !State.data.stores[store].events) return { coeff, msg: "" };
-            
-            State.data.stores[store].events.forEach(e => {
-                if(e.date === dateStr && (e.category === "ALL" || e.category === catVal)) {
-                    coeff *= e.coeff;
-                    msgs.push(`🎁 イベント適用: ${e.name} (×${e.coeff.toFixed(1)})`);
-                }
-            });
+            let coeff = 1.0; let msgs = [];
+            if(State.data.stores[store]?.events) {
+                State.data.stores[store].events.forEach(e => {
+                    if(e.date === dateStr && (e.category === "ALL" || e.category === catVal)) {
+                        coeff *= e.coeff; msgs.push(`🎁 イベント: ${e.name}`);
+                    }
+                });
+            }
             return { coeff, msg: msgs.join(" / ") };
         },
-
         resetLearning() {
-            const storeSelect = document.getElementById('storeNameSelect');
-            const store = storeSelect.value;
-            const cat = State.data.currentCategory;
-
-            if (!store || store === "__NEW__" || !cat) return alert("店舗と分類を選択してください。");
-            
-            if (!confirm(`【${cat}】のAI学習データ（過去の履歴と現在の補正値）をすべてリセットし、初期状態（1.00倍）に戻しますか？\n※この操作は元に戻せません。`)) return;
-
-            if (State.data.stores[store] && State.data.stores[store].categories[cat]) {
+            const store = document.getElementById('storeNameSelect').value; const cat = State.data.currentCategory;
+            if (!store || store === "__NEW__" || !cat) return;
+            if (!confirm(`【${cat}】のAI学習データをリセットしますか？`)) return;
+            if (State.data.stores[store]?.categories[cat]) {
                 State.data.stores[store].categories[cat].learnedCoeff = 1.0;
-                State.data.stores[store].categories[cat].history = {};
-                State.save();
-                
-                alert(`【${cat}】の学習データをリセットしました。`);
-                
+                State.data.stores[store].categories[cat].history = {}; State.save();
                 document.getElementById('currentLearnedCoeffText').innerText = "1.00";
-                ChartModule.render({});
-                UI.updateLearnHistoryUI();
-                UI.restoreCategoryInputs();
-                this.calculate(false, false);
-                AIStatusDashboard.render();
-                AIOptimizer.checkAndRenderProposal();
+                ChartModule.render({}); UI.updateLearnHistoryUI(); UI.restoreCategoryInputs(); this.calculate(false, false);
+                AIStatusDashboard.render(); AIOptimizer.checkAndRenderProposal();
             }
         },
-
-        recalcCoeff(store, cat) {
-            let coeff = 1.0;
-            const history = State.data.stores[store].categories[cat].history || {};
-            const dates = Object.keys(history).sort((a, b) => a.localeCompare(b));
-            dates.forEach(d => {
-                const h = history[d];
-                if (h && typeof h === 'object' && h.isLearned) {
-                    const act = parseFloat(h.actual);
-                    const pred = parseFloat(h.pred);
-                    if (!isNaN(act) && !isNaN(pred) && pred > 0) {
-                        let ratio = act / pred;
-                        coeff = coeff + ((ratio - 1.0) * 0.3);
-                        coeff = Math.max(0.8, Math.min(1.2, coeff));
-                    }
-                }
-            });
-            State.data.stores[store].categories[cat].learnedCoeff = coeff;
-        },
-
         executeLearning() {
             const actStr = document.getElementById('fbActual').value.trim();
             const pred = parseFloat(document.getElementById('fbPredicted').value);
-            const storeSelect = document.getElementById('storeNameSelect');
-            const store = storeSelect.value;
-            const cat = State.data.currentCategory;
-            const select = document.getElementById('learnDateSelect');
-            const targetDateStr = select.value;
-
+            const store = document.getElementById('storeNameSelect').value; const cat = State.data.currentCategory;
+            const targetDateStr = document.getElementById('learnDateSelect').value;
             if (!store || store === "__NEW__" || !cat) return;
 
             if (targetDateStr !== 'manual' && actStr === "") {
                  const histItem = State.data.stores[store].categories[cat].history[targetDateStr];
-                 if (histItem && typeof histItem === 'object' && histItem.isLearned) {
-                     if(confirm(`【${targetDateStr}】の学習データを解除（未学習の状態に）しますか？`)) {
-                         histItem.isLearned = false;
-                         histItem.actual = "";
-                         this.recalcCoeff(store, cat);
-                         State.save();
-                         document.getElementById('currentLearnedCoeffText').innerText = State.data.stores[store].categories[cat].learnedCoeff.toFixed(2);
-                         this.calculate(false, false);
-                         ChartModule.render(State.data.stores[store].categories[cat].history || {});
-                         UI.updateLearnHistoryUI();
-                         AIStatusDashboard.render();
-                         AIOptimizer.checkAndRenderProposal();
-                         return;
-                     } else { return; }
+                 if (histItem?.isLearned && confirm("学習を解除しますか？")) {
+                     histItem.isLearned = false; histItem.actual = "";
+                     this.recalcCoeff(store, cat); State.save();
+                     document.getElementById('currentLearnedCoeffText').innerText = State.data.stores[store].categories[cat].learnedCoeff.toFixed(2);
+                     this.calculate(false, false); ChartModule.render(State.data.stores[store].categories[cat].history || {});
+                     UI.updateLearnHistoryUI(); AIStatusDashboard.render(); AIOptimizer.checkAndRenderProposal();
+                     return;
                  }
+                 return;
             }
 
             const act = parseFloat(actStr);
-            if (isNaN(act) || !pred || pred <= 0) return alert("予測数と実際の販売数を正しく入力してください。\n（学習済みのデータを解除したい場合は、販売数を空欄にしてボタンを押してください）");
+            if (isNaN(act) || !pred || pred <= 0) return alert("予測数と実際の販売数を入力してください。");
 
             if (targetDateStr !== 'manual') {
                 const histItem = State.data.stores[store].categories[cat].history[targetDateStr];
-                if (typeof histItem === 'object') {
-                    histItem.isLearned = true;
-                    histItem.actual = act;
-                } else {
-                    State.data.stores[store].categories[cat].history[targetDateStr] = {
-                        pred: histItem,
-                        actual: act,
-                        isLearned: true
-                    };
-                }
+                if (typeof histItem === 'object') { histItem.isLearned = true; histItem.actual = act; }
+                else State.data.stores[store].categories[cat].history[targetDateStr] = { pred: histItem, actual: act, isLearned: true };
                 this.recalcCoeff(store, cat);
             } else {
                 let currentL = State.data.stores[store].categories[cat].learnedCoeff || 1.0;
-                let ratio = act / pred;
-                let newL = currentL + ((ratio - 1.0) * 0.3);
-                State.data.stores[store].categories[cat].learnedCoeff = Math.max(0.8, Math.min(1.2, newL));
+                State.data.stores[store].categories[cat].learnedCoeff = Math.max(0.8, Math.min(1.2, currentL + (((act/pred) - 1.0) * 0.3)));
             }
-
             State.save();
-            
             document.getElementById('currentLearnedCoeffText').innerText = State.data.stores[store].categories[cat].learnedCoeff.toFixed(2);
-            const msg = document.getElementById('learnSuccessMsg');
-            msg.style.display = 'block'; setTimeout(() => msg.style.display='none', 3000);
-            
-            this.calculate(false, false);
-            ChartModule.render(State.data.stores[store].categories[cat].history || {});
-            
-            UI.onChangeLearnDate();
-            UI.updateLearnHistoryUI();
-            AIStatusDashboard.render();
-            AIOptimizer.checkAndRenderProposal();
+            document.getElementById('learnSuccessMsg').style.display = 'block'; setTimeout(() => document.getElementById('learnSuccessMsg').style.display='none', 3000);
+            this.calculate(false, false); ChartModule.render(State.data.stores[store].categories[cat].history || {});
+            UI.onChangeLearnDate(); UI.updateLearnHistoryUI(); AIStatusDashboard.render(); AIOptimizer.checkAndRenderProposal();
         },
-
+        recalcCoeff(store, cat) {
+            let coeff = 1.0; const history = State.data.stores[store].categories[cat].history || {};
+            Object.values(history).forEach(h => {
+                if (h?.isLearned) {
+                    const act = parseFloat(h.actual); const pred = parseFloat(h.pred);
+                    if (!isNaN(act) && pred > 0) coeff = Math.max(0.8, Math.min(1.2, coeff + (((act/pred) - 1.0) * 0.3)));
+                }
+            });
+            State.data.stores[store].categories[cat].learnedCoeff = coeff;
+        },
         calculate(silent = false, saveHist = false) {
-            const storeSelect = document.getElementById('storeNameSelect');
-            const store = storeSelect.value; 
+            const store = document.getElementById('storeNameSelect').value; 
             const cat = document.getElementById('categoryName').value;
             const fHours = parseFloat(document.getElementById('freshnessTime').value);
             const dateStr = document.getElementById('targetDateInput').value;
             
-            if (!store || store === "__NEW__" || !cat || fHours === 0) {
-                document.getElementById('resultArea').style.display = 'none';
-                return false;
-            }
+            if (!store || store === "__NEW__" || !cat || fHours === 0) { document.getElementById('resultArea').style.display = 'none'; return false; }
 
             const avgSales = parseFloat(document.getElementById('avgSales').value) || 0;
             const currentStock = parseInt(document.getElementById('currentStock').value) || 0;
@@ -1318,24 +865,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const minT = parseFloat(document.getElementById('minTemp').value) || 15;
             
             let learnedCount = 0;
-            if (State.data.stores[store] && State.data.stores[store].categories[cat] && State.data.stores[store].categories[cat].history) {
-                const hist = State.data.stores[store].categories[cat].history;
-                Object.keys(hist).forEach(k => {
-                    if (hist[k] && typeof hist[k] === 'object' && hist[k].isLearned) learnedCount++;
-                });
+            if (State.data.stores[store]?.categories[cat]?.history) {
+                Object.values(State.data.stores[store].categories[cat].history).forEach(h => { if (h?.isLearned) learnedCount++; });
             }
             
-            const baseLearnR = (State.data.stores[store] && State.data.stores[store].categories[cat]) ? (State.data.stores[store].categories[cat].learnedCoeff || 1.0) : 1.0;
-            const REQUIRED_LEARN_COUNT = 7;
-            const learnR = (learnedCount >= REQUIRED_LEARN_COUNT) ? baseLearnR : 1.0;
-            
+            const baseLearnR = State.data.stores[store]?.categories[cat]?.learnedCoeff || 1.0;
+            const learnR = (learnedCount >= 7) ? baseLearnR : 1.0;
             const evInfo = this.getEventCoeff(dateStr, cat, store);
-            const eventR = evInfo.coeff;
-
             const trendInfo = TrendEngine.getTrendCoeff(store, cat);
-            const trendR = trendInfo.coeff;
-
-            let baseDemand = avgSales;
 
             let shortR = 1.0, diffShort = 0;
             if (shortage > 20) { shortR = 1.03 + ((shortage-20)*0.004); diffShort = shortage-20; }
@@ -1343,101 +880,44 @@ document.addEventListener("DOMContentLoaded", () => {
             else if (shortage > 0) { shortR = 1.01; diffShort = shortage; }
             
             const tInfo = this.getTempCoeff(dateStr, cat, maxT, minT);
-            
             const maxS = parseFloat(document.getElementById('maxSales').value) || 0;
             const minS = parseFloat(document.getElementById('minSales').value) || 0;
             const stdDev = (Math.max(maxS, minS) - Math.min(maxS, minS)) / 4 * shortR;
             
-            let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR * eventR * trendR;
-            let finalDemandRaw = (baseDemand * shortR * multiplier) + tInfo.fixedBoost;
+            let multiplier = dayR * weathR * calR * customR * catR * tInfo.coeff * learnR * evInfo.coeff * trendInfo.coeff;
+            let finalDemandRaw = (avgSales * shortR * multiplier) + tInfo.fixedBoost;
             
-            let safetyFactor = 1.645;
-            if (fHours <= 14) safetyFactor = 0.84; 
-            else if (fHours <= 24) safetyFactor = 1.28; 
-
-            if (learnedCount >= REQUIRED_LEARN_COUNT) {
-                safetyFactor = safetyFactor * 0.7; 
-            }
+            let safetyFactor = fHours <= 14 ? 0.84 : (fHours <= 24 ? 1.28 : 1.645);
+            if (learnedCount >= 7) safetyFactor *= 0.7; 
 
             const extraDays = fHours===60 ? 0.5 : (fHours===38 ? 0.2 : 0);
             const safetyStock = safetyFactor * stdDev * Math.sqrt(1 + extraDays);
-            const sysBuffer = (finalDemandRaw * extraDays) + safetyStock;
-            const appliedBuffer = Math.max(minQty, sysBuffer);
+            const appliedBuffer = Math.max(minQty, (finalDemandRaw * extraDays) + safetyStock);
             
             let rawOrder = Math.max(0, Math.ceil((finalDemandRaw + appliedBuffer) - currentStock));
-            
-            const wasteReduct = waste * Math.max(0.2, 1 - (diffShort/10));
-            let finalOrder = Math.max(0, Math.ceil(rawOrder - wasteReduct));
+            let finalOrder = Math.max(0, Math.ceil(rawOrder - (waste * Math.max(0.2, 1 - (diffShort/10)))));
             
             if (fHours > 24) {
                 let limit = Math.max(0, Math.floor((finalDemandRaw * (fHours/24)) - currentStock));
                 if (finalOrder > limit) finalOrder = limit;
             }
 
-            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, avgSales, shortR, dayR, weathR, calR, customR, catR, learnR, tInfo, evInfo, trendInfo, learnedCount, baseLearnR);
-            
-            if(saveHist) {
-                State.saveHistory(dateStr, Math.ceil(finalDemandRaw));
-            }
-
+            if(!silent) this.renderUI(cat, finalDemandRaw, finalOrder, dayR, weathR, tInfo, evInfo, trendInfo, learnedCount, learnR);
+            if(saveHist) State.saveHistory(dateStr, Math.ceil(finalDemandRaw));
             return { cat: cat, pred: Math.ceil(finalDemandRaw), order: finalOrder };
         },
 
-        renderUI(cat, predRaw, order, base, shortR, day, weather, cal, custom, catR, learn, temp, evInfo, trendInfo, learnedCount, baseLearnR) {
+        renderUI(cat, predRaw, order, day, weather, temp, evInfo, trendInfo, learnedCount, learn) {
             document.getElementById('resCategory').innerText = cat;
-            document.getElementById('resBaseSales').innerText = base.toFixed(1);
-            document.getElementById('resShortageBoost').innerText = shortR > 1.0 ? `(×欠品補正 ${shortR.toFixed(2)})` : '';
-            
             document.getElementById('resDayRatio').innerText = day.toFixed(2);
-            let multStr = `[天候${weather.toFixed(2)} / 気温${temp.coeff.toFixed(2)} / 学習${learn.toFixed(2)} / 独自${custom.toFixed(2)} / 分類${catR.toFixed(2)}]`;
-            document.getElementById('resMultipliers').innerText = multStr;
+            document.getElementById('resMultipliers').innerText = `[天候${weather.toFixed(2)} / 気温${temp.coeff.toFixed(2)} / 学習${learn.toFixed(2)}]`;
             
             const evMsgEl = document.getElementById('resEventMessage');
-            if (evInfo.msg) {
-                evMsgEl.innerText = evInfo.msg;
-                evMsgEl.style.display = 'block';
-            } else {
-                evMsgEl.style.display = 'none';
-            }
-            
-            let trendMsgEl = document.getElementById('resTrendMessage');
-            if (!trendMsgEl) {
-                trendMsgEl = document.createElement('div');
-                trendMsgEl.id = 'resTrendMessage';
-                trendMsgEl.style.color = '#e91e63';
-                trendMsgEl.style.fontWeight = 'bold';
-                trendMsgEl.style.marginTop = '4px';
-                document.getElementById('resMultipliers').parentNode.appendChild(trendMsgEl);
-            }
-            if (trendInfo && trendInfo.msg) {
-                trendMsgEl.innerText = trendInfo.msg;
-                trendMsgEl.style.display = 'block';
-            } else {
-                trendMsgEl.style.display = 'none';
-            }
-            
-            let learnMsg = "";
-            const REQUIRED_LEARN_COUNT = 7;
-            if (learnedCount >= REQUIRED_LEARN_COUNT) {
-                if (learn !== 1.0) learnMsg = `🧠 店舗独自のAI学習補正 (×${learn.toFixed(2)}) 適用中`;
-            } else {
-                if (learnedCount > 0) {
-                    learnMsg = `⏳ AI学習データ蓄積中 (${learnedCount}/${REQUIRED_LEARN_COUNT}回) ※7回到達で補正開始`;
-                }
-            }
+            if (evInfo.msg) { evMsgEl.innerText = evInfo.msg; evMsgEl.style.display = 'block'; } else evMsgEl.style.display = 'none';
             
             const learnMsgEl = document.getElementById('resLearningMessage');
-            if (learnMsg) {
-                learnMsgEl.innerText = learnMsg;
-                learnMsgEl.style.display = 'block';
-                if (learnedCount >= REQUIRED_LEARN_COUNT) {
-                    learnMsgEl.style.color = 'var(--seven-green-dark)';
-                } else {
-                    learnMsgEl.style.color = '#ee7200';
-                }
-            } else {
-                learnMsgEl.style.display = 'none';
-            }
+            if (learnedCount >= 7 && learn !== 1.0) { learnMsgEl.innerText = `🧠 AI学習補正 (×${learn.toFixed(2)}) 適用`; learnMsgEl.style.display = 'block'; }
+            else { learnMsgEl.style.display = 'none'; }
 
             document.getElementById('resTempMessage').innerText = temp.message;
             document.getElementById('resAdjSales').innerText = Math.ceil(predRaw);
@@ -1453,112 +933,47 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateAll() {
             const store = State.data.currentStore; if(!store || !State.data.stores[store]) return;
             const cats = Object.keys(State.data.stores[store].categories);
-            const dateStr = document.getElementById('targetDateInput').value;
-            const dateObj = new Date(dateStr);
-            const formattedDate = !isNaN(dateObj) ? `${dateObj.getMonth()+1}月${dateObj.getDate()}日` : "未定";
-
             const originalCategory = State.data.currentCategory;
-
             let results = [];
             cats.forEach(c => {
-                document.getElementById('categoryName').value = c;
-                UI.onCategoryChange('simulator');
-                let res = this.calculate(true, true);
-                if(res) results.push(res);
+                document.getElementById('categoryName').value = c; UI.onCategoryChange('simulator');
+                let res = this.calculate(true, true); if(res) results.push(res);
             });
-
-            if (originalCategory) {
-                document.getElementById('categoryName').value = originalCategory;
-                UI.onCategoryChange('simulator');
-            }
+            if (originalCategory) { document.getElementById('categoryName').value = originalCategory; UI.onCategoryChange('simulator'); }
 
             const container = document.getElementById('allResultsContainer');
-            
-            let html = `
-                <div class="screenshot-header">
-                    <div style="font-size: 1.2rem; font-weight: 900; color: var(--primary-dark); margin-bottom: 4px;">${store}</div>
-                    <div style="font-size: 0.95rem; font-weight: bold; color: var(--seven-green-dark);">📅 発注対象日: ${formattedDate}</div>
-                </div>
-            `;
-            
+            let html = `<div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 16px;">${store}</div>`;
             results.forEach(r => {
                 html += `
-                    <div class="screenshot-item" onclick="document.getElementById('categoryName').value='${r.cat}'; UI.onCategoryChange('simulator'); UI.switchTab('simulator'); window.scrollTo(0,0);">
-                        <div class="screenshot-cat">${r.cat}</div>
-                        <div class="screenshot-data" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                            <div style="font-size: 0.85rem; color: #666;">販売予測数: <span style="font-weight: bold; color: #333; font-size: 1rem;">${r.pred}</span></div>
-                            <div style="font-size: 0.95rem; font-weight: 800; color: var(--seven-green-dark);">発注目安数: <span style="font-size: 1.6rem; font-weight: 900;">${r.order}</span> <span style="font-size:0.85rem; font-weight:normal;">個</span></div>
+                    <div style="background:#f2f2f7; padding:16px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-weight:bold; font-size:1.1rem;">${r.cat}</div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.9rem; color:var(--text-sub);">予測: ${r.pred}</div>
+                            <div style="font-size:1.4rem; font-weight:bold; color:var(--seven-red);">発注: ${r.order} <span style="font-size:0.9rem;">個</span></div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
-            
             container.innerHTML = html;
         },
-
         async shareScreenshot() {
             const target = document.getElementById('screenshotTargetArea');
-            if (!target || typeof html2canvas === 'undefined') {
-                return alert("画像生成ツールがまだ読み込まれていません。少し待ってから再度お試しください。");
-            }
-
-            const btn = document.getElementById('btn-share-image');
-            const originalText = btn.innerText;
-            btn.innerText = "⏳ 画像生成中...";
-            btn.disabled = true;
-
+            if (!target) return;
+            document.getElementById('btn-share-image').innerText = "生成中...";
             try {
-                const canvas = await html2canvas(target, {
-                    scale: 2, 
-                    useCORS: true, 
-                    backgroundColor: "#ffffff"
-                });
-
+                const canvas = await html2canvas(target, { scale: 2, backgroundColor: "#ffffff" });
                 canvas.toBlob(async (blob) => {
-                    if (!blob) throw new Error("画像データの作成に失敗しました");
-                    
-                    const dateStr = document.getElementById('targetDateInput').value || "未定";
-                    const fileName = `発注目安_${dateStr}.png`;
-                    const file = new File([blob], fileName, { type: "image/png" });
-                    
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        try {
-                            await navigator.share({
-                                title: '本日の発注目安',
-                                files: [file]
-                            });
-                        } catch (shareErr) {
-                            console.log("シェアがキャンセルされました", shareErr);
-                        }
-                    } else {
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = fileName;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                    }
-                    
-                    btn.innerText = originalText;
-                    btn.disabled = false;
+                    const file = new File([blob], `発注目安.png`, { type: "image/png" });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file] });
+                    else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "発注目安.png"; a.click(); }
+                    document.getElementById('btn-share-image').innerText = "画像を保存・共有する";
                 }, "image/png");
-
-            } catch (err) {
-                console.error("Screenshot error:", err);
-                alert("画像の生成に失敗しました。");
-                btn.innerText = originalText;
-                btn.disabled = false;
-            }
+            } catch (err) { alert("失敗しました"); }
         }
     };
 
     State.load(); UI.init();
 
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('PWA登録成功！', reg.scope))
-                .catch(err => console.log('PWA登録失敗:', err));
-        });
+        window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
     }
 });
