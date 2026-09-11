@@ -175,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 actual: ""        
             };
             
-            // トレンド・4週間分分析のため、保存期間を40日分に拡張
             const keys = Object.keys(this.data.stores[store].categories[cat].history).sort((a,b) => b.localeCompare(a));
             if (keys.length > 40) {
                 keys.slice(40).forEach(k => delete this.data.stores[store].categories[cat].history[k]);
@@ -249,12 +248,17 @@ document.addEventListener("DOMContentLoaded", () => {
         getTrendCoeff(store, cat) {
             let coeff = 1.0;
             let msg = "";
-            if (!["調理麺", "カップ麺", "スパゲティパスタ"].includes(cat)) return { coeff, msg };
+            let trendStatus = "NONE"; // UP, DOWN, FLAT, NONE
+            let diffPercent = 0;
+
+            if (!["調理麺", "カップ麺", "スパゲティパスタ"].includes(cat)) {
+                return { coeff, msg, trendStatus, diffPercent };
+            }
 
             const history = State.data.stores[store]?.categories[cat]?.history;
-            if (!history) return { coeff, msg };
+            if (!history) return { coeff, msg, trendStatus, diffPercent };
 
-            const dates = Object.keys(history).sort((a, b) => b.localeCompare(b));
+            const dates = Object.keys(history).sort((a, b) => b.localeCompare(a));
             let recentActuals = [];
             let pastActuals = [];
 
@@ -274,18 +278,110 @@ document.addEventListener("DOMContentLoaded", () => {
                 const pastAvg = pastActuals.reduce((a, b) => a + b, 0) / pastActuals.length;
                 if (pastAvg > 0) {
                     const ratio = recentAvg / pastAvg;
+                    diffPercent = Math.round((ratio - 1.0) * 100);
+
                     if (ratio > 1.1) {
                         coeff = Math.min(1.2, 1.0 + ((ratio - 1.0) * 0.5));
                         msg = `📈 上昇トレンド検知: 直近の嗜好高まりを補正 (×${coeff.toFixed(2)})`;
+                        trendStatus = "UP";
                     } else if (ratio < 0.9) {
                         coeff = Math.max(0.8, 1.0 - ((1.0 - ratio) * 0.5));
                         msg = `📉 下降トレンド検知: 食べ飽き・嗜好の変化を補正 (×${coeff.toFixed(2)})`;
+                        trendStatus = "DOWN";
+                    } else {
+                        trendStatus = "FLAT";
                     }
                 }
             }
-            return { coeff, msg };
+            return { coeff, msg, trendStatus, diffPercent };
         }
     };
+
+    // 【新規】AI学習ステータスをリアルタイム目視化するダッシュボードモジュール
+    const AIStatusDashboard = {
+        render() {
+            const store = State.data.currentStore;
+            const cat = State.data.currentCategory;
+            const container = document.getElementById('aiDashboardContainer');
+            if (!container || !store || !cat) return;
+
+            const history = State.data.stores[store]?.categories[cat]?.history || {};
+            let learnedCount = 0;
+            let dayCounts = {sun:0, mon:0, tue:0, wed:0, thu:0, fri:0, sat:0};
+
+            Object.keys(history).forEach(dStr => {
+                const h = history[dStr];
+                if (h && typeof h === 'object' && h.isLearned && h.actual !== "") {
+                    learnedCount++;
+                    const dObj = new Date(dStr);
+                    const daysMap = ['sun','mon','tue','wed','thu','fri','sat'];
+                    dayCounts[daysMap[dObj.getDay()]]++;
+                }
+            });
+
+            const REQUIRED_TARGET = 28; // 4週間分
+            const progressPercent = Math.min(100, Math.round((learnedCount / REQUIRED_TARGET) * 100));
+
+            // トレンド情報の取得
+            const trendInfo = TrendEngine.getTrendCoeff(store, cat);
+            let trendBadge = `<span style="color:#757575; font-weight:bold;">➡️ 安定 (変動なし)</span>`;
+            if (trendInfo.trendStatus === "UP") {
+                trendBadge = `<span style="color:#d32f2f; font-weight:900;">📈 上昇傾向 (+${trendInfo.diffPercent}%)</span>`;
+            } else if (trendInfo.trendStatus === "DOWN") {
+                trendBadge = `<span style="color:#1976d2; font-weight:900;">📉 下降傾向 (${trendInfo.diffPercent}%)</span>`;
+            } else if (!["調理麺", "カップ麺", "スパゲティパスタ"].includes(cat)) {
+                trendBadge = `<span style="color:#9e9e9e; font-size:0.8rem;">(麺類のみ解析)</span>`;
+            }
+
+            const currentLearnedCoeff = State.data.stores[store]?.categories[cat]?.learnedCoeff || 1.0;
+
+            let html = `
+                <div style="background: var(--card-bg, #ffffff); border: 1px solid var(--border, #e0e0e0); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px;">
+                        <span style="font-weight: 900; font-size: 0.95rem; color: var(--primary-dark, #333); display:flex; align-items:center; gap:6px;">
+                            🤖 AI学習状況ダッシュボード <span style="font-size:0.8rem; color:#666; font-weight:normal;">[${cat}]</span>
+                        </span>
+                        <span style="font-size:0.85rem; font-weight:bold; color:var(--seven-green-dark, #2e7d32);">
+                            蓄積データ: ${learnedCount} 日分
+                        </span>
+                    </div>
+
+                    <!-- プログレスバー -->
+                    <div style="margin-bottom: 12px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:#666; margin-bottom:4px;">
+                            <span>4週間(28日)目標進捗</span>
+                            <span><strong>${progressPercent}%</strong> (${learnedCount}/${REQUIRED_TARGET}日)</span>
+                        </div>
+                        <div style="width:100%; background:#e0e0e0; height:8px; border-radius:4px; overflow:hidden;">
+                            <div style="width:${progressPercent}%; background: linear-gradient(90deg, #ee7200, #2e7d32); height:100%; transition: width 0.4s ease;"></div>
+                        </div>
+                    </div>
+
+                    <!-- 分析ステータスグリッド -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+                        <div>
+                            <div style="color:#777; font-size:0.75rem;">嗜好トレンド判定</div>
+                            <div style="margin-top:2px;">${trendBadge}</div>
+                        </div>
+                        <div>
+                            <div style="color:#777; font-size:0.75rem;">店舗AI個別補正値</div>
+                            <div style="margin-top:2px; font-weight:bold; color:#333;">× ${currentLearnedCoeff.toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <!-- 曜日別収集状況 -->
+                    <div style="margin-top: 10px; font-size: 0.75rem; color: #666; display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 8px; border-radius:6px; border:1px solid #f0f0f0;">
+                        <span style="font-weight:bold; color:#555;">曜日別学習数:</span>
+                        <span>月:${dayCounts.mon} 火:${dayCounts.tue} 水:${dayCounts.wed} 木:${dayCounts.thu} 金:${dayCounts.fri} 土:${dayCounts.sat} 日:${dayCounts.sun}</span>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            container.style.display = 'block';
+        }
+    };
+    window.AIStatusDashboard = AIStatusDashboard;
 
     const AIOptimizer = {
         checkAndRenderProposal() {
@@ -313,7 +409,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // 【変更】4週間分（28件以上）の学習データ蓄積をトリガーに変更
             const REQUIRED_OPTIMIZE_COUNT = 28;
 
             if (learnedCount >= REQUIRED_OPTIMIZE_COUNT) {
@@ -442,11 +537,19 @@ document.addEventListener("DOMContentLoaded", () => {
             this.renderStoreDatalist();
             
             const targetArea = document.querySelector('.simulator-card') || document.getElementById('resultArea');
-            if (targetArea && !document.getElementById('aiProposalContainer')) {
-                const propDiv = document.createElement('div');
-                propDiv.id = 'aiProposalContainer';
-                propDiv.style.display = 'none';
-                targetArea.parentNode.insertBefore(propDiv, targetArea);
+            if (targetArea) {
+                if (!document.getElementById('aiDashboardContainer')) {
+                    const dashDiv = document.createElement('div');
+                    dashDiv.id = 'aiDashboardContainer';
+                    dashDiv.style.display = 'none';
+                    targetArea.parentNode.insertBefore(dashDiv, targetArea);
+                }
+                if (!document.getElementById('aiProposalContainer')) {
+                    const propDiv = document.createElement('div');
+                    propDiv.id = 'aiProposalContainer';
+                    propDiv.style.display = 'none';
+                    targetArea.parentNode.insertBefore(propDiv, targetArea);
+                }
             }
 
             if (State.data.currentCategory) {
@@ -458,6 +561,8 @@ document.addEventListener("DOMContentLoaded", () => {
             Weather.restoreStoreWeather();
             Events.renderList();
             this.setupEventListeners();
+            
+            AIStatusDashboard.render();
             AIOptimizer.checkAndRenderProposal();
         },
 
@@ -473,6 +578,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (newStore && newStore.trim() !== "") {
                         State.data.currentStore = newStore.trim(); State.ensureStore(State.data.currentStore); State.save();
                         this.renderStoreDatalist(); this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Events.renderList(); Logic.calculate(false, false);
+                        AIStatusDashboard.render();
                         AIOptimizer.checkAndRenderProposal();
                     } else {
                         storeSelect.value = State.data.currentStore || "";
@@ -480,6 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     State.data.currentStore = storeSelect.value; State.save();
                     this.restoreCategoryInputs(); Weather.restoreStoreWeather(); Events.renderList(); Logic.calculate(false, false);
+                    AIStatusDashboard.render();
                     AIOptimizer.checkAndRenderProposal();
                 }
             });
@@ -746,6 +853,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 Logic.calculate(false, false);
             }
+            AIStatusDashboard.render();
             AIOptimizer.checkAndRenderProposal();
         },
 
@@ -1091,6 +1199,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 UI.updateLearnHistoryUI();
                 UI.restoreCategoryInputs();
                 this.calculate(false, false);
+                AIStatusDashboard.render();
                 AIOptimizer.checkAndRenderProposal();
             }
         },
@@ -1137,6 +1246,7 @@ document.addEventListener("DOMContentLoaded", () => {
                          this.calculate(false, false);
                          ChartModule.render(State.data.stores[store].categories[cat].history || {});
                          UI.updateLearnHistoryUI();
+                         AIStatusDashboard.render();
                          AIOptimizer.checkAndRenderProposal();
                          return;
                      } else { return; }
@@ -1177,6 +1287,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             UI.onChangeLearnDate();
             UI.updateLearnHistoryUI();
+            AIStatusDashboard.render();
             AIOptimizer.checkAndRenderProposal();
         },
 
@@ -1441,7 +1552,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    State.load(); UI.init();b
+    State.load(); UI.init();
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
