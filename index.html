@@ -12,11 +12,11 @@
             --seven-red: #ee7200;
             --seven-green: #149c40;
             --seven-blue: #00a1e9;
-            --bg-color: #e9ecef; /* メリハリを出すための少し濃い背景色 */
+            --bg-color: #e9ecef;
             --card-bg: #ffffff;
-            --text-main: #212529; /* くっきりとした黒 */
-            --text-sub: #495057; /* 読みやすい濃いグレー */
-            --border: #ced4da; /* はっきりとした枠線 */
+            --text-main: #212529;
+            --text-sub: #495057;
+            --border: #ced4da;
         }
 
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
@@ -27,7 +27,6 @@
             -webkit-text-size-adjust: 100%;
         }
 
-        /* くっきりした白いヘッダーに戻し、PROを赤バッジ風に */
         .header {
             background-color: var(--card-bg);
             padding: 16px;
@@ -71,7 +70,6 @@
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 0.95rem; font-weight: bold; color: var(--text-main); margin-bottom: 8px; }
         
-        /* 入力欄の枠線をくっきり濃く */
         input, select {
             width: 100%; min-height: 50px; padding: 12px; font-size: 1.1rem; font-weight: bold;
             border: 2px solid #adb5bd; border-radius: 8px; background-color: #ffffff; color: var(--text-main);
@@ -140,7 +138,6 @@
                 <div class="grid-2">
                     <div class="form-group">
                         <label>発注分類</label>
-                        <!-- 元の順番に完全復旧 -->
                         <select id="categoryName" style="border: 2px solid var(--seven-red); font-size: 1.2rem;">
                             <option value="">-- 選択 --</option>
                             <option value="おにぎり">おにぎり</option>
@@ -148,11 +145,11 @@
                             <option value="寿司">寿司</option>
                             <option value="弁当">弁当</option>
                             <option value="チルド弁当">チルド弁当</option>
+                            <option value="サンドイッチ">サンドイッチ</option>
+                            <option value="ロール">ロール</option>
                             <option value="調理麺">調理麺</option>
                             <option value="スパゲティパスタ">スパゲティパスタ</option>
                             <option value="グラタンドリア">グラタンドリア</option>
-                            <option value="サンドイッチ">サンドイッチ</option>
-                            <option value="ロール">ロール</option>
                             <option value="惣菜">惣菜</option>
                             <option value="サラダ">サラダ</option>
                             <option value="カップデリ">カップデリ</option>
@@ -263,11 +260,11 @@
                         <option value="寿司">寿司</option>
                         <option value="弁当">弁当</option>
                         <option value="チルド弁当">チルド弁当</option>
+                        <option value="サンドイッチ">サンドイッチ</option>
+                        <option value="ロール">ロール</option>
                         <option value="調理麺">調理麺</option>
                         <option value="スパゲティパスタ">スパゲティパスタ</option>
                         <option value="グラタンドリア">グラタンドリア</option>
-                        <option value="サンドイッチ">サンドイッチ</option>
-                        <option value="ロール">ロール</option>
                         <option value="惣菜">惣菜</option>
                         <option value="サラダ">サラダ</option>
                         <option value="カップデリ">カップデリ</option>
