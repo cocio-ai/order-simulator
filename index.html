@@ -27,6 +27,13 @@
             -webkit-text-size-adjust: 100%;
         }
 
+        /* 画面上部にヘッダーとタブをまとめて固定 */
+        .sticky-top-area {
+            position: sticky; top: 0; z-index: 100;
+            background-color: var(--bg-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
         .header {
             background-color: var(--card-bg);
             padding: 16px;
@@ -35,31 +42,25 @@
             font-weight: 900;
             color: var(--seven-green);
             border-bottom: 2px solid var(--border);
-            position: sticky; top: 0; z-index: 100;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .header span {
-            background-color: var(--seven-red);
-            color: white;
-            font-size: 1rem;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 6px;
-            vertical-align: middle;
+            background-color: var(--seven-red); color: white;
+            font-size: 1rem; padding: 2px 6px; border-radius: 4px;
+            margin-left: 6px; vertical-align: middle;
         }
-
-        .container { max-width: 800px; margin: 0 auto; padding: 16px; }
 
         .tabs {
-            display: flex; background: #dee2e6; border-radius: 8px; padding: 4px; margin-bottom: 20px;
+            display: flex; background: #dee2e6; padding: 6px;
         }
         .tab-button {
-            flex: 1; text-align: center; padding: 14px 8px; font-size: 1.05rem; font-weight: bold;
+            flex: 1; text-align: center; padding: 12px 4px; font-size: 1rem; font-weight: bold;
             color: var(--text-sub); border-radius: 6px; cursor: pointer; transition: 0.2s;
         }
         .tab-button.active { background: var(--card-bg); color: var(--seven-red); box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid var(--seven-red); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 20px 16px; }
 
         .card {
             background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 20px;
@@ -107,22 +108,9 @@
 </head>
 <body>
 
-    <div class="header">発注simulator<span>PRO</span></div>
-
-    <div class="container">
-        <!-- 共通エリア設定 -->
-        <div class="card" style="background-color: #fff9f2; border: 2px solid var(--seven-red);">
-            <div style="font-weight:bold; color:var(--seven-red); margin-bottom:12px; font-size: 1.1rem;">▼ 店舗とエリア設定</div>
-            <div class="grid-2">
-                <div class="form-group" style="margin-bottom:0;"><label>店舗名</label><select id="storeNameSelect"></select></div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label>天気エリア (気象庁)</label>
-                    <select id="prefecture" style="margin-bottom: 8px;"></select>
-                    <select id="cityArea"></select>
-                </div>
-            </div>
-        </div>
-
+    <!-- ヘッダーとタブを最上部に固定 -->
+    <div class="sticky-top-area">
+        <div class="header">発注simulator<span>PRO</span></div>
         <div class="tabs" id="tabContainer" data-active-tab="simulator">
             <div class="tab-button active" data-tab="simulator">発注計算</div>
             <div class="tab-button" data-tab="learning">AI分析</div>
@@ -130,10 +118,25 @@
             <div class="tab-button" data-tab="all">一括確認</div>
             <div class="tab-button" data-tab="settings">設定</div>
         </div>
+    </div>
 
+    <div class="container">
         <!-- ================= シミュレータータブ ================= -->
         <div id="tab-simulator" class="tab-content active simulator-card">
             
+            <!-- 店舗とエリア設定をシミュレータタブ内のみに配置 -->
+            <div class="card" style="background-color: #fff9f2; border: 2px solid var(--seven-red);">
+                <div style="font-weight:bold; color:var(--seven-red); margin-bottom:12px; font-size: 1.1rem;">▼ 店舗とエリア設定</div>
+                <div class="grid-2">
+                    <div class="form-group" style="margin-bottom:0;"><label>店舗名</label><select id="storeNameSelect"></select></div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>天気エリア (気象庁)</label>
+                        <select id="prefecture" style="margin-bottom: 8px;"></select>
+                        <select id="cityArea"></select>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="grid-2">
                     <div class="form-group">
@@ -244,6 +247,10 @@
                     </div>
                 </div>
 
+                <!-- AI分析情報エリア（一番下に配置） -->
+                <div id="aiProposalContainer" style="display:none; margin-top: 24px;"></div>
+                <div id="aiDashboardContainer" style="margin-top: 24px;"></div>
+
                 <button class="btn btn-primary" id="btn-calculate" style="margin-top: 24px;">計算する</button>
             </div>
         </div>
@@ -252,6 +259,13 @@
         <div id="tab-learning" class="tab-content">
             <div class="card">
                 <div style="font-size: 1.3rem; font-weight: bold; border-bottom: 3px solid var(--seven-red); padding-bottom: 8px; margin-bottom: 16px;">実売データの学習</div>
+                
+                <!-- 過去の予測履歴を一番上に移動 -->
+                <div class="form-group">
+                    <label>過去の予測履歴</label>
+                    <select id="learnDateSelect"></select>
+                </div>
+
                 <div class="form-group">
                     <label>対象の分類</label>
                     <select id="learnCategorySelect">
@@ -271,7 +285,6 @@
                         <option value="カップ麺">カップ麺</option>
                     </select>
                 </div>
-                <div class="form-group"><label>過去の予測履歴</label><select id="learnDateSelect"></select></div>
                 
                 <div class="grid-2">
                     <div class="form-group"><label>AI予測数</label><input type="number" id="fbPredicted" inputmode="decimal"></div>
