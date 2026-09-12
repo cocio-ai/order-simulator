@@ -230,14 +230,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const AIStatusDashboard = {
         render() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
-            const targetArea = document.querySelector('.simulator-card') || document.getElementById('resultArea');
-            if (!targetArea || !store || !cat) return;
-
-            let container = document.getElementById('aiDashboardContainer');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'aiDashboardContainer';
-                targetArea.parentNode.insertBefore(container, targetArea);
+            const container = document.getElementById('aiDashboardContainer');
+            if (!container) return; // コンテナが存在しない場合は処理しない
+            
+            if (!store || !cat) {
+                container.innerHTML = '';
+                return;
             }
 
             const history = State.data.stores[store]?.categories[cat]?.history || {};
@@ -257,9 +255,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const currentLearnedCoeff = State.data.stores[store]?.categories[cat]?.learnedCoeff || 1.0;
 
             container.innerHTML = `
-                <div class="card" style="padding:16px; border: 2px solid var(--border);">
+                <div class="card" style="padding:16px; border: 2px solid var(--border); margin-bottom: 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
-                        <span style="font-weight:bold; font-size: 1.1rem;">🤖 AI分析状況 <span style="font-size:0.9rem; color:var(--text-sub);">[${cat}]</span></span>
+                        <span style="font-weight:bold; font-size: 1.1rem;">🤖 AI分析情報 <span style="font-size:0.9rem; color:var(--text-sub);">[${cat}]</span></span>
                         <span style="font-weight:bold; color:var(--seven-green);">蓄積データ: ${learnedCount}件</span>
                     </div>
                     <div style="margin-bottom: 16px;">
@@ -290,14 +288,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const AIOptimizer = {
         checkAndRenderProposal() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
-            const targetArea = document.querySelector('.simulator-card') || document.getElementById('resultArea');
-            if (!targetArea || !store || !cat) return;
+            const container = document.getElementById('aiProposalContainer');
+            if (!container) return;
 
-            let container = document.getElementById('aiProposalContainer');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'aiProposalContainer';
-                targetArea.parentNode.insertBefore(container, targetArea);
+            if (!store || !cat) {
+                container.style.display = 'none';
+                return;
             }
 
             const history = State.data.stores[store]?.categories[cat]?.history || {};
@@ -327,7 +323,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (hasDataForCalc) {
                     window._pendingAiRatios = newRatios;
                     container.innerHTML = `
-                        <div class="card" style="background: #fff5e6; border: 2px solid var(--seven-red);">
+                        <div class="card" style="background: #fff5e6; border: 2px solid var(--seven-red); margin-bottom: 0;">
                             <div style="font-weight:bold; font-size: 1.1rem; color: var(--seven-red); margin-bottom: 8px;">🧠 AI月間最適化の提案</div>
                             <div style="font-size: 0.95rem; margin-bottom: 16px;">約1ヶ月のデータに基づき、曜日の売上比率を自動調整しました。</div>
                             <button onclick="AIOptimizer.applyProposal()" class="btn btn-primary">曜日係数を一括更新する</button>
@@ -359,7 +355,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const canvas = document.getElementById('learningChart');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            const dates = Object.keys(history).sort((a, b) => a.localeCompare(b));
+            const dates = Object.keys(history).sort((a, b) => b.localeCompare(a));
             
             const labels = dates.map(d => `${new Date(d).getMonth()+1}/${new Date(d).getDate()}`);
             const predData = dates.map(d => typeof history[d] === 'object' ? history[d].pred : history[d]);
@@ -445,7 +441,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.getElementById(id).addEventListener('change', () => Logic.calculate(false, false));
             });
 
-            // 【修正】ここでボタンのクリックイベントを再追加しました
             document.getElementById('btn-weather-tmw').addEventListener('click', () => Weather.fetchWeather(1));
             document.getElementById('btn-weather-dat').addEventListener('click', () => Weather.fetchWeather(2));
             
@@ -496,6 +491,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     ChartModule.render(State.data.stores[store].categories[cat].history || {});
                 }
             }
+            // タブ切り替え時にトップへスクロール
+            window.scrollTo(0,0);
         },
 
         updateLearnHistoryUI() {
