@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI発注シミュレーター</title>
+    <title>発注simulator PRO</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
@@ -12,11 +12,11 @@
             --seven-red: #ee7200;
             --seven-green: #149c40;
             --seven-blue: #00a1e9;
-            --bg-color: #f2f2f7; /* iOSネイティブの背景色 */
+            --bg-color: #e9ecef; /* メリハリを出すための少し濃い背景色 */
             --card-bg: #ffffff;
-            --text-main: #1c1c1e;
-            --text-sub: #8e8e93;
-            --border: #c6c6c8;
+            --text-main: #212529; /* くっきりとした黒 */
+            --text-sub: #495057; /* 読みやすい濃いグレー */
+            --border: #ced4da; /* はっきりとした枠線 */
         }
 
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
@@ -27,79 +27,94 @@
             -webkit-text-size-adjust: 100%;
         }
 
+        /* くっきりした白いヘッダーに戻し、PROを赤バッジ風に */
         .header {
-            background-color: var(--card-bg); padding: 16px;
-            text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--seven-green);
-            border-bottom: 1px solid var(--border);
+            background-color: var(--card-bg);
+            padding: 16px;
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: var(--seven-green);
+            border-bottom: 2px solid var(--border);
             position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .header span {
+            background-color: var(--seven-red);
+            color: white;
+            font-size: 1rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+            vertical-align: middle;
         }
 
         .container { max-width: 800px; margin: 0 auto; padding: 16px; }
 
-        /* iPad向けタップしやすいタブ */
         .tabs {
-            display: flex; background: #e5e5ea; border-radius: 8px; padding: 4px; margin-bottom: 20px;
+            display: flex; background: #dee2e6; border-radius: 8px; padding: 4px; margin-bottom: 20px;
         }
         .tab-button {
-            flex: 1; text-align: center; padding: 12px 8px; font-size: 1rem; font-weight: bold;
+            flex: 1; text-align: center; padding: 14px 8px; font-size: 1.05rem; font-weight: bold;
             color: var(--text-sub); border-radius: 6px; cursor: pointer; transition: 0.2s;
         }
-        .tab-button.active { background: var(--card-bg); color: var(--text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .tab-button.active { background: var(--card-bg); color: var(--seven-red); box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid var(--seven-red); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* カードレイアウト */
         .card {
-            background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            border: 1px solid #dee2e6;
         }
 
-        /* フォーム部品（iPad最適化：タッチ領域44px以上） */
         .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 0.9rem; font-weight: bold; color: var(--text-sub); margin-bottom: 8px; }
+        .form-group label { display: block; font-size: 0.95rem; font-weight: bold; color: var(--text-main); margin-bottom: 8px; }
+        
+        /* 入力欄の枠線をくっきり濃く */
         input, select {
-            width: 100%; min-height: 48px; padding: 12px; font-size: 1.1rem;
-            border: 1px solid var(--border); border-radius: 8px; background-color: #fafafa;
+            width: 100%; min-height: 50px; padding: 12px; font-size: 1.1rem; font-weight: bold;
+            border: 2px solid #adb5bd; border-radius: 8px; background-color: #ffffff; color: var(--text-main);
         }
-        input:focus, select:focus { outline: none; border-color: var(--seven-red); background-color: #fff; }
-        input[readonly] { background-color: #e5e5ea; color: var(--text-sub); }
+        input:focus, select:focus { outline: none; border-color: var(--seven-blue); background-color: #f0f8ff; }
+        input[readonly] { background-color: #e9ecef; color: var(--text-sub); border: 1px solid var(--border); }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 
-        /* ボタン */
         .btn {
-            width: 100%; min-height: 52px; font-size: 1.2rem; font-weight: bold; border-radius: 10px;
+            width: 100%; min-height: 56px; font-size: 1.25rem; font-weight: bold; border-radius: 8px;
             border: none; cursor: pointer; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .btn-primary { background-color: var(--seven-red); color: white; }
         .btn-success { background-color: var(--seven-green); color: white; }
-        .btn-outline { background-color: white; border: 2px solid var(--border); color: var(--text-main); }
-        .btn:active { opacity: 0.7; }
+        .btn-outline { background-color: white; border: 2px solid var(--text-sub); color: var(--text-main); }
+        .btn:active { transform: translateY(2px); box-shadow: none; }
 
-        /* 曜日比率 */
         .day-ratio-container { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
-        .day-ratio-box { flex: 1; min-width: 60px; text-align: center; background: #f2f2f7; border-radius: 8px; padding: 8px 4px; border: 1px solid var(--border); }
-        .day-ratio-box label { font-size: 0.9rem; font-weight: bold; margin-bottom: 4px; display: block; }
-        .day-ratio-box select { min-height: 36px; padding: 4px; font-size: 1rem; border: none; background: transparent; text-align: center; }
+        .day-ratio-box { flex: 1; min-width: 60px; text-align: center; background: #f8f9fa; border-radius: 8px; padding: 8px 4px; border: 1px solid var(--border); }
+        .day-ratio-box label { font-size: 0.95rem; font-weight: bold; margin-bottom: 4px; display: block; }
+        .day-ratio-box select { min-height: 40px; padding: 4px; font-size: 1.1rem; border: none; background: transparent; text-align: center; color: var(--text-main); font-weight: bold;}
+        .day-sat label { color: var(--seven-blue); }
+        .day-sun label { color: var(--seven-red); }
 
-        /* スティッキー結果バー */
         #stickyResultBar {
-            position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-            border-top: 1px solid var(--border); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1); transform: translateY(100%); transition: transform 0.3s; z-index: 1000;
+            position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.98);
+            border-top: 3px solid var(--border); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.15); transform: translateY(100%); transition: transform 0.3s; z-index: 1000;
         }
         #stickyResultBar.show { transform: translateY(0); }
     </style>
 </head>
 <body>
 
-    <div class="header">発注シミュレーター</div>
+    <div class="header">発注simulator<span>PRO</span></div>
 
     <div class="container">
         <!-- 共通エリア設定 -->
         <div class="card" style="background-color: #fff9f2; border: 2px solid var(--seven-red);">
-            <div style="font-weight:bold; color:var(--seven-red); margin-bottom:12px;">▼ 必須：店舗とエリアを選択してください</div>
+            <div style="font-weight:bold; color:var(--seven-red); margin-bottom:12px; font-size: 1.1rem;">▼ 店舗とエリア設定</div>
             <div class="grid-2">
                 <div class="form-group" style="margin-bottom:0;"><label>店舗名</label><select id="storeNameSelect"></select></div>
                 <div class="form-group" style="margin-bottom:0;">
@@ -125,14 +140,23 @@
                 <div class="grid-2">
                     <div class="form-group">
                         <label>発注分類</label>
-                        <select id="categoryName" style="border: 2px solid var(--text-main); font-weight:bold;">
+                        <!-- 元の順番に完全復旧 -->
+                        <select id="categoryName" style="border: 2px solid var(--seven-red); font-size: 1.2rem;">
                             <option value="">-- 選択 --</option>
-                            <option value="おにぎり">おにぎり</option><option value="こだわりおにぎり">こだわりおにぎり</option>
-                            <option value="寿司">寿司</option><option value="弁当">弁当</option><option value="チルド弁当">チルド弁当</option>
-                            <option value="調理麺">調理麺</option><option value="スパゲティパスタ">スパゲティパスタ</option>
-                            <option value="グラタンドリア">グラタンドリア</option><option value="サンドイッチ">サンドイッチ</option>
-                            <option value="ロール">ロール</option><option value="惣菜">惣菜</option>
-                            <option value="サラダ">サラダ</option><option value="カップデリ">カップデリ</option><option value="カップ麺">カップ麺</option>
+                            <option value="おにぎり">おにぎり</option>
+                            <option value="こだわりおにぎり">こだわりおにぎり</option>
+                            <option value="寿司">寿司</option>
+                            <option value="弁当">弁当</option>
+                            <option value="チルド弁当">チルド弁当</option>
+                            <option value="調理麺">調理麺</option>
+                            <option value="スパゲティパスタ">スパゲティパスタ</option>
+                            <option value="グラタンドリア">グラタンドリア</option>
+                            <option value="サンドイッチ">サンドイッチ</option>
+                            <option value="ロール">ロール</option>
+                            <option value="惣菜">惣菜</option>
+                            <option value="サラダ">サラダ</option>
+                            <option value="カップデリ">カップデリ</option>
+                            <option value="カップ麺">カップ麺</option>
                         </select>
                     </div>
                     <div class="form-group"><label>鮮度管理ロジック</label><input type="hidden" id="freshnessTime" value="0"><input type="text" id="freshnessDisplay" readonly value="選択してください"></div>
@@ -140,13 +164,13 @@
 
                 <div class="grid-2">
                     <div class="form-group"><label>平均販売数 (個)</label><input type="number" id="avgSales" inputmode="decimal"></div>
-                    <div class="form-group"><label id="stockLabelText">現在庫</label><input type="number" id="currentStock" inputmode="numeric" style="font-weight:bold;"></div>
+                    <div class="form-group"><label id="stockLabelText">現在庫</label><input type="number" id="currentStock" inputmode="numeric" style="border-color: var(--seven-blue);"></div>
                 </div>
                 
                 <div class="grid-2" id="displayInputArea" style="display:none;"><div class="form-group"><label>最低陳列数</label><input type="number" id="minDisplayQty" inputmode="numeric" value="0"></div></div>
 
-                <details style="margin-top: 16px; padding: 12px; background: #f2f2f7; border-radius: 8px;">
-                    <summary style="cursor:pointer; font-weight:bold; font-size:1rem; outline:none;">▶ 詳細設定 (廃棄・欠品率)</summary>
+                <details style="margin-top: 16px; padding: 12px; background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px;">
+                    <summary style="cursor:pointer; font-weight:bold; font-size:1.05rem; outline:none; color: var(--text-main);">▶ 詳細設定 (廃棄・欠品率)</summary>
                     <div class="grid-2" style="margin-top: 16px;">
                         <div class="form-group"><label>上限販売数</label><input type="number" id="maxSales" inputmode="decimal"></div>
                         <div class="form-group"><label>下限販売数</label><input type="number" id="minSales" inputmode="decimal"></div>
@@ -157,13 +181,13 @@
             </div>
 
             <div class="card">
-                <label style="font-size:1rem; font-weight:bold; margin-bottom:12px; display:block;">曜日ごとの売上比率 (1.0=平均)</label>
+                <label style="font-size:1.1rem; font-weight:bold; margin-bottom:12px; display:block;">曜日ごとの売上比率 (1.0=平均)</label>
                 <div class="day-ratio-container" id="dayRatioBoxes"></div>
                 <div class="grid-2" style="margin-top:20px;">
                     <div class="form-group"><label>分類の勢い (手動)</label><input type="number" id="categoryCoeff" step="0.1" value="1.0" inputmode="decimal"></div>
                     <div class="form-group">
                         <label>AI学習補正 (自動)</label>
-                        <div style="min-height:48px; border:1px solid var(--border); border-radius:8px; background:#e5e5ea; display:flex; align-items:center; justify-content:center; font-size:1.2rem; font-weight:bold;">
+                        <div style="min-height:50px; border:2px solid var(--border); border-radius:8px; background:#e9ecef; display:flex; align-items:center; justify-content:center; font-size:1.3rem; font-weight:bold; color: var(--text-main);">
                             × <span id="currentLearnedCoeffText">1.00</span>
                         </div>
                     </div>
@@ -180,14 +204,13 @@
                         </select>
                     </div>
                 </div>
-                <div id="orderDeadlineText" style="font-size:0.9rem; color:var(--seven-red); font-weight:bold; margin-top:-8px; margin-bottom:16px;"></div>
+                <div id="orderDeadlineText" style="font-size:1rem; color:var(--seven-red); font-weight:bold; margin-top:-4px; margin-bottom:16px;"></div>
 
-                <!-- 天気ボタン -->
                 <div class="grid-2" style="margin-bottom:16px;">
-                    <button class="btn btn-outline" id="btn-weather-tmw" style="font-size:1rem;">🌤 明日の天気を取得</button>
-                    <button class="btn btn-outline" id="btn-weather-dat" style="font-size:1rem;">🌦 明後日の天気を取得</button>
+                    <button class="btn btn-outline" id="btn-weather-tmw" style="border-color: var(--seven-blue);">🌤 明日の天気を取得</button>
+                    <button class="btn btn-outline" id="btn-weather-dat" style="border-color: var(--seven-blue);">🌦 明後日の天気を取得</button>
                 </div>
-                <div id="weather-display" style="display:none; text-align:center; padding:12px; font-weight:bold; font-size:1.2rem; background:#e1f5fe; border-radius:8px; margin-bottom:16px; border: 1px solid #81d4fa;"></div>
+                <div id="weather-display" style="display:none; text-align:center; padding:12px; font-weight:bold; font-size:1.3rem; background:#e1f5fe; border-radius:8px; margin-bottom:16px; border: 2px solid var(--seven-blue); color: var(--seven-blue);"></div>
 
                 <div class="grid-3">
                     <div class="form-group"><label>最高気温(℃)</label><input type="number" id="maxTemp" inputmode="decimal"></div>
@@ -201,23 +224,23 @@
                 </div>
 
                 <!-- 計算結果エリア -->
-                <div id="resultArea" style="display: none; margin-top:24px; background: #fff5e6; border: 3px solid var(--seven-red); border-radius: 12px; padding: 20px;">
-                    <div style="font-weight: bold; font-size: 1.4rem; border-bottom: 2px solid var(--seven-red); padding-bottom: 8px; margin-bottom: 16px;">
+                <div id="resultArea" style="display: none; margin-top:24px; background: #fff9f2; border: 3px solid var(--seven-red); border-radius: 12px; padding: 20px;">
+                    <div style="font-weight: 900; font-size: 1.6rem; border-bottom: 2px solid var(--seven-red); padding-bottom: 8px; margin-bottom: 16px; color: var(--text-main);">
                         <span id="resCategory"></span>
                     </div>
                     <div class="grid-2" style="text-align: center; align-items: flex-end; margin-bottom: 16px;">
                         <div>
-                            <div style="font-size:1rem; color:var(--text-sub); font-weight:bold;">販売予測数</div>
-                            <div style="font-size:2rem; font-weight:bold; color:var(--text-main);"><span id="resAdjSales"></span> <span style="font-size:1.2rem;">個</span></div>
+                            <div style="font-size:1.1rem; color:var(--text-sub); font-weight:bold;">販売予測数</div>
+                            <div style="font-size:2.2rem; font-weight:900; color:var(--text-main);"><span id="resAdjSales"></span> <span style="font-size:1.2rem;">個</span></div>
                         </div>
                         <div>
-                            <div style="font-size:1.2rem; color:var(--seven-red); font-weight:bold;">発注目安数</div>
-                            <div style="font-size:3.5rem; font-weight:900; color:var(--seven-red); line-height:1;"><span id="resOrderQty"></span><span style="font-size:1.5rem; color:var(--text-main);"> 個</span></div>
+                            <div style="font-size:1.3rem; color:var(--seven-red); font-weight:bold;">発注目安数</div>
+                            <div style="font-size:3.8rem; font-weight:900; color:var(--seven-red); line-height:1;"><span id="resOrderQty"></span><span style="font-size:1.5rem; color:var(--text-main);"> 個</span></div>
                         </div>
                     </div>
-                    <div style="font-size: 1rem; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="font-size: 1.1rem; background: #ffffff; padding: 12px; border-radius: 8px; border: 2px solid var(--border);">
                         基準 <span id="resDayRatio" style="font-weight:bold;"></span> 倍 <span id="resShortageBoost" style="color:var(--seven-red);"></span><br>
-                        <span id="resMultipliers" style="font-size:0.85rem; color:var(--text-sub); display:block; margin-top:4px;"></span>
+                        <span id="resMultipliers" style="font-size:0.95rem; color:var(--text-sub); display:block; margin-top:4px; font-weight: bold;"></span>
                         <div id="resEventMessage" style="color:var(--seven-green); font-weight:bold; margin-top:8px; display:none;"></div>
                         <div id="resLearningMessage" style="font-weight:bold; margin-top:8px; display:none;"></div>
                         <div id="resTempMessage" style="color:var(--seven-blue); font-weight:bold; margin-top:8px;"></div>
@@ -231,16 +254,24 @@
         <!-- ================= AI学習・分析タブ ================= -->
         <div id="tab-learning" class="tab-content">
             <div class="card">
-                <div style="font-size: 1.2rem; font-weight: bold; border-bottom: 2px solid var(--seven-red); padding-bottom: 8px; margin-bottom: 16px;">実売データの学習</div>
+                <div style="font-size: 1.3rem; font-weight: bold; border-bottom: 3px solid var(--seven-red); padding-bottom: 8px; margin-bottom: 16px;">実売データの学習</div>
                 <div class="form-group">
                     <label>対象の分類</label>
                     <select id="learnCategorySelect">
-                        <option value="おにぎり">おにぎり</option><option value="こだわりおにぎり">こだわりおにぎり</option>
-                        <option value="寿司">寿司</option><option value="弁当">弁当</option><option value="チルド弁当">チルド弁当</option>
-                        <option value="調理麺">調理麺</option><option value="スパゲティパスタ">スパゲティパスタ</option>
-                        <option value="グラタンドリア">グラタンドリア</option><option value="サンドイッチ">サンドイッチ</option>
-                        <option value="ロール">ロール</option><option value="惣菜">惣菜</option>
-                        <option value="サラダ">サラダ</option><option value="カップデリ">カップデリ</option><option value="カップ麺">カップ麺</option>
+                        <option value="おにぎり">おにぎり</option>
+                        <option value="こだわりおにぎり">こだわりおにぎり</option>
+                        <option value="寿司">寿司</option>
+                        <option value="弁当">弁当</option>
+                        <option value="チルド弁当">チルド弁当</option>
+                        <option value="調理麺">調理麺</option>
+                        <option value="スパゲティパスタ">スパゲティパスタ</option>
+                        <option value="グラタンドリア">グラタンドリア</option>
+                        <option value="サンドイッチ">サンドイッチ</option>
+                        <option value="ロール">ロール</option>
+                        <option value="惣菜">惣菜</option>
+                        <option value="サラダ">サラダ</option>
+                        <option value="カップデリ">カップデリ</option>
+                        <option value="カップ麺">カップ麺</option>
                     </select>
                 </div>
                 <div class="form-group"><label>過去の予測履歴</label><select id="learnDateSelect"></select></div>
@@ -255,7 +286,7 @@
             </div>
 
             <div class="card">
-                <label style="font-weight:bold; font-size:1rem;">直近の予測推移グラフ</label>
+                <label style="font-weight:bold; font-size:1.1rem;">直近の予測推移グラフ</label>
                 <div style="height: 250px; width: 100%; margin-top:16px;"><canvas id="learningChart"></canvas></div>
                 <button class="btn btn-outline" id="btn-reset-learning" style="margin-top:24px; color:#d32f2f; border-color:#d32f2f;">この分類の学習データをリセット</button>
             </div>
@@ -264,7 +295,7 @@
         <!-- ================= イベントタブ ================= -->
         <div id="tab-events" class="tab-content">
             <div class="card">
-                <div style="font-size: 1.2rem; font-weight: bold; border-bottom: 2px solid var(--seven-red); padding-bottom: 8px; margin-bottom: 16px;">新規イベント登録</div>
+                <div style="font-size: 1.3rem; font-weight: bold; border-bottom: 3px solid var(--seven-red); padding-bottom: 8px; margin-bottom: 16px;">新規イベント登録</div>
                 <div class="form-group"><label>対象日付</label><input type="date" id="evDate"></div>
                 <div class="form-group"><label>イベント名</label><input type="text" id="evName" placeholder="例: 近隣の運動会"></div>
                 <div class="grid-2">
@@ -274,7 +305,7 @@
                 <button class="btn btn-primary" id="btn-add-event" style="margin-top:16px;">登録する</button>
             </div>
             <div class="card">
-                <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 16px;">登録済みのイベント</div>
+                <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 16px;">登録済みのイベント</div>
                 <div id="eventListContainer"></div>
             </div>
         </div>
@@ -284,15 +315,15 @@
             <div class="card">
                 <button class="btn btn-success" id="btn-refresh-all" style="margin-bottom:16px;">全分類を一括計算</button>
                 <button class="btn btn-outline" id="btn-share-image" style="margin-bottom:24px;">画像を保存・共有する</button>
-                <div id="allResultsContainer" style="background:#fff; padding:16px; border-radius:8px; border:1px solid var(--border);"></div>
+                <div id="allResultsContainer" style="background:#ffffff; padding:16px; border-radius:8px; border:2px solid var(--border);"></div>
             </div>
         </div>
 
         <!-- ================= 設定タブ ================= -->
         <div id="tab-settings" class="tab-content">
             <div class="card">
-                <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 16px;">データ引き継ぎ・復元</div>
-                <textarea id="backupCode" style="width:100%; height:120px; border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:16px; font-family:monospace; font-size:1.1rem;"></textarea>
+                <div style="font-size: 1.3rem; font-weight: bold; margin-bottom: 16px;">データ引き継ぎ・復元</div>
+                <textarea id="backupCode" style="width:100%; height:120px; border:2px solid var(--border); border-radius:8px; padding:12px; margin-bottom:16px; font-family:monospace; font-size:1.1rem;"></textarea>
                 <div class="grid-2">
                     <button class="btn btn-outline" id="btn-export">コードを作成</button>
                     <button class="btn btn-success" id="btn-import">データを復元</button>
@@ -307,12 +338,12 @@
     <!-- スティッキー結果バー -->
     <div id="stickyResultBar">
         <div>
-            <div style="font-size: 0.9rem; color: var(--text-sub); font-weight:bold;">販売予測</div>
-            <div style="font-size: 1.4rem; font-weight: bold;"><span id="stickyAdjSales"></span><span style="font-size:1rem;"> 個</span></div>
+            <div style="font-size: 1rem; color: var(--text-sub); font-weight:bold;">販売予測</div>
+            <div style="font-size: 1.6rem; font-weight: 900;"><span id="stickyAdjSales"></span><span style="font-size:1rem;"> 個</span></div>
         </div>
         <div style="text-align: right;">
-            <div style="font-size: 1rem; color: var(--seven-red); font-weight: bold;">発注目安数</div>
-            <div style="font-size: 2.2rem; font-weight: 900; color: var(--seven-red); line-height:1;"><span id="stickyOrderQty"></span><span style="font-size:1.2rem; color:var(--text-main);"> 個</span></div>
+            <div style="font-size: 1.1rem; color: var(--seven-red); font-weight: bold;">発注目安数</div>
+            <div style="font-size: 2.5rem; font-weight: 900; color: var(--seven-red); line-height:1;"><span id="stickyOrderQty"></span><span style="font-size:1.3rem; color:var(--text-main);"> 個</span></div>
         </div>
     </div>
 
