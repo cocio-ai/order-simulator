@@ -231,7 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
         render() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
             const container = document.getElementById('aiDashboardContainer');
-            if (!container) return; // コンテナが存在しない場合は処理しない
+            if (!container) return;
             
             if (!store || !cat) {
                 container.innerHTML = '';
@@ -491,7 +491,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     ChartModule.render(State.data.stores[store].categories[cat].history || {});
                 }
             }
-            // タブ切り替え時にトップへスクロール
             window.scrollTo(0,0);
         },
 
@@ -956,18 +955,85 @@ document.addEventListener("DOMContentLoaded", () => {
             container.innerHTML = html;
         },
         async shareScreenshot() {
-            const target = document.getElementById('screenshotTargetArea');
+            // 一括確認タブ内のリストを正しく指定するよう修正
+            const target = document.getElementById('allResultsContainer');
             if (!target) return;
-            document.getElementById('btn-share-image').innerText = "生成中...";
+            
+            const btn = document.getElementById('btn-share-image');
+            const originalText = btn.innerText;
+            btn.innerText = "画像を作成中...";
+            
             try {
+                // 描画の安定化のため少し待機
+                await new Promise(r => setTimeout(r, 200));
+                
                 const canvas = await html2canvas(target, { scale: 2, backgroundColor: "#ffffff" });
+                
                 canvas.toBlob(async (blob) => {
                     const file = new File([blob], `発注目安.png`, { type: "image/png" });
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file] });
-                    else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "発注目安.png"; a.click(); }
-                    document.getElementById('btn-share-image').innerText = "画像を保存・共有する";
+                    
+                    try {
+                        // iPadの標準シェア機能を試行
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({ files: [file] });
+                        } else {
+                            throw new Error("Share API is restricted");
+                        }
+                    } catch (shareErr) {
+                        // Safariのセキュリティ等でブロックされた場合のバックアップ
+                        // 画面上に画像をポップアップ表示して長押し保存を促す
+                        const imgUrl = canvas.toDataURL("image/png");
+                        
+                        const overlay = document.createElement('div');
+                        overlay.style.position = 'fixed';
+                        overlay.style.top = '0'; overlay.style.left = '0';
+                        overlay.style.width = '100vw'; overlay.style.height = '100vh';
+                        overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+                        overlay.style.zIndex = '9999';
+                        overlay.style.display = 'flex';
+                        overlay.style.flexDirection = 'column';
+                        overlay.style.justifyContent = 'center';
+                        overlay.style.alignItems = 'center';
+                        
+                        const msg = document.createElement('div');
+                        msg.innerText = "画像を長押しして「LINEで共有」または「写真に追加」を選んでください";
+                        msg.style.color = '#fff';
+                        msg.style.fontWeight = 'bold';
+                        msg.style.marginBottom = '20px';
+                        msg.style.fontSize = '1.1rem';
+                        msg.style.textAlign = 'center';
+                        msg.style.padding = '0 20px';
+                        
+                        const img = document.createElement('img');
+                        img.src = imgUrl;
+                        img.style.maxWidth = '90%';
+                        img.style.maxHeight = '70%';
+                        img.style.borderRadius = '8px';
+                        img.style.boxShadow = '0 4px 16px rgba(0,0,0,0.5)';
+                        
+                        const closeBtn = document.createElement('button');
+                        closeBtn.innerText = "閉じる";
+                        closeBtn.style.marginTop = '24px';
+                        closeBtn.style.padding = '14px 40px';
+                        closeBtn.style.fontSize = '1.2rem';
+                        closeBtn.style.fontWeight = 'bold';
+                        closeBtn.style.borderRadius = '8px';
+                        closeBtn.style.border = 'none';
+                        closeBtn.style.backgroundColor = '#ee7200';
+                        closeBtn.style.color = '#fff';
+                        closeBtn.onclick = () => document.body.removeChild(overlay);
+                        
+                        overlay.appendChild(msg);
+                        overlay.appendChild(img);
+                        overlay.appendChild(closeBtn);
+                        document.body.appendChild(overlay);
+                    }
+                    btn.innerText = originalText;
                 }, "image/png");
-            } catch (err) { alert("失敗しました"); }
+            } catch (err) {
+                alert("画像生成に失敗しました");
+                btn.innerText = originalText;
+            }
         }
     };
 
