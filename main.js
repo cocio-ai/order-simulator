@@ -675,16 +675,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 const res = await fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${prefCode}.json`);
                 if (!res.ok) throw new Error("Network response was not ok");
                 const data = await res.json();
-                let minT = "", maxT = "", weatherText = "不明", pop = 0; let tempFound = false;
+                
+                let weatherText = "不明", pop = 0;
+                let tMax = "", tMin = "";
+                let shortTermTemps = [];
 
                 for (let block of data) {
                     if (!block.timeSeries) continue;
                     for (let ts of block.timeSeries) {
                         let aData = ts.areas.find(a => a.area.code === areaCode) || ts.areas[0];
                         if (!aData) continue;
+                        
                         let idx = ts.timeDefines.findIndex(t => t.startsWith(tDateStr));
                         
-                        if (idx !== -1 && aData.weathers && aData.weathers[idx] && weatherText === "不明") weatherText = aData.weathers[idx];
+                        // 天気と降水確率の取得
+                        if (idx !== -1 && aData.weathers && aData.weathers[idx] && weatherText === "不明") {
+                            weatherText = aData.weathers[idx];
+                        }
                         if (aData.pops) {
                             ts.timeDefines.forEach((t, i) => {
                                 if (t.startsWith(tDateStr) && aData.pops[i]) {
@@ -693,17 +700,41 @@ document.addEventListener("DOMContentLoaded", () => {
                                 }
                             });
                         }
+                        
+                        // 週間予報枠からの最高・最低気温の取得
                         if (idx !== -1) {
-                            if (aData.tempsMax && aData.tempsMax[idx]) { maxT = aData.tempsMax[idx]; tempFound = true; }
-                            if (aData.tempsMin && aData.tempsMin[idx]) { minT = aData.tempsMin[idx]; tempFound = true; }
+                            if (aData.tempsMax && aData.tempsMax[idx] && aData.tempsMax[idx] !== "") { 
+                                tMax = aData.tempsMax[idx]; 
+                            }
+                            if (aData.tempsMin && aData.tempsMin[idx] && aData.tempsMin[idx] !== "") { 
+                                tMin = aData.tempsMin[idx]; 
+                            }
+                        }
+                        
+                        // 短期予報枠からの気温の取得（11時以降の更新でズレた場合用）
+                        if (aData.temps) {
+                            ts.timeDefines.forEach((t, i) => {
+                                if (t.startsWith(tDateStr) && aData.temps[i] && aData.temps[i] !== "") {
+                                    shortTermTemps.push(parseFloat(aData.temps[i]));
+                                }
+                            });
                         }
                     }
                 }
 
-                if (tempFound) {
-                    if (minT) document.getElementById('minTemp').value = Math.round(parseFloat(minT));
-                    if (maxT) document.getElementById('maxTemp').value = Math.round(parseFloat(maxT));
+                // 週間予報で取得できなかった場合、短期予報のデータから割り出す
+                if (!tMax && !tMin && shortTermTemps.length > 0) {
+                    if (shortTermTemps.length >= 2) {
+                        tMin = Math.min(...shortTermTemps);
+                        tMax = Math.max(...shortTermTemps);
+                    } else if (shortTermTemps.length === 1) {
+                        tMax = shortTermTemps[0]; // 1つしかない場合は日中の最高気温であることが多い
+                    }
                 }
+
+                if (tMin !== "") document.getElementById('minTemp').value = Math.round(parseFloat(tMin));
+                if (tMax !== "") document.getElementById('maxTemp').value = Math.round(parseFloat(tMax));
+                
                 document.getElementById('popRate').value = pop;
                 
                 let icon = '⛅';
@@ -955,7 +986,6 @@ document.addEventListener("DOMContentLoaded", () => {
             container.innerHTML = html;
         },
         async shareScreenshot() {
-            // 一括確認タブ内のリストを正しく指定するよう修正
             const target = document.getElementById('allResultsContainer');
             if (!target) return;
             
@@ -964,26 +994,20 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.innerText = "画像を作成中...";
             
             try {
-                // 描画の安定化のため少し待機
                 await new Promise(r => setTimeout(r, 200));
-                
                 const canvas = await html2canvas(target, { scale: 2, backgroundColor: "#ffffff" });
                 
                 canvas.toBlob(async (blob) => {
                     const file = new File([blob], `発注目安.png`, { type: "image/png" });
                     
                     try {
-                        // iPadの標準シェア機能を試行
                         if (navigator.canShare && navigator.canShare({ files: [file] })) {
                             await navigator.share({ files: [file] });
                         } else {
                             throw new Error("Share API is restricted");
                         }
                     } catch (shareErr) {
-                        // Safariのセキュリティ等でブロックされた場合のバックアップ
-                        // 画面上に画像をポップアップ表示して長押し保存を促す
                         const imgUrl = canvas.toDataURL("image/png");
-                        
                         const overlay = document.createElement('div');
                         overlay.style.position = 'fixed';
                         overlay.style.top = '0'; overlay.style.left = '0';
