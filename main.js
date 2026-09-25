@@ -285,6 +285,9 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     window.AIStatusDashboard = AIStatusDashboard;
 
+    // ==========================================
+    // 【修正箇所】AIによる曜日比率の最適化ロジック
+    // ==========================================
     const AIOptimizer = {
         checkAndRenderProposal() {
             const store = State.data.currentStore; const cat = State.data.currentCategory;
@@ -297,7 +300,9 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const history = State.data.stores[store]?.categories[cat]?.history || {};
-            let learnedCount = 0; let daySums = {sun:[], mon:[], tue:[], wed:[], thu:[], fri:[], sat:[]};
+            let learnedCount = 0; 
+            // 予測との誤差ではなく、純粋な「実際の販売数」を曜日ごとにストックする
+            let dayActuals = {sun:[], mon:[], tue:[], wed:[], thu:[], fri:[], sat:[]};
 
             Object.keys(history).forEach(dStr => {
                 const h = history[dStr];
@@ -305,32 +310,48 @@ document.addEventListener("DOMContentLoaded", () => {
                     learnedCount++;
                     const dObj = new Date(dStr);
                     const dayKey = ['sun','mon','tue','wed','thu','fri','sat'][dObj.getDay()];
-                    const pred = parseFloat(h.pred); const act = parseFloat(h.actual);
-                    if (!isNaN(pred) && !isNaN(act) && pred > 0) daySums[dayKey].push(act / pred);
+                    const act = parseFloat(h.actual);
+                    if (!isNaN(act)) dayActuals[dayKey].push(act);
                 }
             });
 
             if (learnedCount >= 28) {
-                let newRatios = {}; let hasDataForCalc = false;
-                ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
-                    if (daySums[d].length > 0) {
-                        const avgRatio = daySums[d].reduce((a,b)=>a+b,0) / daySums[d].length;
-                        newRatios[d] = Math.max(0.5, Math.min(2.0, Math.round(avgRatio * 10) / 10));
-                        hasDataForCalc = true;
-                    }
+                // まず、全データにおける「1日あたりの平均販売数（全体平均）」を計算する
+                let totalAct = 0; let totalDays = 0;
+                Object.values(dayActuals).forEach(arr => {
+                    arr.forEach(val => { totalAct += val; totalDays++; });
                 });
+                
+                if (totalDays > 0) {
+                    const overallAvg = totalAct / totalDays;
+                    let newRatios = {}; let hasDataForCalc = false;
+                    
+                    if (overallAvg > 0) {
+                        ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
+                            if (dayActuals[d].length > 0) {
+                                // 各曜日の平均販売数を計算
+                                const dayAvg = dayActuals[d].reduce((a,b)=>a+b,0) / dayActuals[d].length;
+                                // 曜日平均 ÷ 全体平均 ＝ その曜日の売上ボリューム比率（倍率）
+                                const calcRatio = dayAvg / overallAvg;
+                                // 安全のため、倍率は0.5〜2.0の間に収め、小数第1位で丸める
+                                newRatios[d] = Math.max(0.5, Math.min(2.0, Math.round(calcRatio * 10) / 10));
+                                hasDataForCalc = true;
+                            }
+                        });
+                    }
 
-                if (hasDataForCalc) {
-                    window._pendingAiRatios = newRatios;
-                    container.innerHTML = `
-                        <div class="card" style="background: #fff5e6; border: 2px solid var(--seven-red); margin-bottom: 0;">
-                            <div style="font-weight:bold; font-size: 1.1rem; color: var(--seven-red); margin-bottom: 8px;">🧠 AI月間最適化の提案</div>
-                            <div style="font-size: 0.95rem; margin-bottom: 16px;">約1ヶ月のデータに基づき、曜日の売上比率を自動調整しました。</div>
-                            <button onclick="AIOptimizer.applyProposal()" class="btn btn-primary">曜日係数を一括更新する</button>
-                        </div>
-                    `;
-                    container.style.display = 'block';
-                    return;
+                    if (hasDataForCalc) {
+                        window._pendingAiRatios = newRatios;
+                        container.innerHTML = `
+                            <div class="card" style="background: #fff5e6; border: 2px solid var(--seven-red); margin-bottom: 0;">
+                                <div style="font-weight:bold; font-size: 1.1rem; color: var(--seven-red); margin-bottom: 8px;">🧠 AI月間最適化の提案</div>
+                                <div style="font-size: 0.95rem; margin-bottom: 16px;">約1ヶ月の実売データに基づき、曜日ごとの正しいボリューム比率を算出しました。</div>
+                                <button onclick="AIOptimizer.applyProposal()" class="btn btn-primary">曜日係数を一括更新する</button>
+                            </div>
+                        `;
+                        container.style.display = 'block';
+                        return;
+                    }
                 }
             }
             container.style.display = 'none';
@@ -343,11 +364,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (el && r[d]) el.value = r[d].toFixed(1);
             });
             State.updateInputData(); Logic.calculate(false, false);
-            alert("曜日比率が更新されました！");
+            alert("曜日比率が正しく更新されました！");
             document.getElementById('aiProposalContainer').style.display = 'none';
         }
     };
     window.AIOptimizer = AIOptimizer;
+    // ==========================================
 
     const ChartModule = {
         chart: null,
@@ -688,7 +710,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         
                         let idx = ts.timeDefines.findIndex(t => t.startsWith(tDateStr));
                         
-                        // 天気と降水確率の取得
                         if (idx !== -1 && aData.weathers && aData.weathers[idx] && weatherText === "不明") {
                             weatherText = aData.weathers[idx];
                         }
@@ -701,7 +722,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             });
                         }
                         
-                        // 週間予報枠からの最高・最低気温の取得
                         if (idx !== -1) {
                             if (aData.tempsMax && aData.tempsMax[idx] && aData.tempsMax[idx] !== "") { 
                                 tMax = aData.tempsMax[idx]; 
@@ -711,7 +731,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         }
                         
-                        // 短期予報枠からの気温の取得（11時以降の更新でズレた場合用）
                         if (aData.temps) {
                             ts.timeDefines.forEach((t, i) => {
                                 if (t.startsWith(tDateStr) && aData.temps[i] && aData.temps[i] !== "") {
@@ -722,13 +741,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                // 週間予報で取得できなかった場合、短期予報のデータから割り出す
                 if (!tMax && !tMin && shortTermTemps.length > 0) {
                     if (shortTermTemps.length >= 2) {
                         tMin = Math.min(...shortTermTemps);
                         tMax = Math.max(...shortTermTemps);
                     } else if (shortTermTemps.length === 1) {
-                        tMax = shortTermTemps[0]; // 1つしかない場合は日中の最高気温であることが多い
+                        tMax = shortTermTemps[0];
                     }
                 }
 
