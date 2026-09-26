@@ -286,7 +286,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.AIStatusDashboard = AIStatusDashboard;
 
     // ==========================================
-    // 【修正箇所】AIによる曜日比率の最適化ロジック
+    // 【修正箇所】AIによる曜日比率の最適化ロジック (全分類一括更新を追加)
     // ==========================================
     const AIOptimizer = {
         checkAndRenderProposal() {
@@ -301,7 +301,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const history = State.data.stores[store]?.categories[cat]?.history || {};
             let learnedCount = 0; 
-            // 予測との誤差ではなく、純粋な「実際の販売数」を曜日ごとにストックする
             let dayActuals = {sun:[], mon:[], tue:[], wed:[], thu:[], fri:[], sat:[]};
 
             Object.keys(history).forEach(dStr => {
@@ -316,7 +315,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             if (learnedCount >= 28) {
-                // まず、全データにおける「1日あたりの平均販売数（全体平均）」を計算する
                 let totalAct = 0; let totalDays = 0;
                 Object.values(dayActuals).forEach(arr => {
                     arr.forEach(val => { totalAct += val; totalDays++; });
@@ -329,11 +327,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (overallAvg > 0) {
                         ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
                             if (dayActuals[d].length > 0) {
-                                // 各曜日の平均販売数を計算
                                 const dayAvg = dayActuals[d].reduce((a,b)=>a+b,0) / dayActuals[d].length;
-                                // 曜日平均 ÷ 全体平均 ＝ その曜日の売上ボリューム比率（倍率）
                                 const calcRatio = dayAvg / overallAvg;
-                                // 安全のため、倍率は0.5〜2.0の間に収め、小数第1位で丸める
                                 newRatios[d] = Math.max(0.5, Math.min(2.0, Math.round(calcRatio * 10) / 10));
                                 hasDataForCalc = true;
                             }
@@ -344,9 +339,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         window._pendingAiRatios = newRatios;
                         container.innerHTML = `
                             <div class="card" style="background: #fff5e6; border: 2px solid var(--seven-red); margin-bottom: 0;">
-                                <div style="font-weight:bold; font-size: 1.1rem; color: var(--seven-red); margin-bottom: 8px;">🧠 AI月間最適化の提案</div>
+                                <div style="font-weight:bold; font-size: 1.1rem; color: var(--seven-red); margin-bottom: 12px;">🧠 AI月間最適化の提案</div>
                                 <div style="font-size: 0.95rem; margin-bottom: 16px;">約1ヶ月の実売データに基づき、曜日ごとの正しいボリューム比率を算出しました。</div>
-                                <button onclick="AIOptimizer.applyProposal()" class="btn btn-primary">曜日係数を一括更新する</button>
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+                                    <button onclick="AIOptimizer.applyProposal()" class="btn btn-primary" style="min-height: 48px; font-size: 1.1rem;">現在の分類だけを更新</button>
+                                    <button onclick="AIOptimizer.applyAllProposals()" class="btn btn-outline" style="min-height: 48px; font-size: 1.1rem; border-color: var(--seven-red); color: var(--seven-red); font-weight: bold;">条件を満たす「全分類」を一括更新</button>
+                                </div>
                             </div>
                         `;
                         container.style.display = 'block';
@@ -366,6 +364,73 @@ document.addEventListener("DOMContentLoaded", () => {
             State.updateInputData(); Logic.calculate(false, false);
             alert("曜日比率が正しく更新されました！");
             document.getElementById('aiProposalContainer').style.display = 'none';
+        },
+        applyAllProposals() {
+            const store = State.data.currentStore;
+            if (!store || !State.data.stores[store]) return;
+            
+            let updatedCats = [];
+            const cats = Object.keys(State.data.stores[store].categories);
+            
+            cats.forEach(c => {
+                const history = State.data.stores[store].categories[c].history || {};
+                let learnedCount = 0; 
+                let dayActuals = {sun:[], mon:[], tue:[], wed:[], thu:[], fri:[], sat:[]};
+
+                Object.keys(history).forEach(dStr => {
+                    const h = history[dStr];
+                    if (h && h.isLearned && h.actual !== "") {
+                        learnedCount++;
+                        const dObj = new Date(dStr);
+                        const dayKey = ['sun','mon','tue','wed','thu','fri','sat'][dObj.getDay()];
+                        const act = parseFloat(h.actual);
+                        if (!isNaN(act)) dayActuals[dayKey].push(act);
+                    }
+                });
+
+                if (learnedCount >= 28) {
+                    let totalAct = 0; let totalDays = 0;
+                    Object.values(dayActuals).forEach(arr => {
+                        arr.forEach(val => { totalAct += val; totalDays++; });
+                    });
+                    
+                    if (totalDays > 0) {
+                        const overallAvg = totalAct / totalDays;
+                        if (overallAvg > 0) {
+                            let newRatios = {};
+                            ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
+                                if (dayActuals[d].length > 0) {
+                                    const dayAvg = dayActuals[d].reduce((a,b)=>a+b,0) / dayActuals[d].length;
+                                    const calcRatio = dayAvg / overallAvg;
+                                    newRatios[d] = Math.max(0.5, Math.min(2.0, Math.round(calcRatio * 10) / 10));
+                                }
+                            });
+                            
+                            // データがない場合は初期化
+                            if (!State.data.stores[store].categories[c].ratios) {
+                                State.data.stores[store].categories[c].ratios = {mon:"1.0", tue:"1.0", wed:"1.0", thu:"1.0", fri:"1.0", sat:"1.0", sun:"1.0"};
+                            }
+                            
+                            // 比率を上書き保存
+                            Object.keys(newRatios).forEach(d => {
+                                State.data.stores[store].categories[c].ratios[d] = newRatios[d].toFixed(1);
+                            });
+                            
+                            updatedCats.push(c);
+                        }
+                    }
+                }
+            });
+
+            if (updatedCats.length > 0) {
+                State.save();
+                UI.restoreCategoryInputs(); // 現在の画面に反映
+                Logic.calculate(false, false);
+                alert(`以下の分類の曜日比率をAIで一括最適化しました！\n\n${updatedCats.join(", ")}`);
+                document.getElementById('aiProposalContainer').style.display = 'none';
+            } else {
+                alert("一括最適化に必要なデータ（28件以上）が蓄積されている分類がありませんでした。");
+            }
         }
     };
     window.AIOptimizer = AIOptimizer;
